@@ -1,13 +1,13 @@
 // Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 // --------------------------------------------------------------------------------
 // Tool Version: Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-// Date        : Sun Jun  9 13:39:14 2024
+// Date        : Fri Jun 14 14:46:23 2024
 // Host        : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 // Command     : write_verilog -force -mode synth_stub
-//               C:/Users/user/VivadoProjects/2018-3/pwm_demo/ip/dds_compiler_0_1/dds_compiler_0_stub.v
+//               C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo/ip/dds_compiler_0_1/dds_compiler_0_stub.v
 // Design      : dds_compiler_0
 // Purpose     : Stub declaration of top-level module interface
-// Device      : xc7z020clg400-2
+// Device      : xc7z010clg400-1
 // --------------------------------------------------------------------------------
 
 // This empty module with port declaration file causes synthesis tools to infer a black box for IP.

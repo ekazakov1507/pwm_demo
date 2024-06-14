@@ -13,11 +13,11 @@ Compiling package ieee.std_logic_1164
 Compiling package ieee.numeric_std
 Compiling package unisim.vcomponents
 Compiling package unimacro.vcomponents
-Compiling package ieee.std_logic_arith
-Compiling package ieee.std_logic_signed
 Compiling package ieee.vital_timing
 Compiling package ieee.vital_primitives
 Compiling package unisim.vpkg
+Compiling package ieee.std_logic_arith
+Compiling package ieee.std_logic_signed
 Compiling package xbip_utils_v3_0_9.xbip_utils_v3_0_9_pkg
 Compiling package xbip_utils_v3_0_9.xcc_utils_v3_0
 Compiling package dds_compiler_v6_0_17.dds_compiler_v6_0_17_viv_comp
@@ -31,6 +31,7 @@ Compiling package axi_utils_v2_0_5.axi_utils_comps
 Compiling package ieee.std_logic_unsigned
 Compiling package dds_compiler_v6_0_17.pkg_betas
 Compiling package dds_compiler_v6_0_17.pkg_alphas
+Compiling architecture obuf_v of entity unisim.OBUF [\OBUF(1,9)(1,7)(1,4)\]
 Compiling architecture ibuf_v of entity unisim.IBUF [\IBUF(1,9)(1,1)(1,4)(1,7)\]
 Compiling architecture bufg_v of entity unisim.BUFG [bufg_default]
 Compiling architecture mmcme2_adv_v of entity unisim.MMCME2_ADV [\MMCME2_ADV(clkfbout_mult_f=8.0,...]

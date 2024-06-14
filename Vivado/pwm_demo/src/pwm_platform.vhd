@@ -20,7 +20,8 @@ architecture src of pwm_platform is
   signal enable : std_logic := '0';
   signal ibuf_clk : std_logic := '0';
   signal gbuf_clk : std_logic := '0';
-  signal clk_mmcm_1 : std_logic := '0';  
+  signal clk_mmcm_1 : std_logic := '0';
+  signal clk_mmcm_2 : std_logic := '0';
   signal mmcm_clk_lock : std_logic := '0';
   signal clk_mmcm_fb_out : std_logic ; 
   signal clk_mmcm_fb_in : std_logic ;
@@ -39,8 +40,10 @@ architecture src of pwm_platform is
   end component dds_compiler_0;
 
   signal resolution_button : std_logic := '0';
+  signal sync_resolution_button_state : std_logic := '0';
+
   signal pwm_ref_step : std_logic_vector(15 downto 0) := (others => '0');
-  signal ref_reset : std_logic := '0';
+  signal ref_reset : std_logic := 'U';
   signal pwm_channels : std_logic_vector(4-1 downto 0) := (others => '0');
 
   component pwm_l is
@@ -103,17 +106,18 @@ begin
 
   MMCM_ADV : MMCME2_ADV
     generic map (
-      CLKIN1_PERIOD => 8.0,
-      CLKFBOUT_MULT_F  => 8.0, 
+      CLKFBOUT_MULT_F => 8.0,  
+      CLKIN1_PERIOD => 10.0,
+      CLKIN2_PERIOD => 10.0, 
       CLKOUT1_PHASE => 0.0,
       CLKOUT1_DIVIDE => 8,
       CLKOUT2_PHASE => 0.0,
-      CLKOUT2_DIVIDE => 8
+      CLKOUT2_DIVIDE => 4
     )
     port map (             
       CLKINSEL => '1',
       CLKIN1   => gbuf_clk,
-      CLKIN2   => '0',
+      CLKIN2   => gbuf_clk,
       DADDR    => "0000000",
       DCLK => '0',
       DEN => '0',
@@ -129,6 +133,7 @@ begin
         RST      => '0',
         CLKFBOUT => clk_mmcm_fb_in,
       CLKOUT1 => clk_mmcm_1,
+      CLKOUT2 => clk_mmcm_2,
       LOCKED => mmcm_clk_lock
     );
 
@@ -154,24 +159,47 @@ begin
         end if;
   end process;
 
-  pwm_resolution_changer : process(clk_mmcm_1, pwm_ref_step, ref_reset, resolution_button)
-      variable stage : unsigned(2 downto 0) := b"000";
+  t_latch_for_button : process(clk_mmcm_1, resolution_button, sync_resolution_button_state)
+
+    begin
+      if rising_edge(clk_mmcm_1) then
+        if resolution_button = '0' then
+          sync_resolution_button_state <= '0';
+        elsif resolution_button = '1' then
+          sync_resolution_button_state <= '1';
+        end if;
+      end if;
+
+  end process;
+
+  pwm_resolution_changer : process(clk_mmcm_1, pwm_ref_step, ref_reset, sync_resolution_button_state)
+      -- variable stage : unsigned(2 downto 0) := b"000";
+      variable stage : std_logic := '0';
       begin
-          if rising_edge(resolution_button) then
-            stage := unsigned(stage) + 1;
+        -- if rising_edge(clk_mmcm_1) then
+          if rising_edge(sync_resolution_button_state) then
+            -- stage := unsigned(stage) + 1;
+            stage := not stage;
             ref_reset <= '1';
-            case stage is
-              when b"000" => pwm_ref_step <= x"0001"; -- 1 
-              when b"001" => pwm_ref_step <= x"0003"; -- 3
-              when b"011" => pwm_ref_step <= x"0033"; -- 51
-              when b"100" => pwm_ref_step <= x"00ff"; -- 255
-              when b"101" => pwm_ref_step <= x"0303"; -- 771
+            --case stage is -- 4 regiems
+            --  when b"000" => pwm_ref_step <= x"0001"; -- 1 
+            --  when b"001" => pwm_ref_step <= x"0003"; -- 3
+            --  when b"011" => pwm_ref_step <= x"0033"; -- 51
+            --  when b"100" => pwm_ref_step <= x"00ff"; -- 255
+            --  when b"101" => pwm_ref_step <= x"0303"; -- 771
+            --  when others => pwm_ref_step <= x"0000";
+            --end case;
+            case stage is -- 2 regimes
+              -- when '0' => pwm_ref_step <= x"00ff"; -- 255
+              when '0' => pwm_ref_step <= x"0303"; -- 255 // 771
+              when '1' => pwm_ref_step <= x"0303"; -- 771
               when others => pwm_ref_step <= x"0000";
             end case;
           end if;
-          if falling_edge(resolution_button) then
+          if falling_edge(sync_resolution_button_state) then
               ref_reset <= '0';
           end if;
+        -- end if;
   end process;
 
   left_pwm_1channel : pwm_l
@@ -188,7 +216,7 @@ begin
   centered_pwm_1channel : pwm_c
     port map (
       enable => enable,
-      clk => clk_mmcm_1,
+      clk => clk_mmcm_2,
       modulated_wave => sin_input,
       counter_step => pwm_ref_step,
       counter_reset => ref_reset,

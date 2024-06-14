@@ -28,7 +28,8 @@ begin
    		sys_pwm_channels => pwm_channels
       );
 
-    clk <= not clk after 5 ns; 
+    -- clk <= not clk after 5 ns; -- 100 MHz
+    clk <= not clk after 4 ns; -- 125 MHz
 
     test_pwm_resolution_button : process
      	begin

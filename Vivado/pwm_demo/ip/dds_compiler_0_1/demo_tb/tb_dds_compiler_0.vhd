@@ -161,7 +161,7 @@ begin
     wait for T_HOLD;
 
     -- Run for long enough to produce 5 periods of outputs
-    wait for CLOCK_PERIOD * 32768;
+    wait for CLOCK_PERIOD * 4965;
 
     -- End of test
     end_of_simulation <= true;           

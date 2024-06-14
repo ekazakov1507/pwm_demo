@@ -47,8 +47,10 @@ begin
 				counter <= counter - counter_step;
 			elsif counter = x"0000" then
 				counter_updown <= '1';
+				counter <= counter + counter_step;
 			elsif counter = x"ffff" then
 				counter_updown <= '0';
+				counter <= counter - counter_step;
 			end if;
 		end if;
 	end process;

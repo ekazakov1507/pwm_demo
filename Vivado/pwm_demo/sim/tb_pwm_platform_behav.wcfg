@@ -10,18 +10,22 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="261851007000fs"></ZoomStartTime>
-      <ZoomEndTime time="261974607001fs"></ZoomEndTime>
-      <Cursor1Time time="262014007000fs"></Cursor1Time>
+      <ZoomStartTime time="157644090000fs"></ZoomStartTime>
+      <ZoomEndTime time="170104090001fs"></ZoomEndTime>
+      <Cursor1Time time="168024090000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="175"></NameColumnWidth>
-      <ValueColumnWidth column_width="120"></ValueColumnWidth>
+      <ValueColumnWidth column_width="110"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="18" />
-   <wvobject fp_name="/tb_pwm_platform/clk" type="logic">
-      <obj_property name="ElementShortName">clk</obj_property>
-      <obj_property name="ObjectShortName">clk</obj_property>
+   <WVObjectSize size="22" />
+   <wave_markers>
+      <marker time="22405000000" label="" />
+      <marker time="30324000000" label="" />
+   </wave_markers>
+   <wvobject fp_name="/tb_pwm_platform/stand/sys_clk" type="logic">
+      <obj_property name="ElementShortName">sys_clk</obj_property>
+      <obj_property name="ObjectShortName">sys_clk</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_platform/stand/mmcm_clk_lock" type="logic">
       <obj_property name="ElementShortName">mmcm_clk_lock</obj_property>
@@ -34,6 +38,10 @@
    <wvobject fp_name="/tb_pwm_platform/stand/clk_mmcm_1" type="logic">
       <obj_property name="ElementShortName">clk_mmcm_1</obj_property>
       <obj_property name="ObjectShortName">clk_mmcm_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/clk_mmcm_2" type="logic">
+      <obj_property name="ElementShortName">clk_mmcm_2</obj_property>
+      <obj_property name="ObjectShortName">clk_mmcm_2</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_platform/resolution_button" type="logic">
       <obj_property name="ElementShortName">resolution_button</obj_property>
@@ -74,13 +82,31 @@
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
       <obj_property name="AnalogYRangeType">ANALOG_YRANGETYPE_FIXED</obj_property>
       <obj_property name="AnalogYRangeMin">1.84467e+19</obj_property>
-      <obj_property name="AnalogYRRangeMax">44620</obj_property>
+      <obj_property name="AnalogYRRangeMax">63444</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter" type="array">
+      <obj_property name="ElementShortName">counter[15:0]</obj_property>
+      <obj_property name="ObjectShortName">counter[15:0]</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter" type="array">
+      <obj_property name="ElementShortName">counter[15:0]</obj_property>
+      <obj_property name="ObjectShortName">counter[15:0]</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_platform/stand/left_pwm_1channel/modulated_wave" type="array">
       <obj_property name="ElementShortName">modulated_wave[15:0]</obj_property>
       <obj_property name="ObjectShortName">modulated_wave[15:0]</obj_property>
       <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
       <obj_property name="CellHeight">100</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/left_pwm_1channel/modulated_wave" type="array">
+      <obj_property name="ElementShortName">modulated_wave[15:0]</obj_property>
+      <obj_property name="ObjectShortName">modulated_wave[15:0]</obj_property>
+      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_platform/pwm_channels" type="array">
