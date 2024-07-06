@@ -1,9 +1,0 @@
-0.6
-2018.3
-Dec  7 2018
-00:33:28
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo/ip/dds_compiler_0_1/sim/dds_compiler_0.vhd,1718365492,vhdl,,,,dds_compiler_0,,,,,,,,
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo/src/pwm_c.vhd,1718374760,vhdl,,,,pwm_c,,,,,,,,
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo/src/pwm_l.vhd,1717947501,vhdl,,,,pwm_l,,,,,,,,
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo/src/pwm_platform.vhd,1718376912,vhdl,,,,pwm_platform,,,,,,,,
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo/tb/tb_pwm_platform.vhd,1718377393,vhdl,,,,tb_pwm_platform,,,,,,,,

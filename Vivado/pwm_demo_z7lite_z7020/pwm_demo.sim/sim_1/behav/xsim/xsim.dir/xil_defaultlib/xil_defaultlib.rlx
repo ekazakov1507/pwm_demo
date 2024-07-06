@@ -1,0 +1,8 @@
+0.6
+2018.3
+Dec  7 2018
+00:33:28
+C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_z7lite_z7020/ip/dds_compiler_0_2/sim/dds_compiler_0.vhd,1720113159,vhdl,,,,dds_compiler_0,,,,,,,,
+C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_z7lite_z7020/src/pwm_c.vhd,1719577180,vhdl,,,,pwm_c,,,,,,,,
+C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_z7lite_z7020/src/pwm_platform.vhd,1720118357,vhdl,,,,pwm_platform,,,,,,,,
+C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_z7lite_z7020/tb/tb_pwm_platform.vhd,1719762382,vhdl,,,,tb_pwm_platform,,,,,,,,
