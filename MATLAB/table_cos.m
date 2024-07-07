@@ -9,7 +9,7 @@ cosine_input = uint8(2^7/2*0.9*cos(2 * pi * f_dds_0 * t) + 2^7/2);
 %plot(t, cosine_input)
 
 bit_cosine_input = de2bi(cosine_input, 7);
-filename = 'output.txt';
+filename = 'cos-table.txt';
 file = fopen(filename, 'w');
 for i = 1:size(bit_cosine_input,1)
   bit_cosine_input(i,:) = flip(bit_cosine_input(i,:));
