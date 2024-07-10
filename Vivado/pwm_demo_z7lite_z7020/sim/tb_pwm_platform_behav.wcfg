@@ -10,15 +10,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="50250000000fs"></ZoomStartTime>
-      <ZoomEndTime time="111150000001fs"></ZoomEndTime>
+      <ZoomStartTime time="0fs"></ZoomStartTime>
+      <ZoomEndTime time="428000000001fs"></ZoomEndTime>
       <Cursor1Time time="101000000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="202"></NameColumnWidth>
-      <ValueColumnWidth column_width="111"></ValueColumnWidth>
+      <ValueColumnWidth column_width="106"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="15" />
+   <WVObjectSize size="10" />
    <wave_markers>
       <marker time="37344667000" label="" />
    </wave_markers>
@@ -56,63 +56,22 @@
       <obj_property name="ObjectShortName">pwm_channels[1:0]</obj_property>
       <obj_property name="isExpanded"></obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_input_7" type="array">
-      <obj_property name="ElementShortName">sin_input_7[6:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_input_7[6:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_input" type="array">
-      <obj_property name="ElementShortName">sin_input[15:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_input[15:0]</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_input_t" type="array">
-      <obj_property name="ElementShortName">sin_input_t[15:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_input_t[15:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_from_dds_0" type="array">
-      <obj_property name="ElementShortName">sin_from_dds_0[15:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_from_dds_0[15:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
-   </wvobject>
    <wvobject fp_name="/tb_pwm_platform/stand/pwm_channels" type="array">
-      <obj_property name="ElementShortName">pwm_channels[3:0]</obj_property>
-      <obj_property name="ObjectShortName">pwm_channels[3:0]</obj_property>
+      <obj_property name="ElementShortName">pwm_channels[1:0]</obj_property>
+      <obj_property name="ObjectShortName">pwm_channels[1:0]</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_sclae_buffer" type="array">
-      <obj_property name="ElementShortName">sin_sclae_buffer[15:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_sclae_buffer[15:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_sclae_buffer_16" type="array">
-      <obj_property name="ElementShortName">sin_sclae_buffer_16[15:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_sclae_buffer_16[15:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">SIGNEDDECRADIX</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_sclae_buffer_7" type="array">
-      <obj_property name="ElementShortName">sin_sclae_buffer_7[6:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_sclae_buffer_7[6:0]</obj_property>
+   <wvobject fp_name="/tb_pwm_platform/stand/angle_cos" type="array">
+      <obj_property name="ElementShortName">angle_cos[10:0]</obj_property>
+      <obj_property name="ObjectShortName">angle_cos[10:0]</obj_property>
       <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
       <obj_property name="CellHeight">100</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <obj_property name="isExpanded"></obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/table_cos" type="array">
+      <obj_property name="ElementShortName">table_cos[6:0]</obj_property>
+      <obj_property name="ObjectShortName">table_cos[6:0]</obj_property>
+      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
+      <obj_property name="CellHeight">100</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
 </wave_config>

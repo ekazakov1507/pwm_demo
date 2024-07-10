@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<GenRun Id="synth_1" LaunchPart="xc7z010clg400-1" LaunchTime="1720172430">
+<GenRun Id="synth_1" LaunchPart="xc7z010clg400-1" LaunchTime="1720551065">
   <File Type="PA-TCL" Name="pwm_platform.tcl"/>
+  <File Type="RDS-PROPCONSTRS" Name="pwm_platform_drc_synth.rpt"/>
   <File Type="REPORTS-TCL" Name="pwm_platform_reports.tcl"/>
   <File Type="RDS-RDS" Name="pwm_platform.vds"/>
   <File Type="RDS-UTIL" Name="pwm_platform_utilization_synth.rpt"/>
   <File Type="RDS-UTIL-PB" Name="pwm_platform_utilization_synth.pb"/>
   <File Type="RDS-DCP" Name="pwm_platform.dcp"/>
+  <File Type="VDS-TIMINGSUMMARY" Name="pwm_platform_timing_summary_synth.rpt"/>
+  <File Type="VDS-TIMING-PB" Name="pwm_platform_timing_summary_synth.pb"/>
   <FileSet Name="sources" Type="DesignSrcs" RelSrcDir="$PSRCDIR/sources_1">
     <Filter Type="Srcs"/>
+    <File Path="$PPRDIR/src/cos_table_gen.vhd">
+      <FileInfo>
+        <Attr Name="UsedIn" Val="synthesis"/>
+        <Attr Name="UsedIn" Val="simulation"/>
+      </FileInfo>
+    </File>
     <File Path="$PPRDIR/src/pwm_c.vhd">
       <FileInfo>
         <Attr Name="UsedIn" Val="synthesis"/>
@@ -56,5 +65,4 @@
     <StratHandle Name="Vivado Synthesis Defaults" Flow="Vivado Synthesis 2018"/>
     <Step Id="synth_design"/>
   </Strategy>
-  <BlockFileSet Type="BlockSrcs" Name="dds_compiler_0"/>
 </GenRun>

@@ -17,7 +17,6 @@ proc create_report { reportName command } {
     send_msg_id runtcl-5 warning "$msg"
   }
 }
-set_param xicom.use_bs_reader 1
 set_msg_config -id {Synth 8-256} -limit 10000
 set_msg_config -id {Synth 8-638} -limit 10000
 create_project -in_memory -part xc7z010clg400-1
@@ -25,7 +24,6 @@ create_project -in_memory -part xc7z010clg400-1
 set_param project.singleFileAddWarning.threshold 0
 set_param project.compositeFile.enableAutoGeneration 0
 set_param synth.vivado.isSynthRun true
-set_msg_config -source 4 -id {IP_Flow 19-2162} -severity warning -new_severity info
 set_property webtalk.parent_dir C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/pwm_demo.cache/wt [current_project]
 set_property parent.project_path C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/pwm_demo.xpr [current_project]
 set_property default_lib xil_defaultlib [current_project]
@@ -33,12 +31,10 @@ set_property target_language VHDL [current_project]
 set_property ip_output_repo c:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/pwm_demo.cache/ip [current_project]
 set_property ip_cache_permissions {read write} [current_project]
 read_vhdl -library xil_defaultlib {
+  C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/cos_table_gen.vhd
   C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_c.vhd
   C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_platform.vhd
 }
-read_ip -quiet C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/ip/dds_compiler_0_1/dds_compiler_0.xci
-set_property used_in_implementation false [get_files -all c:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/ip/dds_compiler_0_1/dds_compiler_0_ooc.xdc]
-
 # Mark all dcp files as not used in implementation to prevent them from being
 # stitched into the results of this synthesis run. Any black boxes in the
 # design are intentionally left as such for best results. Dcp files will be

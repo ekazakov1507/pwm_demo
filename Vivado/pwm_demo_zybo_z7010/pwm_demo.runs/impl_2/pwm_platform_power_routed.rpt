@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date             : Fri Jul  5 12:43:12 2024
+| Date             : Tue Jul  9 21:53:42 2024
 | Host             : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 | Command          : report_power -file pwm_platform_power_routed.rpt -pb pwm_platform_power_summary_routed.pb -rpx pwm_platform_power_routed.rpx
 | Design           : pwm_platform
@@ -30,14 +30,14 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.261        |
+| Total On-Chip Power (W)  | 0.220        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.166        |
-| Device Static (W)        | 0.095        |
+| Dynamic (W)              | 0.126        |
+| Device Static (W)        | 0.094        |
 | Effective TJA (C/W)      | 11.5         |
-| Max Ambient (C)          | 82.0         |
-| Junction Temperature (C) | 28.0         |
+| Max Ambient (C)          | 82.5         |
+| Junction Temperature (C) | 27.5         |
 | Confidence Level         | Medium       |
 | Setting File             | ---          |
 | Simulation Activity File | ---          |
@@ -52,19 +52,19 @@ Table of Contents
 +-------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                 | Power (W) | Used     | Available | Utilization (%) |
 +-------------------------+-----------+----------+-----------+-----------------+
-| Clocks                  |     0.005 |        6 |       --- |             --- |
-| Slice Logic             |     0.004 |      236 |       --- |             --- |
-|   Others                |     0.002 |       24 |       --- |             --- |
-|   LUT as Logic          |     0.001 |       72 |     17600 |            0.41 |
-|   Register              |    <0.001 |      107 |     35200 |            0.30 |
-|   CARRY4                |    <0.001 |       15 |      4400 |            0.34 |
+| Clocks                  |     0.003 |        6 |       --- |             --- |
+| Slice Logic             |     0.003 |      247 |       --- |             --- |
+|   LUT as Logic          |     0.003 |      137 |     17600 |            0.78 |
+|   F7/F8 Muxes           |    <0.001 |       34 |     17600 |            0.19 |
+|   CARRY4                |    <0.001 |       10 |      4400 |            0.23 |
+|   Register              |    <0.001 |       45 |     35200 |            0.13 |
 |   LUT as Shift Register |    <0.001 |        1 |      6000 |            0.02 |
-| Signals                 |     0.003 |      159 |       --- |             --- |
-| Block RAM               |     0.035 |      7.5 |        60 |           12.50 |
+|   Others                |     0.000 |        6 |       --- |             --- |
+| Signals                 |     0.003 |      139 |       --- |             --- |
 | MMCM                    |     0.107 |        1 |         2 |           50.00 |
-| I/O                     |     0.011 |        4 |       100 |            4.00 |
-| Static Power            |     0.095 |          |           |                 |
-| Total                   |     0.261 |          |           |                 |
+| I/O                     |     0.009 |        4 |       100 |            4.00 |
+| Static Power            |     0.094 |          |           |                 |
+| Total                   |     0.220 |          |           |                 |
 +-------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -74,16 +74,16 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) |
 +-----------+-------------+-----------+-------------+------------+
-| Vccint    |       1.000 |     0.048 |       0.044 |      0.004 |
-| Vccaux    |       1.800 |     0.066 |       0.061 |      0.006 |
-| Vcco33    |       3.300 |     0.004 |       0.003 |      0.001 |
+| Vccint    |       1.000 |     0.015 |       0.011 |      0.004 |
+| Vccaux    |       1.800 |     0.065 |       0.059 |      0.005 |
+| Vcco33    |       3.300 |     0.003 |       0.002 |      0.001 |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |
 | Vcco18    |       1.800 |     0.000 |       0.000 |      0.000 |
 | Vcco15    |       1.500 |     0.000 |       0.000 |      0.000 |
 | Vcco135   |       1.350 |     0.000 |       0.000 |      0.000 |
 | Vcco12    |       1.200 |     0.000 |       0.000 |      0.000 |
 | Vccaux_io |       1.800 |     0.000 |       0.000 |      0.000 |
-| Vccbram   |       1.000 |     0.003 |       0.003 |      0.000 |
+| Vccbram   |       1.000 |     0.000 |       0.000 |      0.000 |
 | MGTAVcc   |       1.000 |     0.000 |       0.000 |      0.000 |
 | MGTAVtt   |       1.200 |     0.000 |       0.000 |      0.000 |
 | MGTVccaux |       1.800 |     0.000 |       0.000 |      0.000 |
@@ -153,11 +153,9 @@ Table of Contents
 +-------------------------+-----------+
 | Name                    | Power (W) |
 +-------------------------+-----------+
-| pwm_platform            |     0.166 |
-|   centered_pwm_1channel |     0.002 |
-|   sinegen               |     0.042 |
-|     U0                  |     0.042 |
-|       i_synth           |     0.042 |
+| pwm_platform            |     0.126 |
+|   centered_pwm_1channel |     0.001 |
+|   costabgen             |     0.006 |
 +-------------------------+-----------+
 
 

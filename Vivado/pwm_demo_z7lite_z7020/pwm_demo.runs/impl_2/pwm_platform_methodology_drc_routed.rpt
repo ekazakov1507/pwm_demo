@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Thu Jul  4 22:14:40 2024
+| Date         : Tue Jul  9 21:53:47 2024
 | Host         : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 | Command      : report_methodology -file pwm_platform_methodology_drc_routed.rpt -pb pwm_platform_methodology_drc_routed.pb -rpx pwm_platform_methodology_drc_routed.rpx
 | Design       : pwm_platform
@@ -23,61 +23,15 @@ Table of Contents
           Floorplan: design_1
       Design limits: <entire design considered>
              Max violations: <unlimited>
-             Violations found: 10
+             Violations found: 1
 +-----------+----------+-----------------------------+------------+
 | Rule      | Severity | Description                 | Violations |
 +-----------+----------+-----------------------------+------------+
-| TIMING-16 | Warning  | Large setup violation       | 9          |
 | TIMING-17 | Warning  | Non-clocked sequential cell | 1          |
 +-----------+----------+-----------------------------+------------+
 
 2. REPORT DETAILS
 -----------------
-TIMING-16#1 Warning
-Large setup violation  
-There is a large setup violation of -1.043 ns between sin_input_7_reg[3]/C (clocked by clk_mmcm_1) and centered_pwm_1channel/pwm_reg/D (clocked by clk_mmcm_2). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#2 Warning
-Large setup violation  
-There is a large setup violation of -1.082 ns between sinegen/U0/i_synth/i_dds/I_SINCOS.i_std_rom.i_rom/i_rtl.i_quarter_table.i_piped_map.i_cardinal_sin_ls/opt_has_pipe.first_q_reg[2]/C (clocked by clk_mmcm_2) and sin_input_reg[11]/D (clocked by clk_mmcm_1). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#3 Warning
-Large setup violation  
-There is a large setup violation of -1.145 ns between sinegen/U0/i_synth/i_dds/I_SINCOS.i_std_rom.i_rom/i_rtl.i_quarter_table.i_piped_map.i_cardinal_sin_ls/opt_has_pipe.first_q_reg[2]/C (clocked by clk_mmcm_2) and sin_input_reg[12]/D (clocked by clk_mmcm_1). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#4 Warning
-Large setup violation  
-There is a large setup violation of -1.198 ns between sinegen/U0/i_synth/i_dds/I_SINCOS.i_std_rom.i_rom/i_rtl.i_quarter_table.i_piped_map.i_cardinal_sin_ms/opt_has_pipe.first_q_reg[1]/C (clocked by clk_mmcm_2) and sin_input_reg[13]/D (clocked by clk_mmcm_1). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#5 Warning
-Large setup violation  
-There is a large setup violation of -1.219 ns between sinegen/U0/i_synth/i_dds/I_SINCOS.i_std_rom.i_rom/i_rtl.i_quarter_table.i_piped_map.i_cardinal_sin_ms/opt_has_pipe.first_q_reg[1]/C (clocked by clk_mmcm_2) and sin_input_reg[15]/D (clocked by clk_mmcm_1). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#6 Warning
-Large setup violation  
-There is a large setup violation of -1.277 ns between sinegen/U0/i_synth/i_dds/I_SINCOS.i_std_rom.i_rom/i_rtl.i_quarter_table.i_piped_map.i_cardinal_sin_ms/opt_has_pipe.first_q_reg[1]/C (clocked by clk_mmcm_2) and sin_input_reg[14]/D (clocked by clk_mmcm_1). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#7 Warning
-Large setup violation  
-There is a large setup violation of -1.827 ns between sinegen/U0/i_synth/i_dds/I_SINCOS.i_std_rom.i_rom/i_rtl.i_quarter_table.i_piped_map.i_cardinal_sin_ls/opt_has_pipe.first_q_reg[2]/C (clocked by clk_mmcm_2) and sin_input_reg[9]/D (clocked by clk_mmcm_1). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#8 Warning
-Large setup violation  
-There is a large setup violation of -1.928 ns between sinegen/U0/i_synth/i_dds/I_SINCOS.i_std_rom.i_rom/i_rtl.i_quarter_table.i_piped_map.i_cardinal_sin_ls/opt_has_pipe.first_q_reg[2]/C (clocked by clk_mmcm_2) and sin_input_reg[10]/D (clocked by clk_mmcm_1). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
-TIMING-16#9 Warning
-Large setup violation  
-There is a large setup violation of -2.860 ns between sin_input_7_reg[3]/C (clocked by clk_mmcm_1) and centered_pwm_1channel/pwm_i_reg/R (clocked by clk_mmcm_2). Large setup violations at the end of those stages might be difficult to fix during the post-placement implementation flow and could be the result of non-optimal XDC constraints or non-optimal design architecture
-Related violations: <none>
-
 TIMING-17#1 Warning
 Non-clocked sequential cell  
 The clock pin pwm_ref_step_reg[0]/C is not reached by a timing clock

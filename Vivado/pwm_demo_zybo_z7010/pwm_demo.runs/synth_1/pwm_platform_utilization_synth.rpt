@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 -------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Fri Jul  5 12:41:08 2024
+| Date         : Tue Jul  9 21:51:46 2024
 | Host         : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 | Command      : report_utilization -file pwm_platform_utilization_synth.rpt -pb pwm_platform_utilization_synth.pb
 | Design       : pwm_platform
@@ -27,18 +27,20 @@ Table of Contents
 1. Slice Logic
 --------------
 
-+-------------------------+------+-------+-----------+-------+
-|        Site Type        | Used | Fixed | Available | Util% |
-+-------------------------+------+-------+-----------+-------+
-| Slice LUTs*             |   42 |     0 |     17600 |  0.24 |
-|   LUT as Logic          |   42 |     0 |     17600 |  0.24 |
-|   LUT as Memory         |    0 |     0 |      6000 |  0.00 |
-| Slice Registers         |   27 |     0 |     35200 |  0.08 |
-|   Register as Flip Flop |   27 |     0 |     35200 |  0.08 |
-|   Register as Latch     |    0 |     0 |     35200 |  0.00 |
-| F7 Muxes                |    0 |     0 |      8800 |  0.00 |
-| F8 Muxes                |    0 |     0 |      4400 |  0.00 |
-+-------------------------+------+-------+-----------+-------+
++----------------------------+------+-------+-----------+-------+
+|          Site Type         | Used | Fixed | Available | Util% |
++----------------------------+------+-------+-----------+-------+
+| Slice LUTs*                |  138 |     0 |     17600 |  0.78 |
+|   LUT as Logic             |  137 |     0 |     17600 |  0.78 |
+|   LUT as Memory            |    1 |     0 |      6000 |  0.02 |
+|     LUT as Distributed RAM |    0 |     0 |           |       |
+|     LUT as Shift Register  |    1 |     0 |           |       |
+| Slice Registers            |   45 |     0 |     35200 |  0.13 |
+|   Register as Flip Flop    |   45 |     0 |     35200 |  0.13 |
+|   Register as Latch        |    0 |     0 |     35200 |  0.00 |
+| F7 Muxes                   |   25 |     0 |      8800 |  0.28 |
+| F8 Muxes                   |    9 |     0 |      4400 |  0.20 |
++----------------------------+------+-------+-----------+-------+
 * Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
 
 
@@ -57,7 +59,7 @@ Table of Contents
 | 0     |          Yes |           - |          Set |
 | 0     |          Yes |           - |        Reset |
 | 0     |          Yes |         Set |            - |
-| 27    |          Yes |       Reset |            - |
+| 45    |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -97,12 +99,11 @@ Table of Contents
 | PHASER_REF                  |    0 |     0 |         2 |  0.00 |
 | OUT_FIFO                    |    0 |     0 |         8 |  0.00 |
 | IN_FIFO                     |    0 |     0 |         8 |  0.00 |
-| IDELAYCTRL                  |    1 |     0 |         2 | 50.00 |
+| IDELAYCTRL                  |    0 |     0 |         2 |  0.00 |
 | IBUFDS                      |    0 |     0 |        96 |  0.00 |
 | PHASER_OUT/PHASER_OUT_PHY   |    0 |     0 |         8 |  0.00 |
 | PHASER_IN/PHASER_IN_PHY     |    0 |     0 |         8 |  0.00 |
-| IDELAYE2/IDELAYE2_FINEDELAY |    2 |     0 |       100 |  2.00 |
-|   IDELAYE2 only             |    2 |     0 |           |       |
+| IDELAYE2/IDELAYE2_FINEDELAY |    0 |     0 |       100 |  0.00 |
 | ILOGIC                      |    0 |     0 |       100 |  0.00 |
 | OLOGIC                      |    0 |     0 |       100 |  0.00 |
 +-----------------------------+------+-------+-----------+-------+
@@ -114,7 +115,7 @@ Table of Contents
 +------------+------+-------+-----------+-------+
 |  Site Type | Used | Fixed | Available | Util% |
 +------------+------+-------+-----------+-------+
-| BUFGCTRL   |    1 |     0 |        32 |  3.13 |
+| BUFGCTRL   |    2 |     0 |        32 |  6.25 |
 | BUFIO      |    0 |     0 |         8 |  0.00 |
 | MMCME2_ADV |    1 |     0 |         2 | 50.00 |
 | PLLE2_ADV  |    0 |     0 |         2 |  0.00 |
@@ -147,31 +148,30 @@ Table of Contents
 +------------+------+---------------------+
 |  Ref Name  | Used | Functional Category |
 +------------+------+---------------------+
-| FDRE       |   27 |        Flop & Latch |
-| LUT1       |   20 |                 LUT |
-| LUT4       |   11 |                 LUT |
-| CARRY4     |   11 |          CarryLogic |
-| LUT5       |    7 |                 LUT |
-| LUT2       |    5 |                 LUT |
+| LUT6       |   76 |                 LUT |
+| FDRE       |   45 |        Flop & Latch |
+| MUXF7      |   25 |               MuxFx |
+| LUT4       |   20 |                 LUT |
+| LUT2       |   20 |                 LUT |
+| LUT5       |   18 |                 LUT |
+| LUT3       |   10 |                 LUT |
+| CARRY4     |   10 |          CarryLogic |
+| MUXF8      |    9 |               MuxFx |
+| LUT1       |    7 |                 LUT |
 | OBUF       |    2 |                  IO |
-| LUT6       |    2 |                 LUT |
-| IDELAYE2   |    2 |                  IO |
 | IBUF       |    2 |                  IO |
+| BUFG       |    2 |               Clock |
+| SRL16E     |    1 |  Distributed Memory |
 | MMCME2_ADV |    1 |               Clock |
-| LUT3       |    1 |                 LUT |
-| IDELAYCTRL |    1 |                  IO |
-| BUFG       |    1 |               Clock |
 +------------+------+---------------------+
 
 
 8. Black Boxes
 --------------
 
-+----------------+------+
-|    Ref Name    | Used |
-+----------------+------+
-| dds_compiler_0 |    1 |
-+----------------+------+
++----------+------+
+| Ref Name | Used |
++----------+------+
 
 
 9. Instantiated Netlists

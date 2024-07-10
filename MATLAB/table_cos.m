@@ -16,7 +16,7 @@ for i = 1:size(bit_cosine_input,1)
   bit_cosine_input(i,:) = flip(bit_cosine_input(i,:));
   %disp(i)
   %disp(strrep(num2str(bit_cosine_input(i,:)),' ',''))
-  fprintf(file, '%s,\n', strrep(num2str(bit_cosine_input(i,:)),' ',''));
+  fprintf(file, '"%s",\n', strrep(num2str(bit_cosine_input(i,:)),' ',''));
 endfor
 fclose(file);
 

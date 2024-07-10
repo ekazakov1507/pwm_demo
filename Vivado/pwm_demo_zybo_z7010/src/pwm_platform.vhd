@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
-USE ieee.numeric_std.ALL;
+use ieee.numeric_std.all;
+-- use ieee.std_logic_arith.all;
 
 library UNISIM;
 use UNISIM.VComponents.all;
@@ -26,18 +27,29 @@ architecture src of pwm_platform is
   signal clk_mmcm_fb_out : std_logic ; 
   signal clk_mmcm_fb_in : std_logic ;
 
-  signal sin_from_dds_0 : std_logic_vector(15 downto 0) := (others => '0');
-  signal sin_input_7 : std_logic_vector(6 downto 0) := (others => '0');
-  signal sin_input : std_logic_vector(15 downto 0) := (others => '0');
-  component dds_compiler_0 is
+  --signal sin_from_dds_0 : std_logic_vector(15 downto 0) := (others => '0');
+  --signal sin_input_7 : std_logic_vector(6 downto 0) := (others => '0');
+  --signal sin_input : std_logic_vector(15 downto 0) := (others => '0');
+  --component dds_compiler_0 is
+  --  port (
+  --    aclk : in std_logic;
+  --    m_axis_data_tvalid : out std_logic;
+  --    m_axis_data_tdata : out std_logic_vector(15 DOWNTO 0);
+  --    m_axis_phase_tvalid : out std_logic;
+  --    m_axis_phase_tdata : out std_logic_vector(15 DOWNTO 0)
+  --  );
+  --end component dds_compiler_0;
+
+  signal angle_cos : std_logic_vector(10 downto 0) := (others => '0');
+  signal table_cos : std_logic_vector(6 downto 0) := (others => '0');
+  component cos_table_gen is
     port (
-      aclk : in std_logic;
-      m_axis_data_tvalid : out std_logic;
-      m_axis_data_tdata : out std_logic_vector(15 DOWNTO 0);
-      m_axis_phase_tvalid : out std_logic;
-      m_axis_phase_tdata : out std_logic_vector(15 DOWNTO 0)
+      clk : in std_logic;
+      reset : in std_logic;
+      angle : in std_logic_vector(10 downto 0);
+      cosine_out : out std_logic_vector(6 downto 0)
     );
-  end component dds_compiler_0;
+  end component cos_table_gen;
 
   signal resolution_button : std_logic := '0';
   signal sync_resolution_button_state : std_logic := '0';
@@ -46,7 +58,7 @@ architecture src of pwm_platform is
   signal ref_reset : std_logic := 'U';
   signal pwm_channels : std_logic_vector(1 downto 0) := (others => '0');
   
-  signal delay1, delay2, delay3, delay4 : std_logic := '0';
+  signal delay : std_logic_vector(4 downto 0) := (others => '0');
   signal pwm_channels_delayed : std_logic_vector(1 downto 0) := (others => '0');
 
 
@@ -141,12 +153,20 @@ begin
       LOCKED => mmcm_clk_lock
     );
 
-  sinegen: dds_compiler_0 
-    port map (
-      aclk => clk_mmcm_2,
-      m_axis_data_tdata => sin_from_dds_0
-    );
+  --sinegen: dds_compiler_0 
+  --  port map (
+  --    aclk => clk_mmcm_2,
+  --    m_axis_data_tdata => sin_from_dds_0
+  --  );
   
+  costabgen : cos_table_gen
+    port map (
+      clk => clk_mmcm_2,
+      reset => '0',
+      angle => angle_cos,
+      cosine_out => table_cos
+    );
+
   --pwm_ch0_delay : IDELAYE2
   --  generic map(
   --      IDELAY_TYPE => "FIXED",
@@ -205,11 +225,12 @@ begin
   pwm_ch0_delay : process(clk_mmcm_2, pwm_channels)
     begin
       if rising_edge(clk_mmcm_2) then 
-        delay1 <= pwm_channels(0);
-        delay2 <= delay1;
-        delay3 <= delay2;
-        delay4 <= delay3;
-        pwm_channels_delayed(0) <= delay4;
+        delay(0) <= pwm_channels(0);
+        delay(1) <= delay(0);
+        delay(2) <= delay(1);
+        delay(3) <= delay(2);
+        delay(4) <= delay(3);
+        pwm_channels_delayed(0) <= delay(4);
       end if;
   end process;
 
@@ -220,17 +241,40 @@ begin
       end if;
   end process;
 
-  constrcut_unsigned_sine : process(clk_mmcm_1, sin_from_dds_0, sin_input)
-    constant half_2pow16 : signed(15 downto 0) := b"0111111111111111";
-    constant mask : signed(15 downto 0) := b"0000000000000000"; -- b"0000011111111111";
+  cosine_generator : process(clk_mmcm_2, angle_cos)
+      variable angle_reset : std_logic := '0';
+      variable angle_updown : std_logic := '0';
     begin
-      if rising_edge(clk_mmcm_1) then
-        -- sin_input <= std_logic_vector(to_unsigned(to_integer(signed(sin_from_dds_0(15 downto 0))) + 2**16/2, sin_input'length));
-        sin_input <= std_logic_vector((signed(sin_from_dds_0(15 downto 0)) + half_2pow16) xor mask);
-        sin_input_7 <= sin_input(15 downto 9); 
-        -- sin_input_7 <= sin_from_dds_0(14 downto 8);          
+      if rising_edge(clk_mmcm_2) then
+        if angle_reset = '1' then
+          angle_cos <= b"00000000000";
+          angle_updown := '1';
+        elsif angle_updown = '1' and angle_cos < b"10011100001" then
+          angle_cos <= std_logic_vector(unsigned(angle_cos) + b"00000000001");
+          -- angle_cos <= angle_cos + b"00000000001";
+        elsif angle_updown = '0' and angle_cos > b"00000000000" then
+          angle_cos <= std_logic_vector(unsigned(angle_cos) - b"00000000001");
+        elsif angle_cos = b"00000000000" then
+          angle_updown := '1';
+          angle_cos <= std_logic_vector(unsigned(angle_cos) + b"00000000001");
+        elsif angle_cos = b"10011100001" then
+          angle_updown := '0';
+          angle_cos <= std_logic_vector(unsigned(angle_cos) - b"00000000001");
+        end if;
       end if;
   end process;
+
+  --constrcut_unsigned_sine : process(clk_mmcm_1, sin_from_dds_0, sin_input)
+  --  constant half_2pow16 : signed(15 downto 0) := b"0111111111111111";
+  --  constant mask : signed(15 downto 0) := b"0000000000000000"; -- b"0000011111111111";
+  --  begin
+  --    if rising_edge(clk_mmcm_1) then
+  --      -- sin_input <= std_logic_vector(to_unsigned(to_integer(signed(sin_from_dds_0(15 downto 0))) + 2**16/2, sin_input'length));
+  --      sin_input <= std_logic_vector((signed(sin_from_dds_0(15 downto 0)) + half_2pow16) xor mask);
+  --      sin_input_7 <= sin_input(15 downto 9); 
+  --      -- sin_input_7 <= sin_from_dds_0(14 downto 8);          
+  --    end if;
+  --end process;
 
   enable_control : process(clk_mmcm_1, mmcm_clk_lock) 
       begin
@@ -298,7 +342,7 @@ begin
     port map (
       enable => enable,
       clk => clk_mmcm_2,
-      modulated_wave => sin_input_7,
+      modulated_wave => table_cos,
       counter_step => pwm_ref_step,
       counter_reset => ref_reset,
       pwm => pwm_channels(0),

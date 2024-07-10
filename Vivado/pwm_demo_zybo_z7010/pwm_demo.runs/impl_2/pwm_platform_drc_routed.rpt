@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Fri Jul  5 12:43:10 2024
+| Date         : Tue Jul  9 21:53:41 2024
 | Host         : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 | Command      : report_drc -file pwm_platform_drc_routed.rpt -pb pwm_platform_drc_routed.pb -rpx pwm_platform_drc_routed.rpx
 | Design       : pwm_platform
@@ -24,26 +24,15 @@ Table of Contents
       Design limits: <entire design considered>
            Ruledeck: default
              Max violations: <unlimited>
-             Violations found: 3
-+---------+----------+--------------------+------------+
-| Rule    | Severity | Description        | Violations |
-+---------+----------+--------------------+------------+
-| REQP-86 | Warning  | IDELAY_TYPE_FIXED  | 2          |
-| ZPS7-1  | Warning  | PS7 block required | 1          |
-+---------+----------+--------------------+------------+
+             Violations found: 1
++--------+----------+--------------------+------------+
+| Rule   | Severity | Description        | Violations |
++--------+----------+--------------------+------------+
+| ZPS7-1 | Warning  | PS7 block required | 1          |
++--------+----------+--------------------+------------+
 
 2. REPORT DETAILS
 -----------------
-REQP-86#1 Warning
-IDELAY_TYPE_FIXED  
-pwm_ch0_delay: With IDELAY_TYPE programming FIXED, active input pins INC, REGRST, and CE are not used and will be ignored.
-Related violations: <none>
-
-REQP-86#2 Warning
-IDELAY_TYPE_FIXED  
-pwm_ch1_delay: With IDELAY_TYPE programming FIXED, active input pins INC, REGRST, and CE are not used and will be ignored.
-Related violations: <none>
-
 ZPS7-1#1 Warning
 PS7 block required  
 The PS7 cell must be used in this Zynq design in order to enable correct default configuration.
