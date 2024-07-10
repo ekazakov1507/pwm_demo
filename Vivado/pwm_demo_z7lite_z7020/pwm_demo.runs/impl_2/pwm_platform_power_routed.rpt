@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 ----------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date             : Tue Jul  9 21:53:48 2024
+| Date             : Wed Jul 10 21:03:39 2024
 | Host             : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 | Command          : report_power -file pwm_platform_power_routed.rpt -pb pwm_platform_power_summary_routed.pb -rpx pwm_platform_power_routed.rpx
 | Design           : pwm_platform
@@ -33,7 +33,7 @@ Table of Contents
 | Total On-Chip Power (W)  | 0.220        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.112        |
+| Dynamic (W)              | 0.113        |
 | Device Static (W)        | 0.108        |
 | Effective TJA (C/W)      | 11.5         |
 | Max Ambient (C)          | 82.5         |
@@ -52,17 +52,17 @@ Table of Contents
 +-------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                 | Power (W) | Used     | Available | Utilization (%) |
 +-------------------------+-----------+----------+-----------+-----------------+
-| Clocks                  |     0.004 |        6 |       --- |             --- |
-| Slice Logic             |     0.004 |      247 |       --- |             --- |
-|   LUT as Logic          |     0.003 |      137 |     53200 |            0.26 |
-|   F7/F8 Muxes           |    <0.001 |       34 |     53200 |            0.06 |
-|   CARRY4                |    <0.001 |       10 |     13300 |            0.08 |
-|   Register              |    <0.001 |       45 |    106400 |            0.04 |
+| Clocks                  |     0.003 |        6 |       --- |             --- |
+| Slice Logic             |     0.004 |      237 |       --- |             --- |
+|   LUT as Logic          |     0.004 |      125 |     53200 |            0.23 |
+|   F7/F8 Muxes           |    <0.001 |       33 |     53200 |            0.06 |
+|   Register              |    <0.001 |       43 |    106400 |            0.04 |
+|   CARRY4                |    <0.001 |        4 |     13300 |            0.03 |
 |   LUT as Shift Register |    <0.001 |        1 |     17400 |           <0.01 |
 |   Others                |     0.000 |        6 |       --- |             --- |
-| Signals                 |     0.003 |      146 |       --- |             --- |
+| Signals                 |     0.004 |      121 |       --- |             --- |
 | MMCM                    |     0.093 |        1 |         4 |           25.00 |
-| I/O                     |     0.009 |        4 |       125 |            3.20 |
+| I/O                     |     0.008 |        3 |       125 |            2.40 |
 | Static Power            |     0.108 |          |           |                 |
 | Total                   |     0.220 |          |           |                 |
 +-------------------------+-----------+----------+-----------+-----------------+
@@ -74,7 +74,7 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) |
 +-----------+-------------+-----------+-------------+------------+
-| Vccint    |       1.000 |     0.019 |       0.011 |      0.008 |
+| Vccint    |       1.000 |     0.020 |       0.012 |      0.008 |
 | Vccaux    |       1.800 |     0.062 |       0.052 |      0.011 |
 | Vcco33    |       3.300 |     0.003 |       0.002 |      0.001 |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |
@@ -100,17 +100,17 @@ Table of Contents
 1.3 Confidence Level
 --------------------
 
-+-----------------------------+------------+-------------------------------------------------------+------------------------------------------------------------------------------------------------------------+
-| User Input Data             | Confidence | Details                                               | Action                                                                                                     |
-+-----------------------------+------------+-------------------------------------------------------+------------------------------------------------------------------------------------------------------------+
-| Design implementation state | High       | Design is routed                                      |                                                                                                            |
-| Clock nodes activity        | High       | User specified more than 95% of clocks                |                                                                                                            |
-| I/O nodes activity          | Medium     | More than 5% of inputs are missing user specification | Provide missing input activity with simulation results or by editing the "By Resource Type -> I/Os" view   |
-| Internal nodes activity     | Medium     | User specified less than 25% of internal nodes        | Provide missing internal nodes activity with simulation results or by editing the "By Resource Type" views |
-| Device models               | High       | Device models are Production                          |                                                                                                            |
-|                             |            |                                                       |                                                                                                            |
-| Overall confidence level    | Medium     |                                                       |                                                                                                            |
-+-----------------------------+------------+-------------------------------------------------------+------------------------------------------------------------------------------------------------------------+
++-----------------------------+------------+------------------------------------------------+------------------------------------------------------------------------------------------------------------+
+| User Input Data             | Confidence | Details                                        | Action                                                                                                     |
++-----------------------------+------------+------------------------------------------------+------------------------------------------------------------------------------------------------------------+
+| Design implementation state | High       | Design is routed                               |                                                                                                            |
+| Clock nodes activity        | High       | User specified more than 95% of clocks         |                                                                                                            |
+| I/O nodes activity          | High       | User specified more than 95% of inputs         |                                                                                                            |
+| Internal nodes activity     | Medium     | User specified less than 25% of internal nodes | Provide missing internal nodes activity with simulation results or by editing the "By Resource Type" views |
+| Device models               | High       | Device models are Production                   |                                                                                                            |
+|                             |            |                                                |                                                                                                            |
+| Overall confidence level    | Medium     |                                                |                                                                                                            |
++-----------------------------+------------+------------------------------------------------+------------------------------------------------------------------------------------------------------------+
 
 
 2. Settings
@@ -153,9 +153,9 @@ Table of Contents
 +-------------------------+-----------+
 | Name                    | Power (W) |
 +-------------------------+-----------+
-| pwm_platform            |     0.112 |
-|   centered_pwm_1channel |     0.002 |
-|   costabgen             |     0.006 |
+| pwm_platform            |     0.113 |
+|   centered_pwm_1channel |     0.001 |
+|   costabgen             |     0.007 |
 +-------------------------+-----------+
 
 

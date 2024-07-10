@@ -22,10 +22,10 @@ set_property PACKAGE_PIN N18     [get_ports sys_clk]
 set_property IOSTANDARD LVCMOS33 [get_ports sys_clk]
 
 ############## key define ##################
-set_property PACKAGE_PIN P16 [get_ports sys_resolution_button]
+# set_property PACKAGE_PIN P16 [get_ports sys_resolution_button]
 # set_property PACKAGE_PIN T12 [get_ports PL_KEY2]
 
-set_property IOSTANDARD LVCMOS33 [get_ports sys_resolution_button]
+# set_property IOSTANDARD LVCMOS33 [get_ports sys_resolution_button]
 # set_property IOSTANDARD LVCMOS33 [get_ports PL_KEY2]
 ############## LED define ##################
 # set_property PACKAGE_PIN P15 [get_ports PL_LED1]

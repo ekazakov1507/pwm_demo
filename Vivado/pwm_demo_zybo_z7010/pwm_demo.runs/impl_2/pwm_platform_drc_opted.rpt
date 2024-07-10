@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 ---------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jul  9 21:52:39 2024
+| Date         : Wed Jul 10 20:47:15 2024
 | Host         : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 | Command      : report_drc -file pwm_platform_drc_opted.rpt -pb pwm_platform_drc_opted.pb -rpx pwm_platform_drc_opted.rpx
 | Design       : pwm_platform

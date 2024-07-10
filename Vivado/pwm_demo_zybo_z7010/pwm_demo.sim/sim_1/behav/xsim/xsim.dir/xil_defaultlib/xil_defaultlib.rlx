@@ -4,6 +4,6 @@ Dec  7 2018
 00:33:28
 C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/ip/dds_compiler_0_1/sim/dds_compiler_0.vhd,1720174544,vhdl,,,,dds_compiler_0,,,,,,,,
 C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/cos_table_gen.vhd,1720545318,vhdl,,,,cos_table_gen,,,,,,,,
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_c.vhd,1719577180,vhdl,,,,pwm_c,,,,,,,,
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_platform.vhd,1720546658,vhdl,,,,pwm_platform,,,,,,,,
-C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/tb/tb_pwm_platform.vhd,1719578337,vhdl,,,,tb_pwm_platform,,,,,,,,
+C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_c.vhd,1720633275,vhdl,,,,pwm_c,,,,,,,,
+C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_platform.vhd,1720633380,vhdl,,,,pwm_platform,,,,,,,,
+C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/tb/tb_pwm_platform.vhd,1720632879,vhdl,,,,tb_pwm_platform,,,,,,,,

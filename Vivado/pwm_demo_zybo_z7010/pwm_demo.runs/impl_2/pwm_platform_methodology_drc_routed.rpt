@@ -1,7 +1,7 @@
 Copyright 1986-2018 Xilinx, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2018.3 (win64) Build 2405991 Thu Dec  6 23:38:27 MST 2018
-| Date         : Tue Jul  9 21:53:42 2024
+| Date         : Wed Jul 10 20:47:55 2024
 | Host         : DESKTOP-6SKDS4P running 64-bit major release  (build 9200)
 | Command      : report_methodology -file pwm_platform_methodology_drc_routed.rpt -pb pwm_platform_methodology_drc_routed.pb -rpx pwm_platform_methodology_drc_routed.rpx
 | Design       : pwm_platform
@@ -23,24 +23,12 @@ Table of Contents
           Floorplan: design_1
       Design limits: <entire design considered>
              Max violations: <unlimited>
-             Violations found: 2
-+-----------+----------+-------------------------------+------------+
-| Rule      | Severity | Description                   | Violations |
-+-----------+----------+-------------------------------+------------+
-| TIMING-17 | Warning  | Non-clocked sequential cell   | 1          |
-| TIMING-18 | Warning  | Missing input or output delay | 1          |
-+-----------+----------+-------------------------------+------------+
+             Violations found: 0
++------+----------+-------------+------------+
+| Rule | Severity | Description | Violations |
++------+----------+-------------+------------+
++------+----------+-------------+------------+
 
 2. REPORT DETAILS
 -----------------
-TIMING-17#1 Warning
-Non-clocked sequential cell  
-The clock pin pwm_ref_step_reg[0]/C is not reached by a timing clock
-Related violations: <none>
-
-TIMING-18#1 Warning
-Missing input or output delay  
-An input delay is missing on sys_resolution_button relative to clock(s) sys_clk_pin
-Related violations: <none>
-
 

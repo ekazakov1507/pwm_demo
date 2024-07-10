@@ -1,8 +1,6 @@
 set_property SRC_FILE_INFO {cfile:C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/Zybo_board.xdc rfile:../../../Zybo_board.xdc id:1} [current_design]
 set_property src_info {type:XDC file:1 line:8 export:INPUT save:INPUT read:READ} [current_design]
 set_property -dict {PACKAGE_PIN L16 IOSTANDARD LVCMOS33} [get_ports sys_clk]
-set_property src_info {type:XDC file:1 line:20 export:INPUT save:INPUT read:READ} [current_design]
-set_property -dict {PACKAGE_PIN R18 IOSTANDARD LVCMOS33} [get_ports sys_resolution_button]
 set_property src_info {type:XDC file:1 line:81 export:INPUT save:INPUT read:READ} [current_design]
 set_property -dict {PACKAGE_PIN T20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm_channels[0]}]
 set_property src_info {type:XDC file:1 line:82 export:INPUT save:INPUT read:READ} [current_design]

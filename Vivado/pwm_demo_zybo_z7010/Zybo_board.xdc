@@ -17,7 +17,7 @@ create_clock -period 8.000 -name sys_clk_pin -waveform {0.000 4.000} -add [get_p
 
 
 ##Buttons
-set_property -dict {PACKAGE_PIN R18 IOSTANDARD LVCMOS33} [get_ports sys_resolution_button]
+#set_property -dict {PACKAGE_PIN R18 IOSTANDARD LVCMOS33} [get_ports sys_resolution_button]
 #set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS33 } [get_ports { btn[1] }]; #IO_L24N_T3_34 Sch=BTN1
 #set_property -dict { PACKAGE_PIN V16   IOSTANDARD LVCMOS33 } [get_ports { btn[2] }]; #IO_L18P_T2_34 Sch=BTN2
 #set_property -dict { PACKAGE_PIN Y16   IOSTANDARD LVCMOS33 } [get_ports { btn[3] }]; #IO_L7P_T1_34 Sch=BTN3
