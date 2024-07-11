@@ -1,0 +1,12 @@
+#-----------------------------------------------------------
+# Vivado v2018.3 (64-bit)
+# SW Build 2405991 on Thu Dec  6 23:38:27 MST 2018
+# IP Build 2404404 on Fri Dec  7 01:43:56 MST 2018
+# Start of session at: Wed Jul 10 21:01:50 2024
+# Process ID: 10384
+# Current directory: C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_z7lite_z7020/pwm_demo.runs/impl_2
+# Command line: vivado.exe -log pwm_platform.vdi -applog -product Vivado -messageDb vivado.pb -mode batch -source pwm_platform.tcl -notrace
+# Log file: C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_z7lite_z7020/pwm_demo.runs/impl_2/pwm_platform.vdi
+# Journal file: C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_z7lite_z7020/pwm_demo.runs/impl_2\vivado.jou
+#-----------------------------------------------------------
+source pwm_platform.tcl -notrace
