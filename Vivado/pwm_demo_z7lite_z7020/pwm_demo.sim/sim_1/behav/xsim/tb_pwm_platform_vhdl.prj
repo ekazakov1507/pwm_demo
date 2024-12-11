@@ -1,9 +1,0 @@
-# compile vhdl design source files
-vhdl xil_defaultlib  \
-"../../../../../pwm_demo_zybo_z7010/src/cos_table_gen.vhd" \
-"../../../../src/pwm_c.vhd" \
-"../../../../src/pwm_platform.vhd" \
-"../../../../tb/tb_pwm_platform.vhd" \
-
-# Do not sort compile order
-nosort

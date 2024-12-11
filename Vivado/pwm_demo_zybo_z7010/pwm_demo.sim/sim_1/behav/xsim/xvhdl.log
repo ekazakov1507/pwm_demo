@@ -1,4 +1,0 @@
-INFO: [VRFC 10-163] Analyzing VHDL file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_c.vhd" into library xil_defaultlib
-INFO: [VRFC 10-3107] analyzing entity 'pwm_c'
-INFO: [VRFC 10-163] Analyzing VHDL file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/Vivado/pwm_demo_zybo_z7010/src/pwm_platform.vhd" into library xil_defaultlib
-INFO: [VRFC 10-3107] analyzing entity 'pwm_platform'

@@ -1,1 +1,0 @@
--wto "a6088313e18844dca2aa9a2e6c6bf5ea" --incr --debug "typical" --rangecheck --relax --mt "2" -L "xil_defaultlib" -L "secureip" -L "xpm" --snapshot "tb_pwm_platform_behav" "xil_defaultlib.tb_pwm_platform" -log "elaborate.log" 
