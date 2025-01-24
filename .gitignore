@@ -1,0 +1,9 @@
+# Vivado files and dirs
+pwm_demo.cache
+pwm_demo.hw
+pwm_demo.ip_user_files
+pwm_demo.sim
+pwm_demo.xpr
+
+# Octave and math files
+## previous
