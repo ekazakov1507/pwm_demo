@@ -10,29 +10,21 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="25500000000fs"></ZoomStartTime>
-      <ZoomEndTime time="90450000001fs"></ZoomEndTime>
-      <Cursor1Time time="45196000000fs"></Cursor1Time>
+      <ZoomStartTime time="0fs"></ZoomStartTime>
+      <ZoomEndTime time="12005000001fs"></ZoomEndTime>
+      <Cursor1Time time="12005000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="160"></NameColumnWidth>
-      <ValueColumnWidth column_width="72"></ValueColumnWidth>
+      <NameColumnWidth column_width="258"></NameColumnWidth>
+      <ValueColumnWidth column_width="340"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="19" />
+   <WVObjectSize size="9" />
    <wave_markers>
       <marker time="35052000000" label="" />
    </wave_markers>
    <wvobject fp_name="/tb_pwm_platform/stand/sys_clk" type="logic">
       <obj_property name="ElementShortName">sys_clk</obj_property>
       <obj_property name="ObjectShortName">sys_clk</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/mmcm_clk_lock" type="logic">
-      <obj_property name="ElementShortName">mmcm_clk_lock</obj_property>
-      <obj_property name="ObjectShortName">mmcm_clk_lock</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/enable" type="logic">
-      <obj_property name="ElementShortName">enable</obj_property>
-      <obj_property name="ObjectShortName">enable</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_platform/stand/clk_mmcm_1" type="logic">
       <obj_property name="ElementShortName">clk_mmcm_1</obj_property>
@@ -42,87 +34,35 @@
       <obj_property name="ElementShortName">clk_mmcm_2</obj_property>
       <obj_property name="ObjectShortName">clk_mmcm_2</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/resolution_button" type="logic">
-      <obj_property name="ElementShortName">resolution_button</obj_property>
-      <obj_property name="ObjectShortName">resolution_button</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/pwm_channels" type="array">
-      <obj_property name="ElementShortName">pwm_channels[1:0]</obj_property>
-      <obj_property name="ObjectShortName">pwm_channels[1:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sys_resolution_button" type="logic">
-      <obj_property name="ElementShortName">sys_resolution_button</obj_property>
-      <obj_property name="ObjectShortName">sys_resolution_button</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/ref_reset" type="logic">
-      <obj_property name="ElementShortName">ref_reset</obj_property>
-      <obj_property name="ObjectShortName">ref_reset</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/pwm_ref_step" type="array">
-      <obj_property name="ElementShortName">pwm_ref_step[6:0]</obj_property>
-      <obj_property name="ObjectShortName">pwm_ref_step[6:0]</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter" type="array">
-      <obj_property name="ElementShortName">counter[6:0]</obj_property>
-      <obj_property name="ObjectShortName">counter[6:0]</obj_property>
+   <wvobject fp_name="/tb_pwm_platform/stand/table_cos" type="array">
+      <obj_property name="ElementShortName">table_cos[6:0]</obj_property>
+      <obj_property name="ObjectShortName">table_cos[6:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
       <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
       <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="AnalogYRangeType">ANALOG_YRANGETYPE_FIXED</obj_property>
-      <obj_property name="AnalogYRangeMin">0.000000</obj_property>
-      <obj_property name="AnalogYRRangeMax">128.000000</obj_property>
-      <obj_property name="AnalogInterpolation">ANALOG_INTERPOLATION_LINEAR</obj_property>
-      <obj_property name="AnalogOffscale">ANALOG_OFFSCALE_HIDE</obj_property>
-      <obj_property name="AnalogHorizLine">0.000000</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter" type="array">
-      <obj_property name="ElementShortName">counter[6:0]</obj_property>
-      <obj_property name="ObjectShortName">counter[6:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/pwm_channels" type="array">
-      <obj_property name="ElementShortName">pwm_channels[1:0]</obj_property>
-      <obj_property name="ObjectShortName">pwm_channels[1:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter" type="array">
-      <obj_property name="ElementShortName">counter[6:0]</obj_property>
-      <obj_property name="ObjectShortName">counter[6:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_DIGITAL</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter_updown" type="logic">
-      <obj_property name="ElementShortName">counter_updown</obj_property>
-      <obj_property name="ObjectShortName">counter_updown</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_input_7" type="array">
-      <obj_property name="ElementShortName">sin_input_7[6:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_input_7[6:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/sin_input" type="array">
-      <obj_property name="ElementShortName">sin_input[15:0]</obj_property>
-      <obj_property name="ObjectShortName">sin_input[15:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_platform/stand/angle_cos" type="array">
-      <obj_property name="ElementShortName">angle_cos[10:0]</obj_property>
-      <obj_property name="ObjectShortName">angle_cos[10:0]</obj_property>
-      <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
-      <obj_property name="CellHeight">100</obj_property>
-      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_platform/stand/table_cos" type="array">
       <obj_property name="ElementShortName">table_cos[6:0]</obj_property>
       <obj_property name="ObjectShortName">table_cos[6:0]</obj_property>
+      <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter" type="array">
+      <obj_property name="ElementShortName">counter[6:0]</obj_property>
+      <obj_property name="ObjectShortName">counter[6:0]</obj_property>
       <obj_property name="WaveformStyle">STYLE_ANALOG</obj_property>
       <obj_property name="CellHeight">100</obj_property>
       <obj_property name="Radix">UNSIGNEDDECRADIX</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/centered_pwm_1channel/counter" type="array">
+      <obj_property name="ElementShortName">counter[6:0]</obj_property>
+      <obj_property name="ObjectShortName">counter[6:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/pwm_channels_delayed" type="array">
+      <obj_property name="ElementShortName">pwm_channels_delayed[1:0]</obj_property>
+      <obj_property name="ObjectShortName">pwm_channels_delayed[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_platform/stand/pwm_channels_delayed" type="array">
+      <obj_property name="ElementShortName">pwm_channels_delayed[1:0]</obj_property>
+      <obj_property name="ObjectShortName">pwm_channels_delayed[1:0]</obj_property>
    </wvobject>
 </wave_config>

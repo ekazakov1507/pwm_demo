@@ -15,7 +15,6 @@ entity pwm_platform is
 end pwm_platform;
 
 architecture src of pwm_platform is
-
   signal ibuf_clk : std_logic := '0';
   signal gbuf_clk : std_logic := '0';
   signal clk_mmcm_1 : std_logic := '0';
@@ -24,13 +23,11 @@ architecture src of pwm_platform is
   signal clk_mmcm_fb_out : std_logic ; 
   signal clk_mmcm_fb_in : std_logic ;
 
-  signal angle_cos : std_logic_vector(10 downto 0) := (others => '0');
   signal table_cos : std_logic_vector(6 downto 0) := (others => '0');
   component cos_table_gen is
     port (
       clk : in std_logic;
       reset : in std_logic;
-      angle : in std_logic_vector(10 downto 0);
       cosine_out : out std_logic_vector(6 downto 0)
     );
   end component cos_table_gen;
@@ -57,13 +54,11 @@ architecture src of pwm_platform is
 
   component pwm_c is
     port (
-        enable : in std_logic;
+        res : in std_logic;
         clk : in std_logic;
-        modulated_wave : in std_logic_vector;
-        counter_step : in std_logic_vector;
-        counter_reset : in std_logic;
+        input_wave : in std_logic_vector;
         pwm : out std_logic;
-        pwm_i : out std_logic
+        pwm_n : out std_logic
       );
   end component pwm_c;
 
@@ -128,11 +123,10 @@ begin
       LOCKED => mmcm_clk_lock
     );
 
-  costabgen : cos_table_gen
+  cos_tab_gen : cos_table_gen
     port map (
       clk => clk_mmcm_2,
       reset => '0',
-      angle => angle_cos,
       cosine_out => table_cos
     );
 
@@ -155,28 +149,6 @@ begin
       end if;
   end process;
 
-  cosine_generator : process(clk_mmcm_2, angle_cos)
-      variable angle_reset : std_logic := '0';
-      variable angle_updown : std_logic := '0';
-    begin
-      if rising_edge(clk_mmcm_2) then
-        if angle_reset = '1' then
-          angle_cos <= b"00000000000";
-          angle_updown := '1';
-        elsif angle_updown = '1' and angle_cos < b"10011100001" then
-          angle_cos <= std_logic_vector(unsigned(angle_cos) + b"00000000001");
-        elsif angle_updown = '0' and angle_cos > b"00000000000" then
-          angle_cos <= std_logic_vector(unsigned(angle_cos) - b"00000000001");
-        elsif angle_cos = b"00000000000" then
-          angle_updown := '1';
-          angle_cos <= std_logic_vector(unsigned(angle_cos) + b"00000000001");
-        elsif angle_cos = b"10011100001" then
-          angle_updown := '0';
-          angle_cos <= std_logic_vector(unsigned(angle_cos) - b"00000000001");
-        end if;
-      end if;
-  end process;
-
   enable_control : process(clk_mmcm_1, mmcm_clk_lock) 
       begin
         if rising_edge(clk_mmcm_1) then
@@ -188,13 +160,11 @@ begin
 
   centered_pwm_1channel : pwm_c
     port map (
-      enable => pwm_c_enable,
+      res => pwm_c_enable,
       clk => clk_mmcm_2,
-      modulated_wave => table_cos,
-      counter_step => pwm_ref_step,
-      counter_reset => ref_reset,
+      input_wave => table_cos,
       pwm => pwm_channels(0),
-      pwm_i => pwm_channels(1)
+      pwm_n => pwm_channels(1)
       );
 
 end src;

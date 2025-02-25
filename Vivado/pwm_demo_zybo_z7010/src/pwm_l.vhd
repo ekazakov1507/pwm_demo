@@ -1,48 +1,62 @@
 library ieee;
 use ieee.std_logic_1164.ALL;
-use ieee.std_logic_unsigned.ALL;
-use ieee.std_logic_arith.all;
+use ieee.numeric_std.all;
 
 entity pwm_l is
+	generic(
+		R : integer := 7
+	);
 	port(
-		enable : in std_logic;
 		clk : in std_logic;
-		modulated_wave : in std_logic_vector(15 downto 0);
-		counter_step : in std_logic_vector(15 downto 0);
-		counter_reset : in std_logic;
+		res : in std_logic;
+		input_wave : in std_logic_vector(R-1 downto 0);
 		pwm : out std_logic;
-		pwm_i : out std_logic
+		pwm_n : out std_logic
 		);
 end pwm_l;
 
 architecture src of pwm_l is
 	
-	signal counter : std_logic_vector(15 downto 0) := (others => '0');
+	signal counter : std_logic_vector(R-1 downto 0) := (others => '0');
+
+	component up_counter is
+		generic (
+			R : integer
+		);
+		port (
+			clk : in std_logic;
+			res : in std_logic;
+			cnt : out std_logic_vector
+		);
+	end component up_counter;
 
 begin
 
-	leftside_pwmmod : process(clk, enable, counter, modulated_wave)
-	begin 
-		if rising_edge(clk) and enable = '1' then
-				if counter < modulated_wave then
+	cnt : up_counter
+		generic map (
+			R => R
+		)
+		port map (
+			clk => clk,
+			res => res,
+			cnt => counter
+		);
+
+	triangle_pwmmod : process(clk, res, counter, input_wave)
+		begin 
+			if res = '0' then 
+				pwm <= '0';
+				pwm_n <= '1';
+				-- counter <= b"0000000";
+			elsif rising_edge(clk) then
+				if counter < input_wave then
 					pwm <= '1';
-					pwm_i <= '0';
+					pwm_n <= '0';
 				else
 					pwm <= '0';
-					pwm_i <= '1';
+					pwm_n <= '1';
 				end if;
 			end if;
-	end process;
-
-	up_counter : process(clk, enable, counter_step, counter_reset, counter)
-		begin
-		if rising_edge(clk) and enable = '1' then 
-			if counter_reset = '1' then
-				counter <= x"0000";
-			else
-				counter <= counter + counter_step;
-			end if;
-		end if;
 	end process;
 
 end src;

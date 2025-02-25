@@ -1,3 +1,7 @@
+-- Cosine table signal
+-- 1250 values in table represents as 11 bit bin number "angle"
+-- Each values is 7 bit number from 111001 (77) to 
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
@@ -6,16 +10,18 @@ entity cos_table_gen is
     port (
         clk : in std_logic;
         reset : in std_logic;
-        angle : in std_logic_vector(10 downto 0);
         cosine_out : out std_logic_vector(6 downto 0)
     );
 end entity cos_table_gen;
 
 architecture src of cos_table_gen is
+
+    signal angle : std_logic_vector(10 downto 0) := (others => '0');
+  
     type cosine_table_type is array (0 to 1249) of std_logic_vector(6 downto 0);
     
     constant cosine_table : cosine_table_type := (
-        "1111001",
+        "1111001", -- 77
         "1111001",
         "1111001",
         "1111001",
@@ -1271,7 +1277,7 @@ architecture src of cos_table_gen is
     signal cosine_value : std_logic_vector(6 downto 0);
     
 begin
-    process(clk, reset)
+    read_table : process(clk, reset, angle)
     begin
         if reset = '1' then
             angle_reg <= (others => '0');
@@ -1284,4 +1290,26 @@ begin
     
     cosine_out <= cosine_value;
     
+    angle_generator : process(clk, angle)
+        variable angle_reset : std_logic := '0';
+        variable angle_updown : std_logic := '0';
+    begin
+        if rising_edge(clk) then
+            if angle_reset = '1' then
+                angle <= b"00000000000";
+                angle_updown := '1';
+            elsif angle_updown = '1' and angle < b"10011100001" then
+                angle <= std_logic_vector(unsigned(angle) + b"00000000001");
+            elsif angle_updown = '0' and angle > b"00000000000" then
+                angle <= std_logic_vector(unsigned(angle) - b"00000000001");
+            elsif angle = b"00000000000" then
+                angle_updown := '1';
+                angle <= std_logic_vector(unsigned(angle) + b"00000000001");
+            elsif angle = b"10011100001" then
+                angle_updown := '0';
+                angle <= std_logic_vector(unsigned(angle) - b"00000000001");
+            end if;
+        end if;
+    end process;
+
 end src;
