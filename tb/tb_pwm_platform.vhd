@@ -8,12 +8,12 @@ end tb_pwm_platform;
 architecture tb of tb_pwm_platform is
 
 	signal clk : std_logic := '0';
-	signal pwm_channels : std_logic_vector(1 downto 0);
+	signal pwm_channels : std_logic_vector(3 downto 0);
 
 component pwm_platform
 	port ( 
 			sys_clk : in std_logic;
-			sys_pwm_channels : out std_logic_vector(1 downto 0)
+			sys_pwm_channels : out std_logic_vector(3 downto 0)
 		);
 end component pwm_platform;
 

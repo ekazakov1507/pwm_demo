@@ -5,22 +5,24 @@ entity tb_up_counter is
 --  Port ( );
 end tb_up_counter;
 
-architecture tb of tb_up_counter is
+architecture tb of tb_up_counters is
 
 	signal clk : std_logic := '0';
-	signal res : std_logic := '1';
+	signal rst : std_logic := '1';
+	signal enable : std_logic := '1';
 	signal cnt : std_logic_vector(6 downto 0);
 
-component up_counter
+component up_counter_unsigned
     generic (
         R : integer := 7
     );
 	port ( 
         clk : in std_logic;
-        res : in std_logic;
+		rst : in std_logic;
+		enable : in std_logic;
         cnt : out std_logic_vector
 		);
-end component up_counter;
+end component up_counter_unsigned;
 
 begin
 

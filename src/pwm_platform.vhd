@@ -10,7 +10,7 @@ use unimacro.Vcomponents.all;
 entity pwm_platform is
 	port ( 
 	  sys_clk : in std_logic;
-    sys_pwm_channels : out std_logic_vector(1 downto 0)
+    sys_pwm_channels : out std_logic_vector(3 downto 0)
 	);
 end pwm_platform;
 
@@ -23,19 +23,21 @@ architecture src of pwm_platform is
   signal clk_mmcm_fb_out : std_logic ; 
   signal clk_mmcm_fb_in : std_logic ;
 
-  signal table_cos : std_logic_vector(6 downto 0) := (others => '0');
+  signal table_cos_unsigned : std_logic_vector(6 downto 0) := (others => '0');
+  signal table_cos_signed : std_logic_vector(6 downto 0) := (others => '0');
   component cos_table_gen is
     port (
       clk : in std_logic;
       reset : in std_logic;
-      cosine_out : out std_logic_vector(6 downto 0)
+      cosine_out_unsigned : out std_logic_vector(6 downto 0);
+      cosine_out_signed : out std_logic_vector(6 downto 0)
     );
   end component cos_table_gen;
   
   signal pwm_c_enable : std_logic := '0';
   signal pwm_ref_step : std_logic_vector(6 downto 0) := "0000001"; -- +1 PWM ref step;
   signal ref_reset : std_logic := 'U';
-  signal pwm_channels : std_logic_vector(1 downto 0) := (others => '0');
+  signal pwm_channels : std_logic_vector(3 downto 0) := (others => '0');
   
   signal delay : std_logic_vector(4 downto 0) := (others => '0');
   signal pwm_channels_delayed : std_logic_vector(1 downto 0) := (others => '0');
@@ -52,15 +54,27 @@ architecture src of pwm_platform is
   --    );
   --end component pwm_l;
 
-  component pwm_c is
+  component pwm_c_unsigned is
     port (
-        res : in std_logic;
         clk : in std_logic;
+        rst : in std_logic;
+        enable : in std_logic;
         input_wave : in std_logic_vector;
         pwm : out std_logic;
         pwm_n : out std_logic
       );
-  end component pwm_c;
+  end component pwm_c_unsigned;
+
+  component pwm_c_signed is
+    port (
+        clk : in std_logic;
+        rst : in std_logic;
+        enable : in std_logic;
+        input_wave : in std_logic_vector;
+        pwm : out std_logic;
+        pwm_n : out std_logic
+      );
+  end component pwm_c_signed;
 
 begin
 
@@ -127,7 +141,8 @@ begin
     port map (
       clk => clk_mmcm_2,
       reset => '0',
-      cosine_out => table_cos
+      cosine_out_unsigned => table_cos_unsigned,
+      cosine_out_signed => table_cos_signed
     );
 
   pwm_ch0_delay : process(clk_mmcm_2, pwm_channels)
@@ -158,13 +173,24 @@ begin
         end if;
   end process;
 
-  centered_pwm_1channel : pwm_c
+  centered_pwm_01channels : pwm_c_unsigned
     port map (
-      res => pwm_c_enable,
+      rst => '1',
+      enable => pwm_c_enable,
       clk => clk_mmcm_2,
-      input_wave => table_cos,
+      input_wave => table_cos_unsigned,
       pwm => pwm_channels(0),
       pwm_n => pwm_channels(1)
+      );
+
+  centered_pwm_23channels : pwm_c_signed
+    port map (
+      rst => '1',
+      enable => pwm_c_enable,
+      clk => clk_mmcm_2,
+      input_wave => table_cos_signed,
+      pwm => pwm_channels(2),
+      pwm_n => pwm_channels(3)
       );
 
 end src;
