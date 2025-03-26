@@ -20,21 +20,9 @@ architecture src of pwm_c_signed is
 	
 	signal counter : std_logic_vector(R-1 downto 0) := (others => '0');
 
-	component updown_counter_signed is
-		generic (
-			R : integer
-		);
-		port (
-			clk : in std_logic;
-			rst : in std_logic;
-			enable : in std_logic;
-			cnt : out std_logic_vector
-		);
-	end component updown_counter_signed;
-
 begin
 
-	cnt : updown_counter_signed
+	cnt : entity work.updown_counter_signed
 		generic map (
 			R => R
 		)

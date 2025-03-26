@@ -4,7 +4,10 @@ use ieee.numeric_std.all;
 
 entity updown_counter_unsigned is
 	generic(
-		R : integer := 7
+		R : integer := 7; -- Resolution
+		START : integer := 0; -- 0
+		STOP : integer := 127; -- 2^R-1
+		STEP : integer := 1
 	);
 	port(
 		clk : in std_logic;
@@ -19,9 +22,9 @@ architecture src of updown_counter_unsigned is
 begin
 
 	up_down_counter : process(clk, rst)
-			constant counter_min : unsigned(R-1 downto 0) := (0 => '1', others => '0');
-			constant counter_max : unsigned(R-1 downto 0) := (0 => '0', others => '1');
-			constant counter_step : unsigned(R-1 downto 0) := (0 => '1', others => '0');
+			constant counter_min : unsigned(R-1 downto 0) := to_unsigned(START, R);-- (0 => '1', others => '0');
+			constant counter_max : unsigned(R-1 downto 0) := to_unsigned(STOP, R);-- (0 => '0', others => '1');
+			constant counter_step : unsigned(R-1 downto 0) := to_unsigned(STEP, R); -- (0 => '1', others => '0');
             variable counter_updown : std_logic := '0';
             variable counter : unsigned(R-1 downto 0) := counter_min;
 		begin
