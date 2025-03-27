@@ -1,5 +1,5 @@
 library ieee;
-use ieee.std_logic_1164.ALL;
+use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
 entity up_counter_signed is
@@ -28,19 +28,19 @@ begin
             variable counter_updown : std_logic := '0';
             variable counter : signed(R-1 downto 0) := counter_min;
 		begin
-			if rst = '0' then
-				counter := (others => '0');
-				counter_updown := '1';
-			elsif rising_edge(clk) and enable = '1' then 
-				if counter < counter_max then
-					counter := counter + counter_step;
-				elsif counter = counter_max then
-					counter := counter_min;
+			if rising_edge(clk) then 
+				if rst = '0' then
+					counter := (others => '0');
+					counter_updown := '1';
+				elsif rst = '1' and enable = '1' then 
+					if counter < counter_max then
+						counter := counter + counter_step;
+					elsif counter = counter_max then
+						counter := counter_min;
+					end if;
 				end if;
+				cnt <= std_logic_vector(counter);
 			end if;
-
-            cnt <= std_logic_vector(counter);
-
 	end process;
 
 end src;

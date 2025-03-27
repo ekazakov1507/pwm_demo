@@ -28,25 +28,25 @@ begin
             variable counter_updown : std_logic := '0';
             variable counter : unsigned(R-1 downto 0) := counter_min;
 		begin
-			if rst = '0' then
-				counter := (others => '0');
-				counter_updown := '1';
-			elsif rising_edge(clk) and enable = '1' then 
-				if counter_updown = '1' and counter < counter_max then
-					counter := counter + counter_step;
-				elsif counter_updown = '0' and counter > counter_min then
-					counter := counter - counter_step;
-				elsif counter = counter_min then
+			if rising_edge(clk) then 
+				if rst = '0' then
+					counter := (others => '0');
 					counter_updown := '1';
-					counter := counter + counter_step;
-				elsif counter = counter_max then
-					counter_updown := '0';
-					counter := counter - counter_step;
+				elsif rst = '1' and enable = '1' then 
+					if counter_updown = '1' and counter < counter_max then
+						counter := counter + counter_step;
+					elsif counter_updown = '0' and counter > counter_min then
+						counter := counter - counter_step;
+					elsif counter = counter_min then
+						counter_updown := '1';
+						counter := counter + counter_step;
+					elsif counter = counter_max then
+						counter_updown := '0';
+						counter := counter - counter_step;
+					end if;
 				end if;
+				cnt <= std_logic_vector(counter);
 			end if;
-
-            cnt <= std_logic_vector(counter);
-
 	end process;
 
 end src;

@@ -1,5 +1,5 @@
 library ieee;
-use ieee.std_logic_1164.ALL;
+use ieee.std_logic_1164.all;
 
 entity tb_cos_table is
 --  Port ( );

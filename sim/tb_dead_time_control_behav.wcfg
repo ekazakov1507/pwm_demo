@@ -10,22 +10,38 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="577380953fs"></ZoomEndTime>
+      <ZoomStartTime time="992594685fs"></ZoomStartTime>
+      <ZoomEndTime time="1001481063fs"></ZoomEndTime>
       <Cursor1Time time="1000000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="258"></NameColumnWidth>
-      <ValueColumnWidth column_width="324"></ValueColumnWidth>
+      <NameColumnWidth column_width="282"></NameColumnWidth>
+      <ValueColumnWidth column_width="222"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="6" />
-   <wvobject fp_name="/tb_dead_time_control/clk" type="logic">
+   <WVObjectSize size="10" />
+   <wvobject fp_name="/tb_dead_time_control/stand/clk" type="logic">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_dead_time_control/res" type="logic">
-      <obj_property name="ElementShortName">res</obj_property>
-      <obj_property name="ObjectShortName">res</obj_property>
+   <wvobject fp_name="/tb_dead_time_control/stand/rst" type="logic">
+      <obj_property name="ElementShortName">rst</obj_property>
+      <obj_property name="ObjectShortName">rst</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_dead_time_control/stand/pwm_set" type="logic">
+      <obj_property name="ElementShortName">pwm_set</obj_property>
+      <obj_property name="ObjectShortName">pwm_set</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_dead_time_control/stand/pwm_reset_delay" type="logic">
+      <obj_property name="ElementShortName">pwm_reset_delay</obj_property>
+      <obj_property name="ObjectShortName">pwm_reset_delay</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_dead_time_control/stand/pwm_reset" type="logic">
+      <obj_property name="ElementShortName">pwm_reset</obj_property>
+      <obj_property name="ObjectShortName">pwm_reset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_dead_time_control/stand/pwm_set_delay" type="logic">
+      <obj_property name="ElementShortName">pwm_set_delay</obj_property>
+      <obj_property name="ObjectShortName">pwm_set_delay</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_dead_time_control/pwm_in" type="logic">
       <obj_property name="ElementShortName">pwm_in</obj_property>
