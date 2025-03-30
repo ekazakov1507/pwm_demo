@@ -2,14 +2,14 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.ALL;
 
-entity tb_sync_fifo is
+entity tb_input_buffer is
 --  Port ( );
-end tb_sync_fifo;
+end tb_input_buffer;
 
-architecture tb of tb_sync_fifo is
+architecture tb of tb_input_buffer is
     constant CLK_PERIOD : time := 10 ns;
-    constant DATA_WIDTH : positive := 8;
-    constant FIFO_DEPTH : positive := 4;
+    constant DATA_WIDTH : positive := 7;
+    constant FIFO_DEPTH : positive := 128;
     
     signal clk      : std_logic := '0';
     signal rst      : std_logic := '0';
@@ -23,7 +23,14 @@ architecture tb of tb_sync_fifo is
     
 
 begin
-    -- Instantiate the FIFO
+
+    cos_tab_gen : entity work.cos_table_gen
+        port map (
+            clk => clk,
+            reset => rst,
+            cosine_out_unsigned => data_in
+        );
+
     uut: entity work.sync_fifo
         generic map (
             DATA_WIDTH => DATA_WIDTH,
@@ -41,50 +48,23 @@ begin
             count    => count
         );
     
-    -- Clock generation
+
     clk <= not clk after CLK_PERIOD/2;
-    
-    -- Stimulus process
+
     stim_proc: process
     begin
-        -- Reset the FIFO
         rst <= '1';
         wait for CLK_PERIOD*2;
         rst <= '0';
         wait for CLK_PERIOD;
-        
-        -- Test 1: Write until full
-        for i in 1 to FIFO_DEPTH loop
-            wr_en <= '1';
-            data_in <= std_logic_vector(to_unsigned(i, DATA_WIDTH));
-            wait for CLK_PERIOD;
-        end loop;
-        wr_en <= '0';
-        wait for CLK_PERIOD*2;
-        
-        -- Test 2: Read until empty
-        for i in 1 to FIFO_DEPTH loop
-            rd_en <= '1';
-            wait for CLK_PERIOD;
-        end loop;
-        rd_en <= '0';
-        wait for CLK_PERIOD*2;
-        
-        -- Test 3: Simultaneous read and write
-        for i in 1 to FIFO_DEPTH*2 loop
-            wr_en <= '1';
-            rd_en <= '1';
-            data_in <= std_logic_vector(to_unsigned(i+10, DATA_WIDTH));
-            wait for CLK_PERIOD;
-        end loop;
+        wr_en <= '1';
+        wait for CLK_PERIOD;
+        rd_en <= '1';
+        wait for 100000*CLK_PERIOD;
         wr_en <= '0';
         rd_en <= '0';
-        wait for CLK_PERIOD*2;
-        
-        -- End simulation
+        wait for CLK_PERIOD;
         wait;
     end process;
-
-
 
 end tb;

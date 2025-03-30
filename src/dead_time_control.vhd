@@ -31,17 +31,15 @@ architecture src of dead_time_control is
 
     -- for port maps
     constant CE : std_logic := '0'; -- 1-bit input: Active high enable increment/decrement input
-
     constant INC : std_logic := '0'; -- 1-bit input: Increment / Decrement tap delay input
-
     constant LD : std_logic := '0'; -- 1-bit input: Load IDELAY_VALUE input
-
     constant LDPIPEEN : std_logic := '0'; -- 1-bit input: Enable PIPELINE register to load data input
-
     constant REGRST : std_logic := '0'; -- 1-bit input: Active-high reset tap-delay input
 
     signal CNTVALUEIN : std_logic_vector(4 downto 0) := (others => '0'); -- 5-bit input: Counter value input
     signal CNTVALUEOUT : std_logic_vector(4 downto 0) := (others => '1'); -- 5-bit output: Counter value output
+    signal DATAOUT_chA : std_logic := '0';
+    signal DATAOUT_chB : std_logic := '0';
 
 
     signal pwm_set_delay : std_logic := '0';
@@ -85,19 +83,32 @@ begin
     )
     port map (
         CNTVALUEOUT => CNTVALUEOUT,       -- 5-bit output: Counter value output
-        DATAOUT => pwm_set_delay,             -- 1-bit output: Delayed data output
+        DATAOUT => DATAOUT_chA,             -- 1-bit output: Delayed data output
         C => clk,                           -- 1-bit input: Clock input
         CE => CE,                         -- 1-bit input: Active high enable increment/decrement input
         CINVCTRL => '0',                  -- 1-bit input: Dynamic clock inversion input
         CNTVALUEIN => CNTVALUEIN,       -- 5-bit input: Counter value input
         DATAIN => pwm_set,               -- 1-bit input: Internal delay data input
-        IDATAIN => '0',                   -- 1-bit input: Data input from the I/O
+        IDATAIN => '1',                   -- 1-bit input: Data input from the I/O
         INC => INC,                     -- 1-bit input: Increment / Decrement tap delay input
         LD => LD,                         -- 1-bit input: Load IDELAY_VALUE input
         LDPIPEEN => LDPIPEEN,             -- 1-bit input: Enable PIPELINE register to load data input
         REGRST => REGRST                  -- 1-bit input: Active-high reset tap-delay input
     );
    
+    -- delay_chA: entity work.delay_counter
+    -- generic map (
+    --     DELAY_CYCLES => 5 -- 5 clock cycles delay
+    -- )
+    -- port map (
+    --     clk => clk,
+    --     reset => rst,
+    --     input_signal => pwm_set,
+    --     delayed_signal => DATAOUT_chA
+    -- );
+
+    pwm_set_delay <= not DATAOUT_chA;
+
     RS_trigger_A : entity work.sync_rs_flipflop
     port map (
         clk => clk,
@@ -106,7 +117,7 @@ begin
         Q => pwm_chA
     ); 
 
-    -- channel B
+    -- Channel B
     IDELAYE2_inst_chB : IDELAYE2
     generic map (
         CINVCTRL_SEL => "FALSE",          -- Enable dynamic clock inversion (FALSE, TRUE)
@@ -120,7 +131,7 @@ begin
     )
     port map (
         CNTVALUEOUT => CNTVALUEOUT,       -- 5-bit output: Counter value output
-        DATAOUT => pwm_reset_delay,             -- 1-bit output: Delayed data output
+        DATAOUT => DATAOUT_chB,             -- 1-bit output: Delayed data output
         C => clk,                           -- 1-bit input: Clock input
         CE => CE,                         -- 1-bit input: Active high enable increment/decrement input
         CINVCTRL => '0',                  -- 1-bit input: Dynamic clock inversion input
@@ -132,6 +143,19 @@ begin
         LDPIPEEN => LDPIPEEN,             -- 1-bit input: Enable PIPELINE register to load data input
         REGRST => REGRST                  -- 1-bit input: Active-high reset tap-delay input
     );
+   
+    -- delay_chB: entity work.delay_counter
+    -- generic map (
+    --     DELAY_CYCLES => 5 -- 5 clock cycles delay
+    -- )
+    -- port map (
+    --     clk => clk,
+    --     reset => rst,
+    --     input_signal => pwm_reset,
+    --     delayed_signal => DATAOUT_chB
+    -- );
+
+    pwm_reset_delay <= not DATAOUT_chB;
 
     RS_trigger_B : entity work.sync_rs_flipflop
     port map (
@@ -144,17 +168,17 @@ begin
 
     rst_channel_A : process(clk, rst, pwm_set)
     begin
-        if rising_edge(clk) then
-            or_gate_A <= rst or pwm_set;
-        end if;
+        -- if rising_edge(clk) then
+            or_gate_A <= not rst or pwm_set;
+        -- end if;
 
     end process;
 
     rst_channel_B : process(clk, rst, pwm_reset)
     begin
-        if rising_edge(clk) then
-            or_gate_A <= rst or pwm_reset;
-        end if;
+        -- if rising_edge(clk) then
+            or_gate_B <= not rst or pwm_reset;
+        -- end if;
 
     end process;
 

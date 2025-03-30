@@ -22,7 +22,7 @@ begin
             elsif S = '0' and R = '1' then
                 Q_temp <= '0';
             elsif S = '1' and R = '1' then
-                Q_temp <= 'X';
+                Q_temp <= '1'; -- Q_temp <= 'X';
             end if;
         end if;
     end process;

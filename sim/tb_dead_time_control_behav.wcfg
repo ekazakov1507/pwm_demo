@@ -10,13 +10,13 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="992594685fs"></ZoomStartTime>
-      <ZoomEndTime time="1001481063fs"></ZoomEndTime>
+      <ZoomStartTime time="166666666fs"></ZoomStartTime>
+      <ZoomEndTime time="1166666667fs"></ZoomEndTime>
       <Cursor1Time time="1000000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="282"></NameColumnWidth>
-      <ValueColumnWidth column_width="222"></ValueColumnWidth>
+      <ValueColumnWidth column_width="206"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="10" />
    <wvobject fp_name="/tb_dead_time_control/stand/clk" type="logic">
@@ -31,32 +31,32 @@
       <obj_property name="ElementShortName">pwm_set</obj_property>
       <obj_property name="ObjectShortName">pwm_set</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_dead_time_control/stand/pwm_reset_delay" type="logic">
-      <obj_property name="ElementShortName">pwm_reset_delay</obj_property>
-      <obj_property name="ObjectShortName">pwm_reset_delay</obj_property>
+   <wvobject fp_name="/tb_dead_time_control/stand/pwm_set_delay" type="logic">
+      <obj_property name="ElementShortName">pwm_set_delay</obj_property>
+      <obj_property name="ObjectShortName">pwm_set_delay</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_dead_time_control/stand/pwm_reset" type="logic">
       <obj_property name="ElementShortName">pwm_reset</obj_property>
       <obj_property name="ObjectShortName">pwm_reset</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_dead_time_control/stand/pwm_set_delay" type="logic">
-      <obj_property name="ElementShortName">pwm_set_delay</obj_property>
-      <obj_property name="ObjectShortName">pwm_set_delay</obj_property>
+   <wvobject fp_name="/tb_dead_time_control/stand/pwm_reset_delay" type="logic">
+      <obj_property name="ElementShortName">pwm_reset_delay</obj_property>
+      <obj_property name="ObjectShortName">pwm_reset_delay</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_dead_time_control/pwm_in" type="logic">
-      <obj_property name="ElementShortName">pwm_in</obj_property>
-      <obj_property name="ObjectShortName">pwm_in</obj_property>
+   <wvobject fp_name="/tb_dead_time_control/pwm_chA" type="logic">
+      <obj_property name="ElementShortName">pwm_chA</obj_property>
+      <obj_property name="ObjectShortName">pwm_chA</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_dead_time_control/pwm_in_n" type="logic">
-      <obj_property name="ElementShortName">pwm_in_n</obj_property>
-      <obj_property name="ObjectShortName">pwm_in_n</obj_property>
+   <wvobject fp_name="/tb_dead_time_control/pwm_chB" type="logic">
+      <obj_property name="ElementShortName">pwm_chB</obj_property>
+      <obj_property name="ObjectShortName">pwm_chB</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_dead_time_control/pwm_out" type="logic">
-      <obj_property name="ElementShortName">pwm_out</obj_property>
-      <obj_property name="ObjectShortName">pwm_out</obj_property>
+   <wvobject fp_name="/tb_dead_time_control/stand/or_gate_A" type="logic">
+      <obj_property name="ElementShortName">or_gate_A</obj_property>
+      <obj_property name="ObjectShortName">or_gate_A</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_dead_time_control/pwm_out_n" type="logic">
-      <obj_property name="ElementShortName">pwm_out_n</obj_property>
-      <obj_property name="ObjectShortName">pwm_out_n</obj_property>
+   <wvobject fp_name="/tb_dead_time_control/stand/or_gate_B" type="logic">
+      <obj_property name="ElementShortName">or_gate_B</obj_property>
+      <obj_property name="ObjectShortName">or_gate_B</obj_property>
    </wvobject>
 </wave_config>

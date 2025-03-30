@@ -5,7 +5,7 @@ use ieee.numeric_std.all;
 Library unisim;
 use unisim.vcomponents.all;
 
-entity pwm_c_dt_signed is
+entity pwm_c_dt is
 	generic(
 		R : integer := 7; -- PWM resolution bits
 		PWM_TYPE : string := "SAWTOOTH"; -- TRIANGULAR or SAWTOOTH
@@ -20,21 +20,28 @@ entity pwm_c_dt_signed is
 		pwm : out std_logic;
 		pwm_n : out std_logic
 		);
-end pwm_c_dt_signed;
+end pwm_c_dt;
 
-architecture src of pwm_c_dt_signed is
+architecture src of pwm_c_dt is
 	
 	signal counter : std_logic_vector(R-1 downto 0) := (others => '0');
 
 	signal pwm_set : std_logic := '0';
 	signal pwm_reset : std_logic := '0';
 
+	signal Q_set : std_logic := '0';
+	signal Q_reset : std_logic := '0';
+
+
 begin
 
-	set_PWM_C_SIGNED: if (PWM_TYPE = "TRIANGULAR" and INPUT_DATA_TYPE = "SIGNED") generate
-		cnt : entity work.updown_counter_signed
+	set_PWM_L_UNSIGNED: if (PWM_TYPE = "SAWTOOTH" and INPUT_DATA_TYPE = "UNSIGNED") generate
+		cnt : entity work.up_counter_unsigned
 			generic map (
-				R => R
+				R => R,
+				START => REF_INIT,
+				STOP => 2**R - 1,
+				STEP => 1
 			)
 			port map (
 				clk => clk,
@@ -43,7 +50,7 @@ begin
 				cnt => counter
 			);
 	end generate;
-		
+
 	set_PWM_L_SIGNED: if (PWM_TYPE = "SAWTOOTH" and INPUT_DATA_TYPE = "SIGNED") generate
 		cnt : entity work.up_counter_signed
 			generic map (
@@ -60,10 +67,53 @@ begin
 			);
 	end generate;
 
+	set_PWM_C_UNSIGNED: if (PWM_TYPE = "TRIANGULAR" and INPUT_DATA_TYPE = "UNSIGNED") generate
+		cnt : entity work.updown_counter_unsigned
+			generic map (
+				R => R,
+				START => REF_INIT,
+				STOP => 2**R - 1,
+				STEP => 1
+			)
+			port map (
+				clk => clk,
+				rst => rst,
+				enable => enable,
+				cnt => counter
+			);
+	end generate;
+		
+	set_PWM_C_SIGNED: if (PWM_TYPE = "TRIANGULAR" and INPUT_DATA_TYPE = "SIGNED") generate
+		cnt : entity work.updown_counter_signed
+			generic map (
+				R => R,
+				START => REF_INIT,
+				STOP => 2**R / 2,
+				STEP => 1
+			)
+			port map (
+				clk => clk,
+				rst => rst,
+				enable => enable,
+				cnt => counter
+			);
+	end generate;
+
+    RS_trigger : entity work.sync_rs_flipflop
+    port map (
+        clk => clk,
+        S => pwm_reset,
+        R => pwm_set,
+        Q => Q_set,
+        Qn => Q_reset 
+    ); 
+
 	pwm_reset_control : process(clk, counter)
+		-- variable cost : std_logic_vector(R-1 downto 0) := (others => '0');
 	begin
 		if rising_edge(clk) then
-			if counter = to_signed(2**R / 2) then
+			-- if counter = to_signed(2**R / 2) then
+			if counter = std_logic_vector(to_unsigned(2**R - 1, R)) then
 				pwm_reset <= '1';
 			else
 				pwm_reset <= '0';
@@ -77,6 +127,7 @@ begin
 			if rising_edge(clk) then
 				if rst = '0' then 
 					pwm <= '0';
+					pwm_set <= '0'; 
 					pwm_n <= '1';
 					-- counter <= b"0000000";
 				else
@@ -86,6 +137,12 @@ begin
 					else
 						pwm <= '0';
 						pwm_n <= '1';
+					end if;
+
+					if counter = input_wave then
+						pwm_set <= '1';
+					else
+						pwm_set <= '0';
 					end if;
 				end if;
 			end if;

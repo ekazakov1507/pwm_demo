@@ -16,7 +16,7 @@ entity sync_fifo is
         data_out : out std_logic_vector(DATA_WIDTH-1 downto 0);  -- Output data
         full     : out std_logic;       -- FIFO full flag
         empty    : out std_logic;       -- FIFO empty flag
-        count    : out integer range 0 to FIFO_DEPToH  -- Current word count
+        count    : out integer range 0 to FIFO_DEPTH  -- Current word count
     );
 end sync_fifo;
 
@@ -31,17 +31,14 @@ architecture src of sync_fifo is
     signal full_signal : std_logic := '0';
     signal empty_signal : std_logic := '1';
 begin
-    -- Connect internal signals to outputs
     full <= full_signal;
     empty <= empty_signal;
     count <= num_items;
     
-    -- FIFO control process
     process(clk)
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                -- Reset all pointers and flags
                 head <= 0;
                 tail <= 0;
                 num_items <= 0;
@@ -91,6 +88,5 @@ begin
         end if;
     end process;
     
-    -- Data output is always the head pointer value
     data_out <= memory(head);
 end src;

@@ -2,9 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-library UNISIM;
-use UNISIM.VComponents.all;
-library UNIMACRO;
+library unisim;
+use unisim.vcomponents.all;
+library unimacro;
 use unimacro.Vcomponents.all;
 
 entity pwm_platform is
@@ -42,39 +42,23 @@ architecture src of pwm_platform is
   signal delay : std_logic_vector(4 downto 0) := (others => '0');
   signal pwm_channels_delayed : std_logic_vector(1 downto 0) := (others => '0');
 
-  --component pwm_l is
-  --  port (
-  --      enable : in std_logic;
-  --      clk : in std_logic;
-  --      modulated_wave : in std_logic_vector;
-  --      counter_step : in std_logic_vector;
-  --      counter_reset : in std_logic;
-  --      pwm : out std_logic;
-  --      pwm_i : out std_logic
-  --    );
-  --end component pwm_l;
-
-  component pwm_c_unsigned is
-    port (
-        clk : in std_logic;
-        rst : in std_logic;
-        enable : in std_logic;
-        input_wave : in std_logic_vector;
-        pwm : out std_logic;
-        pwm_n : out std_logic
+  component pwm_c_dt is
+    generic(
+      R : integer := 7; -- PWM resolution bits
+      PWM_TYPE : string := "SAWTOOTH"; -- TRIANGULAR or SAWTOOTH
+      INPUT_DATA_TYPE : string := "UNSIGNED"; -- signed or unsigned
+      REF_INIT : integer := 0
+    );
+    port(
+      clk : in std_logic;
+      rst : in std_logic;
+      enable : in std_logic;
+      input_wave : in std_logic_vector(R-1 downto 0);
+      pwm : out std_logic;
+      pwm_n : out std_logic
       );
-  end component pwm_c_unsigned;
+  end component;
 
-  component pwm_c_signed is
-    port (
-        clk : in std_logic;
-        rst : in std_logic;
-        enable : in std_logic;
-        input_wave : in std_logic_vector;
-        pwm : out std_logic;
-        pwm_n : out std_logic
-      );
-  end component pwm_c_signed;
 
 begin
 
@@ -173,24 +157,42 @@ begin
         end if;
   end process;
 
-  centered_pwm_01channels : pwm_c_unsigned
+  -- centered_pwm_01channels : entity work.pwm_c_unsigned
+  --   port map (
+  --     rst => '1',
+  --     enable => pwm_c_enable,
+  --     clk => clk_mmcm_2,
+  --     input_wave => table_cos_unsigned,
+  --     pwm => pwm_channels(0),
+  --     pwm_n => pwm_channels(1)
+  --     );
+
+  -- centered_pwm_23channels : entity work.pwm_c_signed
+  --   port map (
+  --     rst => '1',
+  --     enable => pwm_c_enable,
+  --     clk => clk_mmcm_2,
+  --     input_wave => table_cos_signed,
+  --     pwm => pwm_channels(2),
+  --     pwm_n => pwm_channels(3)
+  --     );
+
+  pwday: pwm_c_dt
+  -- pwday: entity work.pwm_c_dt
+    generic map (
+      R => 7,
+      PWM_TYPE => "SAWTOOTH",
+      INPUT_DATA_TYPE =>"UNSIGNED",
+      REF_INIT => 0
+    )
     port map (
+      clk => clk_mmcm_2,
       rst => '1',
       enable => pwm_c_enable,
-      clk => clk_mmcm_2,
       input_wave => table_cos_unsigned,
       pwm => pwm_channels(0),
       pwm_n => pwm_channels(1)
-      );
+    );
 
-  centered_pwm_23channels : pwm_c_signed
-    port map (
-      rst => '1',
-      enable => pwm_c_enable,
-      clk => clk_mmcm_2,
-      input_wave => table_cos_signed,
-      pwm => pwm_channels(2),
-      pwm_n => pwm_channels(3)
-      );
 
 end src;

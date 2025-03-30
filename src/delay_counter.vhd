@@ -1,8 +1,8 @@
 library ieee;
-use ieee.std_logic_1164.ALL;
+use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-entity  delay_counter is
+entity delay_counter is
     generic (
         DELAY_CYCLES : integer := 5 -- Number of clock cycles to delay
     );
@@ -19,12 +19,14 @@ architecture src of delay_counter is
 begin
     process(clk, reset)
     begin
-        if reset = '1' then
-            -- Reset the shift register
-            shift_reg <= (others => '0');
-        elsif rising_edge(clk) then
-            -- Shift the input signal through the register
-            shift_reg <= shift_reg(DELAY_CYCLES-2 downto 0) & input_signal;
+        if rising_edge(clk) then
+            if reset = '0' then
+                -- Reset the shift register
+                shift_reg <= (others => '0');
+            elsif reset = '1' then
+                -- Shift the input signal through the register
+                shift_reg <= shift_reg(DELAY_CYCLES-2 downto 0) & input_signal;
+            end if;
         end if;
     end process;
 
