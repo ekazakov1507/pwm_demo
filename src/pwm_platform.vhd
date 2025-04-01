@@ -181,15 +181,15 @@ begin
   -- pwday: entity work.pwm_c_dt
     generic map (
       R => 7,
-      PWM_TYPE => "SAWTOOTH",
-      INPUT_DATA_TYPE =>"UNSIGNED",
+      REF_TYPE => "SYMMETRICAL",
+      INPUT_DATA_TYPE =>"SIGNED",
       REF_INIT => 0
     )
     port map (
       clk => clk_mmcm_2,
       rst => '1',
       enable => pwm_c_enable,
-      input_wave => table_cos_unsigned,
+      input_wave => table_cos_signed,
       pwm => pwm_channels(0),
       pwm_n => pwm_channels(1)
     );

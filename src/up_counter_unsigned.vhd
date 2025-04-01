@@ -5,6 +5,7 @@ use ieee.numeric_std.all;
 entity up_counter_unsigned is
 	generic(
 		R : integer := 7; -- Resolution
+		INIT : integer := 0;
 		START : integer := 0; -- 0
 		STOP : integer := 127; -- 2^R-1
 		STEP : integer := 1
@@ -26,7 +27,7 @@ begin
 			constant counter_max : unsigned(R-1 downto 0) := to_unsigned(STOP, R);-- (0 => '0', others => '1');
 			constant counter_step : unsigned(R-1 downto 0) := to_unsigned(STEP, R); -- (0 => '1', others => '0');
             variable counter_updown : std_logic := '0';
-            variable counter : unsigned(R-1 downto 0) := counter_min;
+            variable counter : unsigned(R-1 downto 0) := to_unsigned(INIT, R);
 		begin
 			if rising_edge(clk) then 
 				if rst = '0' then

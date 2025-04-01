@@ -2534,7 +2534,7 @@ architecture src of cos_table_gen is
 begin
     read_table : process(clk, reset, angle)
     begin
-        if reset = '1' then
+        if reset = '0' then
             angle_reg <= (others => '0');
             cosine_value_unsigned <= (others => '0');
             cosine_value_signed <= (others => '0');

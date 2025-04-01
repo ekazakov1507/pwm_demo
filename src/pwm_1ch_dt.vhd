@@ -2,10 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
-Library unisim;
-use unisim.vcomponents.all;
-
-entity pwm_c_dt is
+entity pwm_1ch_dt is
 	generic(
 		R : integer := 7; -- PWM resolution bits
 		PWM_TYPE : string := "SAWTOOTH"; -- TRIANGULAR or SAWTOOTH
@@ -20,9 +17,9 @@ entity pwm_c_dt is
 		pwm : out std_logic;
 		pwm_n : out std_logic
 		);
-end pwm_c_dt;
+end pwm_1ch_dt;
 
-architecture src of pwm_c_dt is
+architecture src of pwm_1ch_dt is
 	
 	signal counter : std_logic_vector(R-1 downto 0) := (others => '0');
 
@@ -35,11 +32,12 @@ architecture src of pwm_c_dt is
 
 begin
 
-	set_PWM_L_UNSIGNED: if (PWM_TYPE = "SAWTOOTH" and INPUT_DATA_TYPE = "UNSIGNED") generate
+	set_PWM_S_UNSIGNED: if (PWM_TYPE = "SAWTOOTH" and INPUT_DATA_TYPE = "UNSIGNED") generate
 		cnt : entity work.up_counter_unsigned
 			generic map (
 				R => R,
-				START => REF_INIT,
+				INIT => REF_INIT,
+				START => 0,
 				STOP => 2**R - 1,
 				STEP => 1
 			)
@@ -51,12 +49,13 @@ begin
 			);
 	end generate;
 
-	set_PWM_L_SIGNED: if (PWM_TYPE = "SAWTOOTH" and INPUT_DATA_TYPE = "SIGNED") generate
+	set_PWM_S_SIGNED: if (PWM_TYPE = "SAWTOOTH" and INPUT_DATA_TYPE = "SIGNED") generate
 		cnt : entity work.up_counter_signed
 			generic map (
 				R => R,
-				START => REF_INIT,
-				STOP => 2**R / 2,
+				INIT => REF_INIT, 
+				START => -2**R / 2,
+				STOP => 2**R / 2 - 1,
 				STEP => 1
 			)
 			port map (
@@ -67,11 +66,12 @@ begin
 			);
 	end generate;
 
-	set_PWM_C_UNSIGNED: if (PWM_TYPE = "TRIANGULAR" and INPUT_DATA_TYPE = "UNSIGNED") generate
+	set_PWM_T_UNSIGNED: if (PWM_TYPE = "TRIANGULAR" and INPUT_DATA_TYPE = "UNSIGNED") generate
 		cnt : entity work.updown_counter_unsigned
 			generic map (
 				R => R,
-				START => REF_INIT,
+				INIT => REF_INIT, 
+				START => 0,
 				STOP => 2**R - 1,
 				STEP => 1
 			)
@@ -83,12 +83,13 @@ begin
 			);
 	end generate;
 		
-	set_PWM_C_SIGNED: if (PWM_TYPE = "TRIANGULAR" and INPUT_DATA_TYPE = "SIGNED") generate
+	set_PWM_T_SIGNED: if (PWM_TYPE = "TRIANGULAR" and INPUT_DATA_TYPE = "SIGNED") generate
 		cnt : entity work.updown_counter_signed
 			generic map (
 				R => R,
-				START => REF_INIT,
-				STOP => 2**R / 2,
+				INIT => REF_INIT, 
+				START => -2**R / 2,
+				STOP => 2**R / 2 - 1,
 				STEP => 1
 			)
 			port map (
@@ -99,28 +100,40 @@ begin
 			);
 	end generate;
 
-    RS_trigger : entity work.sync_rs_flipflop
-    port map (
-        clk => clk,
-        S => pwm_reset,
-        R => pwm_set,
-        Q => Q_set,
-        Qn => Q_reset 
-    ); 
-
-	pwm_reset_control : process(clk, counter)
-		-- variable cost : std_logic_vector(R-1 downto 0) := (others => '0');
-	begin
-		if rising_edge(clk) then
-			-- if counter = to_signed(2**R / 2) then
-			if counter = std_logic_vector(to_unsigned(2**R - 1, R)) then
-				pwm_reset <= '1';
-			else
-				pwm_reset <= '0';
+	pwm_reset_instance_UNSIGNED: if (INPUT_DATA_TYPE = "UNSIGNED") generate
+		pwm_reset_control : process(clk, counter)
+		begin
+			if rising_edge(clk) then
+				if counter = std_logic_vector(to_unsigned(2**R - 1, R)) then
+					pwm_reset <= '1';
+				else
+					pwm_reset <= '0';
+				end if;
 			end if;
-		end if;
+		end process;
+	end generate;
 
-	end process;
+	pwm_reset_instance_SIGNED: if (INPUT_DATA_TYPE = "SIGNED") generate
+		pwm_reset_control : process(clk, counter)
+		begin
+			if rising_edge(clk) then
+				if counter = std_logic_vector(to_signed(2**R / 2 - 1, R)) then
+					pwm_reset <= '1';
+				else
+					pwm_reset <= '0';
+				end if;
+			end if;
+		end process;
+	end generate;
+
+    RS_trigger : entity work.sync_rs_flipflop
+		port map (
+			clk => clk,
+			S => pwm_reset,
+			R => pwm_set,
+			Q => Q_set,
+			Qn => Q_reset 
+		); 
 
 	pwm_set_control : process(clk, rst, counter, input_wave)
 		begin 
@@ -131,7 +144,7 @@ begin
 					pwm_n <= '1';
 					-- counter <= b"0000000";
 				else
-					if counter < input_wave then
+					if counter <= input_wave then
 						pwm <= '1';
 						pwm_n <= '0';
 					else

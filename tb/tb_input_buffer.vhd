@@ -53,15 +53,18 @@ begin
 
     stim_proc: process
     begin
-        rst <= '1';
-        wait for CLK_PERIOD*2;
         rst <= '0';
+        wait for CLK_PERIOD*2;
+        rst <= '1';
         wait for CLK_PERIOD;
         wr_en <= '1';
         wait for CLK_PERIOD;
         rd_en <= '1';
-        wait for 100000*CLK_PERIOD;
+        wait for 100*CLK_PERIOD;
         wr_en <= '0';
+        rd_en <= '1';
+        wait for 100*CLK_PERIOD;
+        wr_en <= '1';
         rd_en <= '0';
         wait for CLK_PERIOD;
         wait;

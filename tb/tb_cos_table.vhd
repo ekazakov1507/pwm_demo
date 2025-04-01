@@ -8,7 +8,7 @@ end tb_cos_table;
 architecture tb of tb_cos_table is
 
     signal clk : std_logic := '0';
-    signal reset : std_logic := '0';
+    signal reset : std_logic := '1';
     signal cosine_out_unsigned : std_logic_vector(6 downto 0) := (others => '0');
     signal cosine_out_signed : std_logic_vector(6 downto 0) := (others => '0');
 
