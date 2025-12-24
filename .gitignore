@@ -1,6 +1,6 @@
 # project
-sim
-pics
+sim/
+pics/
 *.txt
 *.dat
 
