@@ -1,3 +1,9 @@
+# project
+sim
+pics
+*.txt
+*.dat
+
 # Vivado 
 pwm_demo.hw/
 pwm_demo.cache/
@@ -5,3 +11,6 @@ pwm_demo.runs/
 pwm_demo.ip_user_files/
 pwm_demo.sim/
 pwm_demo.xpr
+
+# python
+__pycache__/
