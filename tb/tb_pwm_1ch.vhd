@@ -25,11 +25,16 @@ architecture tb of tb_pwm_1ch is
 
 begin
 
-  cos_tab_gen : entity work.cos_table_gen
+  dut_sine : entity work.sine_gen_simple
+    generic map (
+      wave_length => 1024,
+      bit_width   => data_width,
+      data_type   => input_data_type
+    )
     port map (
-      clk               => clk,
-      reset             => rst,
-      cosine_out_signed => data_in
+      clk         => clk,
+      reset       => rst,
+      output_data => data_in
     );
 
   pwm_mod : entity work.pwm_1ch

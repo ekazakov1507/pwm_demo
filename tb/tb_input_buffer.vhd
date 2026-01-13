@@ -24,11 +24,16 @@ architecture tb of tb_input_buffer is
 
 begin
 
-  cos_tab_gen : entity work.cos_table_gen
+  dut_sine : entity work.sine_gen_simple
+    generic map (
+      wave_length => 1024,
+      bit_width   => data_width,
+      data_type   => "UNSIGNED"
+    )
     port map (
-      clk                 => clk,
-      reset               => rst,
-      cosine_out_unsigned => data_in
+      clk         => clk,
+      reset       => rst,
+      output_data => data_in
     );
 
   uut : entity work.sync_fifo
