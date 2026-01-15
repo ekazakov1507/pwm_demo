@@ -41,7 +41,9 @@ begin
 
   dut_rescaler : entity work.rescaler_unsigned
     generic map (
-      r => 16
+      r             => 16,
+      scale_factor  => 0.8,
+      offset_factor => 0.1
     )
     port map (
       clk         => clk,
@@ -63,6 +65,10 @@ begin
     );
 
   ut_rescaler : entity work.rescaler_signed
+    generic map (
+      r            => 16,
+      scale_factor => 0.8 + 0.1
+    )
     port map (
       clk         => clk,
       reset       => reset,
