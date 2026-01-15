@@ -2,7 +2,7 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
-entity rescaler_signed is
+entity scaler_signed is
   generic (
     r            : integer := 16;
     scale_factor : real    := 0.9
@@ -13,9 +13,9 @@ entity rescaler_signed is
     input_data  : in    std_logic_vector(r - 1 downto 0); -- Q1.15 signed: -1.0 to +1.0
     output_data : out   std_logic_vector(r - 1 downto 0)  -- Q1.15 signed: scaled to ≈ -0.9 to +0.9
   );
-end entity rescaler_signed;
+end entity scaler_signed;
 
-architecture src of rescaler_signed is
+architecture src of scaler_signed is
 
   constant max_val   : integer := 2 ** (r - 1) - 1;
   constant scale_int : integer := integer(scale_factor * real(max_val));

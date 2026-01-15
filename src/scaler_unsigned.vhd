@@ -2,7 +2,7 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
-entity rescaler_unsigned is
+entity scaler_unsigned is
   generic (
     r             : integer := 16;
     scale_factor  : real    := 0.8;
@@ -14,9 +14,9 @@ entity rescaler_unsigned is
     input_data  : in    std_logic_vector(r - 1 downto 0);
     output_data : out   std_logic_vector(r - 1 downto 0)
   );
-end entity rescaler_unsigned;
+end entity scaler_unsigned;
 
-architecture src of rescaler_unsigned is
+architecture src of scaler_unsigned is
 
   constant max_val    : integer := 2 ** (r - 1);
   constant scale_int  : integer := integer(scale_factor * real(max_val));

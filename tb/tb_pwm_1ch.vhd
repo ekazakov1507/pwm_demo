@@ -14,6 +14,8 @@ architecture tb of tb_pwm_1ch is
   constant ref_init             : integer := -2 ** data_width / 2;
   constant ref_step             : integer := 1;
   constant input_data_type      : string  := "SIGNED";
+  constant scale_factor         : real    := 0.8;
+  constant offset_factor        : real    := 0.1;
 
   signal clk     : std_logic                                 := '0';
   signal rst     : std_logic                                 := '0';
@@ -27,7 +29,7 @@ begin
 
   dut_sine : entity work.sine_gen_simple
     generic map (
-      wave_length => 1024,
+      wave_length => 2048,
       bit_width   => data_width,
       data_type   => input_data_type
     )
@@ -39,12 +41,14 @@ begin
 
   pwm_mod : entity work.pwm_1ch
     generic map (
-      r               => DATA_WIDTH,
-      d               => NUM_DEAD_TIME_CYCLES,
-      ref_type        => REF_TYPE,
-      ref_init        => REF_INIT,
-      ref_step        => REF_STEP,
-      input_data_type => INPUT_DATA_TYPE
+      r               => data_width,
+      d               => num_dead_time_cycles,
+      ref_type        => ref_type,
+      ref_init        => ref_init,
+      ref_step        => ref_step,
+      input_data_type => input_data_type,
+      scale_factor    => scale_Factor,
+      offset_factor   => offset_Factor
     )
     port map (
       clk        => clk,

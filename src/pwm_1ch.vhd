@@ -8,6 +8,8 @@ entity pwm_1ch is
     d               : integer := 2;             -- Num dead-time cycles
     input_data_type : string  := "SIGNED";      -- signed or unsigned
     ref_type        : string  := "SYMMETRICAL"; -- Symmetrical and Asymmetrical
+    scale_factor    : real    := 0.8;
+    offset_factor   : real    := 0.1;
     ref_init        : integer := 0;
     ref_step        : integer := 1
   );
@@ -50,8 +52,9 @@ architecture src of pwm_1ch is
   constant stop  : integer := get_stop_value;
   constant step  : integer := ref_step;
 
-  signal input_reg : std_logic_vector(r - 1 downto 0) := (others => '0');
-  signal counter   : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal input_reg    : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal scaled_input : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal counter      : std_logic_vector(r - 1 downto 0) := (others => '0');
 
   signal pwm_state   : std_logic := '0';
   signal pwm_n_state : std_logic := '0';
@@ -137,7 +140,40 @@ begin
 
   end generate set_pwm_t_signed;
 
-  out_ctrl_p : entity work.edge_delay
+  set_scaler_type_signed : if INPUT_DATA_TYPE = "SIGNED" generate
+
+    rsc : entity work.scaler_signed
+      generic map (
+        r            => r,
+        scale_factor => scale_factor + offset_factor
+      )
+      port map (
+        clk         => clk,
+        reset       => rst,
+        input_data  => input_reg,
+        output_data => scaled_input
+      );
+
+  end generate set_scaler_type_signed;
+
+  set_scaler_type_unsigned : if INPUT_DATA_TYPE = "UNSIGNED" generate
+
+    rsc : entity work.scaler_unsigned
+      generic map (
+        r             => r,
+        scale_factor  => scale_factor,
+        offset_factor => offset_factor
+      )
+      port map (
+        clk         => clk,
+        reset       => rst,
+        input_data  => input_reg,
+        output_data => scaled_input
+      );
+
+  end generate set_scaler_type_unsigned;
+
+  dead_time_control_p : entity work.edge_delay
     generic map (
       r => r,
       d => d
@@ -148,7 +184,7 @@ begin
       output => pwm
     );
 
-  out_ctrl_n : entity work.edge_delay
+  dead_time_control_n : entity work.edge_delay
     generic map (
       r => r,
       d => d
@@ -172,7 +208,7 @@ begin
 
   end process input_control;
 
-  pwm_set_control : process (clk, rst, counter, input_reg) is
+  pwm_set_control : process (clk, rst, counter, scaled_input) is
   begin
 
     if rising_edge(clk) then
@@ -181,7 +217,7 @@ begin
         pwm_n_state <= '1';
       -- counter <= b"0000000";
       else
-        if (counter >= input_reg) then
+        if (counter >= scaled_input) then
           pwm_state   <= '1';
           pwm_n_state <= '0';
         else
