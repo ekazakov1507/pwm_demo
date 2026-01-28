@@ -2,16 +2,20 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
+library work;
+  use work.range_divider_pkg.get_chunk_end;
+  use work.range_divider_pkg.value_flag_pair;
+
 entity pwm_mch_buf is
   generic (
-    r               : integer := 7;             -- PWM resolution bits
-    d               : integer := 2;             -- Num dead-time cycles
-    num_channels    : integer := 2;
-    ref_type        : string  := "SYMMETRICAL"; -- Symmetrical and Asymmetrical
-    input_data_type : string  := "SIGNED";      -- signed or unsigned
-    buffer_depth    : integer := 1024;
-    ref_init        : integer := 0;             -- TO DO integer_vector
-    ref_step        : integer := 1
+    r               : integer   := 7;             -- PWM resolution bits
+    d               : integer   := 2;             -- Num dead-time cycles
+    num_channels    : integer   := 2;
+    input_data_type : string    := "SIGNED";      -- signed or unsigned
+    buffer_depth    : integer   := 1024;
+    ref_type        : string    := "SYMMETRICAL"; -- Symmetrical and Asymmetrical
+    ref_step        : integer   := 1;
+    ref_updwn       : std_logic := '1'
   );
   port (
     clk        : in    std_logic;
@@ -37,8 +41,6 @@ architecture src of pwm_mch_buf is
 
   signal duty_cycle_state : std_logic                        := '0';
   signal duty_cycle       : std_logic_vector(r - 1 downto 0) := (others => '0');
-
-  signal cnt_out_test : std_logic_vector(r - 1 downto 0) := (others => '0');
 
 begin
 
@@ -127,24 +129,52 @@ begin
 
   channels_gen : for i in 0 to NUM_CHANNELS - 1 generate
 
-    pwm2 : entity work.pwm_1ch
+    constant chunk : value_flag_pair := get_chunk_end(
+                                                      mode  => input_data_type,
+                                                      r     => r,
+                                                      index => i,
+                                                      n     => num_channels);
+
+    component pwm_1ch is
+      generic (
+        r               : integer := r;
+        d               : integer := d;
+        ref_type        : string  := ref_type;
+        input_data_type : string  := input_data_type;
+        ref_init        : integer := chunk.val;
+        ref_step        : integer := ref_step;
+        ref_updwn       : std_logic := chunk.flag
+      );
+      port (
+        clk        : in    std_logic;
+        rst        : in    std_logic;
+        enable     : in    std_logic;
+        input_wave : in    std_logic_vector(r - 1 downto 0);
+        pwm        : out   std_logic;
+        pwm_n      : out   std_logic
+      );
+    end component pwm_1ch;
+
+  begin
+
+    -- pwm_mod : entity work.pwm_1ch
+    pwm_ich : component pwm_1ch
       generic map (
         r               => r,
         d               => d,
         ref_type        => ref_type,
-        ref_init        => ref_init,
+        ref_init        => chunk.val,
         ref_step        => ref_step,
+        ref_updwn       => chunk.flag,
         input_data_type => input_data_type
       )
       port map (
-        clk    => clk_pwm,
-        rst    => rst,
-        enable => enable,
-        -- input_wave => buf_out,
-        input_wave   => duty_cycle,
-        cnt_out_test => cnt_out_test,
-        pwm          => pwm(i),
-        pwm_n        => pwm_n(i)
+        clk        => clk_pwm,
+        rst        => rst,
+        enable     => enable,
+        input_wave => duty_cycle,
+        pwm        => pwm(i),
+        pwm_n      => pwm_n(i)
       );
 
   end generate channels_gen;

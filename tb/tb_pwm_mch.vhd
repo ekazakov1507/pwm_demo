@@ -7,15 +7,16 @@ end entity tb_pwm_mch;
 
 architecture tb of tb_pwm_mch is
 
-  constant clk_period           : time    := 10 ns;
-  constant data_width           : integer := 7;
-  constant ref_init             : integer := -2 ** data_width / 2;
-  constant num_dead_time_cycles : integer := 4;
-  constant buffer_depth         : integer := 128;
-  constant num_channels         : integer := 1;
-  constant ref_type             : string  := "SYMMETRICAL";
-  constant ref_step             : integer := 1;
-  constant input_data_type      : string  := "SIGNED";
+  constant clk_period           : time      := 10 ns;
+  constant data_width           : integer   := 7;
+  constant ref_init             : integer   := -2 ** data_width / 2;
+  constant num_dead_time_cycles : integer   := 4;
+  constant buffer_depth         : integer   := 128;
+  constant num_channels         : integer   := 4;
+  constant input_data_type      : string    := "SIGNED";
+  constant ref_type             : string    := "SYMMETRICAL";
+  constant ref_step             : integer   := 1;
+  constant ref_updwn            : std_logic := '1';
 
   signal clk     : std_logic                                 := '0';
   signal clk_pwm : std_logic                                 := '0';
@@ -50,8 +51,8 @@ begin
       num_channels    => NUM_CHANNELS,
       input_data_type => INPUT_DATA_TYPE,
       ref_type        => REF_TYPE,
-      ref_init        => REF_INIT,
-      ref_step        => REF_STEP
+      ref_step        => REF_STEP,
+      ref_updwn       => ref_updwn
     )
     port map (
       clk        => clk,
@@ -70,8 +71,8 @@ begin
       ref_type        => REF_TYPE,
       input_data_type => INPUT_DATA_TYPE,
       buffer_depth    => BUFFER_DEPTH,
-      ref_init        => REF_INIT,
-      ref_step        => REF_STEP
+      ref_step        => REF_STEP,
+      ref_updwn       => ref_updwn
     )
     port map (
       clk        => clk,

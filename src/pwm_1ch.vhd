@@ -4,23 +4,23 @@ library ieee;
 
 entity pwm_1ch is
   generic (
-    r               : integer := 7;             -- PWM resolution bits
-    d               : integer := 2;             -- Num dead-time cycles
-    input_data_type : string  := "SIGNED";      -- signed or unsigned
-    ref_type        : string  := "SYMMETRICAL"; -- Symmetrical and Asymmetrical
-    scale_factor    : real    := 0.8;
-    offset_factor   : real    := 0.1;
-    ref_init        : integer := 0;
-    ref_step        : integer := 1
+    r               : integer   := 7;             -- PWM resolution bits
+    d               : integer   := 2;             -- Num dead-time cycles
+    input_data_type : string    := "SIGNED";      -- signed or unsigned
+    ref_type        : string    := "SYMMETRICAL"; -- Symmetrical and Asymmetrical
+    scale_factor    : real      := 0.8;
+    offset_factor   : real      := 0.1;
+    ref_init        : integer   := 0;
+    ref_step        : integer   := 1;
+    ref_updwn       : std_logic := '1'
   );
   port (
-    clk          : in    std_logic;
-    rst          : in    std_logic;
-    enable       : in    std_logic;
-    input_wave   : in    std_logic_vector(r - 1 downto 0);
-    cnt_out_test : out   std_logic_vector(r - 1 downto 0);
-    pwm          : out   std_logic;
-    pwm_n        : out   std_logic
+    clk        : in    std_logic;
+    rst        : in    std_logic;
+    enable     : in    std_logic;
+    input_wave : in    std_logic_vector(r - 1 downto 0);
+    pwm        : out   std_logic;
+    pwm_n      : out   std_logic
   );
 end entity pwm_1ch;
 
@@ -48,9 +48,10 @@ architecture src of pwm_1ch is
 
   end function get_stop_value;
 
-  constant start : integer := get_start_value;
-  constant stop  : integer := get_stop_value;
-  constant step  : integer := ref_step;
+  constant start  : integer   := get_start_value;
+  constant stop   : integer   := get_stop_value;
+  constant step   : integer   := ref_step;
+  constant updown : std_logic := ref_updwn;
 
   signal input_reg    : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal scaled_input : std_logic_vector(r - 1 downto 0) := (others => '0');
@@ -106,11 +107,12 @@ begin
 
     cnt : entity work.updown_counter_unsigned
       generic map (
-        r     => r,
-        init  => ref_init,
-        start => START,
-        stop  => STOP,
-        step  => STEP
+        r      => r,
+        init   => ref_init,
+        start  => START,
+        stop   => STOP,
+        step   => STEP,
+        updown => updown
       )
       port map (
         clk    => clk,
@@ -125,11 +127,12 @@ begin
 
     cnt : entity work.updown_counter_signed
       generic map (
-        r     => r,
-        init  => ref_init,
-        start => START,
-        stop  => STOP,
-        step  => STEP
+        r      => r,
+        init   => ref_init,
+        start  => START,
+        stop   => STOP,
+        step   => STEP,
+        updown => updown
       )
       port map (
         clk    => clk,
@@ -224,7 +227,6 @@ begin
           pwm_state   <= '0';
           pwm_n_state <= '1';
         end if;
-        cnt_out_test <= counter;
       end if;
     end if;
 
