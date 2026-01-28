@@ -24,18 +24,16 @@ begin
 
   up_down_counter : process (clk, rst) is
 
-    constant counter_min    : signed(r - 1 downto 0) := to_signed(start, r); -- (0 => '1', others => '0');
-    constant counter_max    : signed(r - 1 downto 0) := to_signed(stop, r);  -- (0 => '0', others => '1');
-    constant counter_step   : signed(r - 1 downto 0) := to_signed(step, r);  -- (0 => '1', others => '0');
-    variable counter_updown : std_logic              := '0';
-    variable counter        : signed(r - 1 downto 0) := to_signed(init, r);
+    constant counter_min  : signed(r - 1 downto 0) := to_signed(start, r); -- (0 => '1', others => '0');
+    constant counter_max  : signed(r - 1 downto 0) := to_signed(stop, r);  -- (0 => '0', others => '1');
+    constant counter_step : signed(r - 1 downto 0) := to_signed(step, r);  -- (0 => '1', others => '0');
+    variable counter      : signed(r - 1 downto 0) := to_signed(init, r);
 
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        counter        := to_signed(init, r);
-        counter_updown := '1';
+        counter := to_signed(init, r);
       elsif (rst = '0' and enable = '1') then
         if (counter < counter_max) then
           counter := counter + counter_step;

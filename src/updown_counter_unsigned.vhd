@@ -4,11 +4,12 @@ library ieee;
 
 entity updown_counter_unsigned is
   generic (
-    r     : integer := 7;   -- Resolution
-    init  : integer := 0;
-    start : integer := 0;   -- 0
-    stop  : integer := 127; -- 2^R-1
-    step  : integer := 1
+    r      : integer   := 7;   -- Resolution
+    init   : integer   := 0;
+    start  : integer   := 0;   -- 0
+    stop   : integer   := 127; -- 2^R-1
+    step   : integer   := 1;
+    updown : std_logic := '1'
   );
   port (
     clk    : in    std_logic;
@@ -27,7 +28,7 @@ begin
     constant counter_min    : unsigned(r - 1 downto 0) := to_unsigned(start, r); -- (0 => '1', others => '0');
     constant counter_max    : unsigned(r - 1 downto 0) := to_unsigned(stop, r);  -- (0 => '0', others => '1');
     constant counter_step   : unsigned(r - 1 downto 0) := to_unsigned(step, r);  -- (0 => '1', others => '0');
-    variable counter_updown : std_logic                := '0';
+    variable counter_updown : std_logic                := updown;
     variable counter        : unsigned(r - 1 downto 0) := to_unsigned(init, r);
 
   begin

@@ -4,11 +4,12 @@ library ieee;
 
 entity updown_counter_signed is
   generic (
-    r     : integer := 7;   -- Resolution
-    init  : integer := 0;
-    start : integer := -64; -- -1 2^R / 2
-    stop  : integer := 63;  -- +1 * 2^R / 2 - 1
-    step  : integer := 1
+    r      : integer   := 7;   -- Resolution
+    init   : integer   := 0;
+    start  : integer   := -64; -- -1 2^R / 2
+    stop   : integer   := 63;  -- +1 * 2^R / 2 - 1
+    step   : integer   := 1;
+    updown : std_logic := '1'
   );
   port (
     clk    : in    std_logic;
@@ -28,15 +29,14 @@ begin
     constant counter_min    : signed(r - 1 downto 0) := to_signed(start, r); -- (R-1 => '1', others => '0');
     constant counter_max    : signed(r - 1 downto 0) := to_signed(stop, r);  -- (R-1 => '0', others => '1');
     constant counter_step   : signed(r - 1 downto 0) := to_signed(step, r);  -- (0 => '1', others => '0');
-    variable counter_updown : std_logic              := '0';
+    variable counter_updown : std_logic              := updown;
     variable counter        : signed(r - 1 downto 0) := to_signed(init, r);
 
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        counter        := to_signed(init, r);
-        counter_updown := '1';
+        counter := to_signed(init, r);
       elsif (rst = '0' and enable = '1') then
         if (counter_updown = '1' and counter < counter_max + 1 - counter_step) then
           counter := counter + counter_step;
