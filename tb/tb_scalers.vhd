@@ -7,10 +7,10 @@ end entity tb_scalers;
 
 architecture tb of tb_scalers is
 
-  signal clk                   : std_logic := '0';
-  signal reset                 : std_logic := '1';
-  signal sine_out_unsigned     : std_logic_vector(15 downto 0);
-  signal sine_out_signed       : std_logic_vector(15 downto 0);
+  signal clk                 : std_logic := '0';
+  signal reset               : std_logic := '1';
+  signal sine_out_unsigned   : std_logic_vector(15 downto 0);
+  signal sine_out_signed     : std_logic_vector(15 downto 0);
   signal scaled_out_unsigned : std_logic_vector(15 downto 0);
   signal scaled_out_signed   : std_logic_vector(15 downto 0);
 
