@@ -2,6 +2,14 @@
 -- 1250 values in table represents as 11 bit bin number "angle"
 -- Each values is 7 bit number from 111001 (123) to
 
+-- Usage example:
+-- cos_tab_gen : entity work.cos_table_gen
+--   port map (
+--     clk               => clk,
+--     reset             => rst,
+--     cosine_out_signed => data_in
+--   );
+
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;

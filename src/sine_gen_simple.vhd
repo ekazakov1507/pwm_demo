@@ -11,7 +11,6 @@
 --     reset       => rst,
 --     output_data => data_in
 -- );
- 
 
 library ieee;
   use ieee.std_logic_1164.all;
