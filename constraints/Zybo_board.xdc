@@ -6,7 +6,7 @@
 
 ##Clock signal
 set_property -dict {PACKAGE_PIN L16 IOSTANDARD LVCMOS33} [get_ports sys_clk]
-create_clock -period 8.000 -name sys_clk_pin -waveform {0.000 4.000} -add [get_ports sys_clk]
+create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_ports sys_clk]
 
 
 ##Switches
@@ -78,14 +78,14 @@ create_clock -period 8.000 -name sys_clk_pin -waveform {0.000 4.000} -add [get_p
 
 
 ##Pmod Header JB
-set_property -dict {PACKAGE_PIN T20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm_channels[0]}]
-set_property -dict {PACKAGE_PIN U20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm_channels[1]}]
-#set_property -dict {PACKAGE_PIN V20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm_channels[2]}]
-#set_property -dict {PACKAGE_PIN W20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm_channels[3]}]
-#set_property -dict { PACKAGE_PIN Y18   IOSTANDARD LVCMOS33 } [get_ports { jb_p[2] }]; #IO_L17P_T2_34 Sch=JB3_P
-#set_property -dict { PACKAGE_PIN Y19   IOSTANDARD LVCMOS33 } [get_ports { jb_n[2] }]; #IO_L17N_T2_34 Sch=JB3_N
-#set_property -dict { PACKAGE_PIN W18   IOSTANDARD LVCMOS33 } [get_ports { jb_p[3] }]; #IO_L22P_T3_34 Sch=JB4_P
-#set_property -dict { PACKAGE_PIN W19   IOSTANDARD LVCMOS33 } [get_ports { jb_n[3] }]; #IO_L22N_T3_34 Sch=JB4_N
+set_property -dict {PACKAGE_PIN T20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm[0] }];
+set_property -dict {PACKAGE_PIN U20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm_n[0] }];
+set_property -dict {PACKAGE_PIN V20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm[1] }];
+set_property -dict {PACKAGE_PIN W20 IOSTANDARD LVCMOS33} [get_ports {sys_pwm_n[1] }];
+set_property -dict {PACKAGE_PIN Y18 IOSTANDARD LVCMOS33} [get_ports { sys_pwm[2] }]; #IO_L17P_T2_34 Sch=JB3_P
+set_property -dict {PACKAGE_PIN Y19 IOSTANDARD LVCMOS33} [get_ports { sys_pwm_n[2] }]; #IO_L17N_T2_34 Sch=JB3_N
+set_property -dict {PACKAGE_PIN W18 IOSTANDARD LVCMOS33} [get_ports { sys_pwm[3] }]; #IO_L22P_T3_34 Sch=JB4_P
+set_property -dict {PACKAGE_PIN W19 IOSTANDARD LVCMOS33} [get_ports { sys_pwm_n[3] }]; #IO_L22N_T3_34 Sch=JB4_N
 
 
 ##Pmod Header JC
