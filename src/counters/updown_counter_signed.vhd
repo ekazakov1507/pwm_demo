@@ -21,14 +21,15 @@ end entity updown_counter_signed;
 
 architecture src of updown_counter_signed is
 
+  -- Registered counter limits (removes combinatorial to_signed() calls)
+  constant counter_min_reg : signed(r - 1 downto 0) := to_signed(start, r);
+  constant counter_max_reg : signed(r - 1 downto 0) := to_signed(stop, r);
+  constant counter_step_reg : signed(r - 1 downto 0) := to_signed(step, r);
+
 begin
 
   up_down_counter : process (clk, rst) is
 
-    -- constant WR : integer := 2**R - 1;
-    constant counter_min    : signed(r - 1 downto 0) := to_signed(start, r); -- (R-1 => '1', others => '0');
-    constant counter_max    : signed(r - 1 downto 0) := to_signed(stop, r);  -- (R-1 => '0', others => '1');
-    constant counter_step   : signed(r - 1 downto 0) := to_signed(step, r);  -- (0 => '1', others => '0');
     variable counter_updown : std_logic              := updown;
     variable counter        : signed(r - 1 downto 0) := to_signed(init, r);
 
@@ -38,16 +39,16 @@ begin
       if (rst = '1') then
         counter := to_signed(init, r);
       elsif (rst = '0' and enable = '1') then
-        if (counter_updown = '1' and counter < counter_max + 1 - counter_step) then
-          counter := counter + counter_step;
-        elsif (counter_updown = '0' and counter > counter_min) then
-          counter := counter - counter_step;
-        elsif (counter = counter_min) then
+        if (counter_updown = '1' and counter < counter_max_reg + 1 - counter_step_reg) then
+          counter := counter + counter_step_reg;
+        elsif (counter_updown = '0' and counter > counter_min_reg) then
+          counter := counter - counter_step_reg;
+        elsif (counter = counter_min_reg) then
           counter_updown := '1';
-          counter        := counter + counter_step;
-        elsif (counter = counter_max + 1 - counter_step) then
+          counter        := counter + counter_step_reg;
+        elsif (counter = counter_max_reg + 1 - counter_step_reg) then
           counter_updown := '0';
-          counter        := counter - counter_step;
+          counter        := counter - counter_step_reg;
         end if;
       end if;
       cnt <= std_logic_vector(counter(r - 1 downto 0));
