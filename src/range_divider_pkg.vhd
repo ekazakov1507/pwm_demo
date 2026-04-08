@@ -263,12 +263,19 @@ package body range_divider_pkg is
     index : natural;
     n     : positive
   ) return value_flag_pair is
+
+    variable result : value_flag_pair;
+
   begin
 
     if (mode = "SIGNED") then
       return get_chunk_end_signed(r => r, index => index, n => n);
     elsif (mode = "UNSIGNED") then
       return get_chunk_end_unsigned(r => r, index => index, n => n);
+    else
+      result.flag := '1';
+      result.val  := - 1;
+      return result;
     end if;
 
   end function get_chunk_end;
