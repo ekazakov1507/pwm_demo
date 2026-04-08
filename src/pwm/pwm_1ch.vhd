@@ -68,6 +68,13 @@ architecture src of pwm_1ch is
   signal q_set   : std_logic := '0';
   signal q_reset : std_logic := '0';
 
+  -- Pipeline registers for PWM comparison (breaks critical path)
+  signal pwm_ref_delayed : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal cmp_result      : std_logic := '0';
+
+  -- Scaler handshake signal (ensures stable data capture)
+  signal scaler_valid    : std_logic := '0';
+
 begin
 
   set_pwm_s_unsigned : if (REF_TYPE = "ASYMMETRICAL" and INPUT_DATA_TYPE = "UNSIGNED") generate
@@ -221,35 +228,43 @@ begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        pwm_state   <= '0';
-        pwm_n_state <= '0';
-        pwm_ref     <= (others => '0');
+        pwm_state        <= '0';
+        pwm_n_state      <= '0';
+        pwm_ref          <= (others => '0');
+        pwm_ref_delayed  <= (others => '0');
+        cmp_result       <= '0';
+        scaler_valid     <= '0';
       else
         -- Latch the scaled_output value at the start of each PWM cycle
         -- For both symmetrical and asymmetrical modes: latch when counter is at START
         if (counter = std_logic_vector(to_signed(start, r))) then
-          pwm_ref <= scaled_output;
+          pwm_ref      <= scaled_output;
+          scaler_valid <= '1';  -- Indicate scaler output is stable
+        else
+          scaler_valid <= '0';
         end if;
 
-        -- Compare counter against the latched PWM reference value
-        -- Use proper signed/unsigned comparison based on input_data_type
+        -- Pipeline stage 1: Register the reference value for comparison
+        pwm_ref_delayed <= pwm_ref;
+
+        -- Pipeline stage 2: Registered comparison (breaks critical path)
         if (input_data_type = "SIGNED") then
-          if (signed(counter) < signed(pwm_ref)) then
-            pwm_state   <= '1';
-            pwm_n_state <= '0';
+          if (signed(counter) < signed(pwm_ref_delayed)) then
+            cmp_result <= '1';
           else
-            pwm_state   <= '0';
-            pwm_n_state <= '1';
+            cmp_result <= '0';
           end if;
         else
-          if (unsigned(counter) < unsigned(pwm_ref)) then
-            pwm_state   <= '1';
-            pwm_n_state <= '0';
+          if (unsigned(counter) < unsigned(pwm_ref_delayed)) then
+            cmp_result <= '1';
           else
-            pwm_state   <= '0';
-            pwm_n_state <= '1';
+            cmp_result <= '0';
           end if;
         end if;
+
+        -- Pipeline stage 3: Registered output update
+        pwm_state   <= cmp_result;
+        pwm_n_state <= not cmp_result;
       end if;
     end if;
 

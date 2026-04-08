@@ -50,6 +50,9 @@ architecture src of pwm_mch_buf is
   signal duty_cycle_state : std_logic                        := '0';
   signal duty_cycle       : std_logic_vector(r - 1 downto 0) := (others => '0');
 
+  -- Synchronizer for FIFO empty flag (prevents metastability)
+  signal buf_empty_sync   : std_logic_vector(2 downto 0)     := "000";
+
 begin
 
   dec_sine : entity work.data_decimator
@@ -114,14 +117,17 @@ begin
     end if;
 
     if rising_edge(clk_pwm) then
+      -- Synchronize buf_empty flag through 3-stage shift register
+      buf_empty_sync <= buf_empty_sync(1 downto 0) & buf_empty;
+
       cnt := cnt + 1;
       if (rst = '1') then
         cnt       := 0;
         buf_rd_en <= '0';
-      elsif (cnt = cycle_length - 1 and buf_empty = '0') then
+      elsif (cnt = cycle_length - 1 and buf_empty_sync(2) = '0') then
         buf_rd_en <= '1';
         cnt       := 0;
-      elsif (cnt /= cycle_length - 1 or buf_empty = '1') then
+      elsif (cnt /= cycle_length - 1 or buf_empty_sync(2) = '1') then
         buf_rd_en <= '0';
       end if;
     end if;

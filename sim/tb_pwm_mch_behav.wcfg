@@ -11,19 +11,18 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="19018400000fs"></ZoomStartTime>
-      <ZoomEndTime time="19173200001fs"></ZoomEndTime>
-      <Cursor1Time time="19082500000fs"></Cursor1Time>
+      <ZoomStartTime time="0fs"></ZoomStartTime>
+      <ZoomEndTime time="61000000001fs"></ZoomEndTime>
+      <Cursor1Time time="61000000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="270"></NameColumnWidth>
+      <NameColumnWidth column_width="254"></NameColumnWidth>
       <ValueColumnWidth column_width="116"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="22" />
+   <WVObjectSize size="20" />
    <wave_markers>
       <marker time="31802500000" label="" />
       <marker time="30542500000" label="" />
-      <marker time="19102500000" label="" />
    </wave_markers>
    <wvobject fp_name="/tb_pwm_mch/clk" type="logic">
       <obj_property name="ElementShortName">clk</obj_property>
@@ -105,14 +104,6 @@
       <obj_property name="ElementShortName">p_buf[1:0]</obj_property>
       <obj_property name="ObjectShortName">p_buf[1:0]</obj_property>
       <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_mch/adv_pwm/\channels_gen(0)\/pwm_ich/pwm_state" type="logic">
-      <obj_property name="ElementShortName">pwm_state</obj_property>
-      <obj_property name="ObjectShortName">pwm_state</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_mch/adv_pwm/\channels_gen(0)\/pwm_ich/pwm_n_state" type="logic">
-      <obj_property name="ElementShortName">pwm_n_state</obj_property>
-      <obj_property name="ObjectShortName">pwm_n_state</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_mch/adv_pwm/buf_rd_en" type="logic">
       <obj_property name="ElementShortName">buf_rd_en</obj_property>

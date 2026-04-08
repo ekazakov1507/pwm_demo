@@ -24,13 +24,19 @@ architecture src of edge_delay is
 
   signal output_reg : std_logic := '0';
 
+  -- 2-stage synchronizer for input signal (prevents metastability)
+  signal input_sync : std_logic_vector(2 downto 0) := "000";
+
 begin
 
   main : process (clk) is
   begin
 
     if rising_edge(clk) then
-      if (input = '0') then
+      -- Shift input through synchronizer
+      input_sync <= input_sync(1 downto 0) & input;
+
+      if (input_sync(2) = '0') then
         output_reg    <= '0';
         counter_delay <= (others => '0');
       else
