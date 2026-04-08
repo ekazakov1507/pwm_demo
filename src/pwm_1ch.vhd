@@ -33,6 +33,8 @@ architecture src of pwm_1ch is
       return 0;
     elsif (INPUT_DATA_TYPE = "SIGNED") then
       return -2 ** R / 2;
+    else
+      return -1;
     end if;
 
   end function get_start_value;
@@ -44,6 +46,8 @@ architecture src of pwm_1ch is
       return 2 ** R - 1;
     elsif (INPUT_DATA_TYPE = "SIGNED") then
       return 2 ** R / 2 - 1;
+    else
+      return -1;
     end if;
 
   end function get_stop_value;
@@ -53,9 +57,10 @@ architecture src of pwm_1ch is
   constant step   : integer   := ref_step;
   constant updown : std_logic := ref_updwn;
 
-  signal input_reg    : std_logic_vector(r - 1 downto 0) := (others => '0');
-  signal scaled_input : std_logic_vector(r - 1 downto 0) := (others => '0');
-  signal counter      : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal input_reg     : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal scaled_output : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal counter       : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal pwm_ref       : std_logic_vector(r - 1 downto 0) := (others => '0');
 
   signal pwm_state   : std_logic := '0';
   signal pwm_n_state : std_logic := '0';
@@ -154,7 +159,7 @@ begin
         clk         => clk,
         reset       => rst,
         input_data  => input_reg,
-        output_data => scaled_input
+        output_data => scaled_output
       );
 
   end generate set_scaler_type_signed;
@@ -171,7 +176,7 @@ begin
         clk         => clk,
         reset       => rst,
         input_data  => input_reg,
-        output_data => scaled_input
+        output_data => scaled_output
       );
 
   end generate set_scaler_type_unsigned;
@@ -198,34 +203,52 @@ begin
       output => pwm_n
     );
 
-  input_control : process (clk, rst, input_wave) is
+  input_control : process (clk) is
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
         input_reg <= (others => '0');
-      elsif (rst = '0') then
+      else
         input_reg <= input_wave;
       end if;
     end if;
 
   end process input_control;
 
-  pwm_set_control : process (clk, rst, counter, scaled_input) is
+  pwm_set_control : process (clk) is
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
         pwm_state   <= '0';
-        pwm_n_state <= '1';
-      -- counter <= b"0000000";
+        pwm_n_state <= '0';
+        pwm_ref     <= (others => '0');
       else
-        if (counter >= scaled_input) then
-          pwm_state   <= '1';
-          pwm_n_state <= '0';
+        -- Latch the scaled_output value at the start of each PWM cycle
+        -- For both symmetrical and asymmetrical modes: latch when counter is at START
+        if (counter = std_logic_vector(to_signed(start, r))) then
+          pwm_ref <= scaled_output;
+        end if;
+
+        -- Compare counter against the latched PWM reference value
+        -- Use proper signed/unsigned comparison based on input_data_type
+        if (input_data_type = "SIGNED") then
+          if (signed(counter) < signed(pwm_ref)) then
+            pwm_state   <= '1';
+            pwm_n_state <= '0';
+          else
+            pwm_state   <= '0';
+            pwm_n_state <= '1';
+          end if;
         else
-          pwm_state   <= '0';
-          pwm_n_state <= '1';
+          if (unsigned(counter) < unsigned(pwm_ref)) then
+            pwm_state   <= '1';
+            pwm_n_state <= '0';
+          else
+            pwm_state   <= '0';
+            pwm_n_state <= '1';
+          end if;
         end if;
       end if;
     end if;

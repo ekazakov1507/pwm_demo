@@ -30,6 +30,8 @@ end entity pwm_mch_buf;
 
 architecture src of pwm_mch_buf is
 
+  constant decimation_factor : integer := 10;
+
   -- signal buf_in : std_logic_vector(R-1 downto 0) := (others => '0');
   signal buf_input  : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal buf_output : std_logic_vector(r - 1 downto 0) := (others => '0');
@@ -39,10 +41,26 @@ architecture src of pwm_mch_buf is
   signal buf_empty  : std_logic                        := '0';
   -- signal buf_count ;
 
+  signal dec_wave   : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal valid_wave : std_logic                        := '0';
+
   signal duty_cycle_state : std_logic                        := '0';
   signal duty_cycle       : std_logic_vector(r - 1 downto 0) := (others => '0');
 
 begin
+
+  dec_sine : entity work.data_decimator
+    generic map (
+      data_width        => r,
+      decimation_factor => decimation_factor
+    )
+    port map (
+      clk       => clk,
+      rst       => rst,
+      data_in   => input_wave,
+      data_out  => dec_wave,
+      valid_out => valid_wave
+    );
 
   input_buffer : entity work.async_fifo
     generic map (
@@ -62,33 +80,24 @@ begin
       data_out => buf_output
     );
 
-  input_buffer_wr_ctrl : process (clk, rst, buf_wr_en, input_wave) is
-
-    variable prebuf_reg : std_logic_vector(r - 1 downto 0) := (others => '0');
-
+  input_buffer_wr_ctrl : process (clk) is
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        buf_wr_en  <= '0';
-        prebuf_reg := (others => '0');
-      elsif (rst = '0' and buf_full = '0') then
-        if (prebuf_reg /= input_wave) then
-          prebuf_reg := input_wave;
-          buf_wr_en  <= '1';
-        else
-          buf_wr_en <= '0';
-        end if;
-      elsif (buf_full = '1') then
+        buf_wr_en <= '0';
+        buf_input <= (others => '0');
+      elsif ((buf_full = '0') and (valid_wave = '1')) then
+        buf_wr_en <= '1';
+        buf_input <= dec_wave;
+      else
         buf_wr_en <= '0';
       end if;
     end if;
 
-    buf_input <= prebuf_reg;
-
   end process input_buffer_wr_ctrl;
 
-  input_buffer_rd_ctrl : process (clk, rst, buf_rd_en, buf_empty) is
+  input_buffer_rd_ctrl : process (clk) is
 
     variable cnt : integer := 0;
 
@@ -110,7 +119,7 @@ begin
 
   end process input_buffer_rd_ctrl;
 
-  pwm_reg_ctrl : process (clk, rst, duty_cycle, duty_cycle_state, buf_output, buf_rd_en) is
+  pwm_reg_ctrl : process (clk) is
   begin
 
     if rising_edge(clk) then
