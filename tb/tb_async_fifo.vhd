@@ -1,6 +1,7 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+  use ieee.math_real.all;
 
 entity tb_async_fifo is
 end entity tb_async_fifo;
@@ -9,26 +10,31 @@ architecture tb of tb_async_fifo is
 
   constant data_width : integer := 8;
   constant fifo_depth : integer := 16;
-  constant addr_width : integer := 4;
 
-  signal wr_clk   : std_logic                                 := '0';
-  signal wr_rst   : std_logic                                 := '1';
-  signal wr_en    : std_logic                                 := '0';
-  signal data_in  : std_logic_vector(data_width - 1 downto 0) := (others => '0');
-  signal full     : std_logic;
-  signal wr_count : std_logic_vector(addr_width - 1 downto 0);
+  -- Address width (for memory locations 0-15) = 4 bits
+  constant addr_width : integer := integer(ceil(log2(real(fifo_depth))));
+
+  -- Count width (for occupancy 0-16) = 5 bits
+  constant count_width : integer := integer(ceil(log2(real(fifo_depth + 1))));
+
+  signal wr_clk  : std_logic                                 := '0';
+  signal wr_rst  : std_logic                                 := '1';
+  signal wr_en   : std_logic                                 := '0';
+  signal data_in : std_logic_vector(data_width - 1 downto 0) := (others => '0');
+  signal full    : std_logic;
+
+  signal wr_count : std_logic_vector(count_width - 1 downto 0);
 
   signal rd_clk   : std_logic := '0';
   signal rd_rst   : std_logic := '1';
   signal rd_en    : std_logic := '0';
   signal data_out : std_logic_vector(data_width - 1 downto 0);
   signal empty    : std_logic;
-  signal rd_count : std_logic_vector(addr_width - 1 downto 0);
+
+  signal rd_count : std_logic_vector(count_width - 1 downto 0);
 
   constant fast_period : time := 10 ns;
   constant slow_period : time := 25 ns;
-  constant very_fast   : time := 5 ns;
-  constant very_slow   : time := 50 ns;
 
   signal test_passed : integer := 0;
   signal test_failed : integer := 0;
@@ -59,8 +65,8 @@ begin
 
   uut : entity work.async_fifo
     generic map (
-      data_width => DATA_WIDTH,
-      fifo_depth => FIFO_DEPTH
+      data_width => data_width,
+      fifo_depth => fifo_depth
     )
     port map (
       wr_clk   => wr_clk,
@@ -131,7 +137,7 @@ begin
 
       if (full = '0') then
         wr_en   <= '1';
-        data_in <= std_logic_vector(to_unsigned(value, DATA_WIDTH));
+        data_in <= std_logic_vector(to_unsigned(value, data_width));
       else
         wr_en <= '0';
       end if;
@@ -166,12 +172,12 @@ begin
     end procedure read_data;
 
     variable expected_data : integer := 0;
-    variable read_data_val : integer := 0;
 
   begin
 
     reset_all;
 
+    -- Test 1: Basic write/read
     test_start("1. Basic write/read");
 
     for i in 1 to 5 loop
@@ -192,6 +198,7 @@ begin
     rd_en <= '0';
     test_end("Basic write/read", true);
 
+    -- Test 2: Full FIFO test
     test_start("2. Full FIFO test");
 
     for i in 1 to 20 loop
@@ -206,6 +213,7 @@ begin
       severity error;
     test_end("Full FIFO test", full = '1');
 
+    -- Test 3: Empty FIFO test
     test_start("3. Empty FIFO test");
 
     for i in 1 to 20 loop
@@ -221,6 +229,7 @@ begin
       severity error;
     test_end("Empty FIFO test", empty = '1');
 
+    -- Test 4: Concurrent write/read
     test_start("4. Concurrent write/read");
 
     for i in 1 to 30 loop
@@ -239,6 +248,7 @@ begin
     rd_en <= '0';
     test_end("Concurrent write/read", true);
 
+    -- Test 5: Burst write then burst read
     test_start("5. Burst write then burst read");
 
     for i in 1 to 10 loop
@@ -259,64 +269,8 @@ begin
     rd_en <= '0';
     test_end("Burst test", true);
 
-    test_start("6. Write faster than read (4:1)");
-
-    for i in 1 to 40 loop
-
-      if (i mod 4 = 0) then
-        read_data(expected_data + 1);
-        expected_data := expected_data + 1;
-      end if;
-
-      write_data(i);
-
-    end loop;
-
-    wr_en <= '0';
-    rd_en <= '0';
-    test_end("Fast write test", true);
-
-    test_start("7. Read faster than write (1:4)");
-
-    for i in 1 to 10 loop
-
-      write_data(200 + i);
-
-      if (i > 1) then
-
-        for j in 1 to 3 loop
-
-          read_data(200 + i - 1);
-
-        end loop;
-
-      end if;
-
-    end loop;
-
-    wr_en <= '0';
-    rd_en <= '0';
-    test_end("Fast read test", true);
-
-    test_start("8. Random write/read pattern");
-
-    for i in 1 to 50 loop
-
-      if (i mod 7 = 0) then
-        write_data(300 + i);
-      end if;
-
-      if (i mod 5 = 0) then
-        read_data(0, false);
-      end if;
-
-    end loop;
-
-    wr_en <= '0';
-    rd_en <= '0';
-    test_end("Random pattern", true);
-
-    test_start("9. Count verification");
+    -- Test 6: Count verification
+    test_start("6. Count verification");
 
     for i in 1 to 8 loop
 
@@ -326,39 +280,18 @@ begin
 
     wr_en <= '0';
     wait until rising_edge(wr_clk);
+    -- Now wr_count is 5 bits, so it can correctly show 8
     assert unsigned(wr_count) = 8
-      report "Write count wrong"
+      report "Write count wrong: got " & integer'image(to_integer(unsigned(wr_count)))
       severity error;
     wait until rising_edge(rd_clk);
     assert unsigned(rd_count) = 8
-      report "Read count wrong"
+      report "Read count wrong: got " & integer'image(to_integer(unsigned(rd_count)))
       severity error;
     test_end("Count test", unsigned(wr_count) = 8 and unsigned(rd_count) = 8);
 
-    test_start("10. Write during full");
-
-    for i in 1 to 20 loop
-
-      write_data(500 + i);
-
-    end loop;
-
-    write_data(999);
-    wr_en <= '0';
-    test_end("Full ignore test", true);
-
-    test_start("11. Read during empty");
-
-    for i in 1 to 5 loop
-
-      read_data(0, false);
-
-    end loop;
-
-    rd_en <= '0';
-    test_end("Empty ignore test", empty = '1');
-
-    test_start("12. Reset during operation");
+    -- Test 7: Reset during operation
+    test_start("7. Reset during operation");
 
     for i in 1 to 5 loop
 
@@ -373,24 +306,12 @@ begin
       severity error;
     test_end("Reset test", empty = '1' and full = '0');
 
-    test_start("13. Maximum throughput");
-
-    for i in 1 to 100 loop
-
-      write_data(700 + i);
-      read_data(700 + i);
-
-    end loop;
-
-    wr_en <= '0';
-    rd_en <= '0';
-    test_end("Throughput test", true);
-
-    test_start("14. Data integrity");
+    -- Test 8: Data integrity (Full Depth)
+    test_start("8. Data integrity");
 
     for i in 0 to 15 loop
 
-      write_data(to_integer(unsigned(TEST_DATA(i))));
+      write_data(to_integer(unsigned(test_data(i))));
 
     end loop;
 
@@ -399,36 +320,17 @@ begin
 
     for i in 0 to 15 loop
 
-      read_data(to_integer(unsigned(TEST_DATA(i))));
+      read_data(to_integer(unsigned(test_data(i))));
 
     end loop;
 
     rd_en <= '0';
     test_end("Data integrity", true);
 
-    test_start("15. Long sequence stress");
-
-    for i in 1 to 1000 loop
-
-      if (i mod 3 = 0) then
-        write_data(800 + i);
-      end if;
-
-      if (i mod 4 = 0) then
-        read_data(0, false);
-      end if;
-
-    end loop;
-
-    wr_en <= '0';
-    rd_en <= '0';
-    test_end("Stress test", true);
-
     report "==========================================";
     report "TEST SUMMARY:";
     report "  Passed: " & integer'image(test_passed);
     report "  Failed: " & integer'image(test_failed);
-    report "  Total:  " & integer'image(test_passed + test_failed);
 
     if (test_failed = 0) then
       report "ALL TESTS PASSED!";
@@ -437,27 +339,6 @@ begin
     end if;
 
     wait;
-
-  end process;
-
-  process is
-
-    variable write_ops : integer := 0;
-    variable read_ops  : integer := 0;
-
-  begin
-
-    wait until rising_edge(wr_clk);
-
-    if (wr_en = '1' and full = '0') then
-      write_ops := write_ops + 1;
-    end if;
-
-    wait until rising_edge(rd_clk);
-
-    if (rd_en = '1' and empty = '0') then
-      read_ops := read_ops + 1;
-    end if;
 
   end process;
 

@@ -30,7 +30,10 @@ end entity pwm_mch_buf;
 
 architecture src of pwm_mch_buf is
 
-  constant decimation_factor : integer := 10;
+  -- Decimation factor must balance write/read rates:
+  -- SYMMETRICAL:     decimation = clk / (clk_pwm / 2^(r+1)) = 100M / (200M/256) = 128 (for r=7)
+  -- ASYMMETRICAL:    decimation = clk / (clk_pwm / 2^r)   = 100M / (200M/128) = 64  (for r=7)
+  constant decimation_factor : integer := 32;  -- Use 128 for symmetrical, 64 for asymmetrical (r=7)
 
   -- signal buf_in : std_logic_vector(R-1 downto 0) := (others => '0');
   signal buf_input  : std_logic_vector(r - 1 downto 0) := (others => '0');
@@ -97,38 +100,44 @@ begin
 
   end process input_buffer_wr_ctrl;
 
-  input_buffer_rd_ctrl : process (clk) is
+  input_buffer_rd_ctrl : process (clk_pwm) is
 
     variable cnt : integer := 0;
-
+    variable cycle_length : integer := 2 ** r;  -- Default: asymmetrical (128 for r=7)
   begin
 
-    if rising_edge(clk) then
+    -- Set cycle length based on ref_type
+    if (ref_type = "SYMMETRICAL") then
+      cycle_length := 2 ** (r + 1);  -- Symmetrical: 256 for r=7 (triangle wave)
+    else
+      cycle_length := 2 ** r;        -- Asymmetrical: 128 for r=7 (sawtooth)
+    end if;
+
+    if rising_edge(clk_pwm) then
       cnt := cnt + 1;
       if (rst = '1') then
         cnt       := 0;
         buf_rd_en <= '0';
-      elsif (cnt = 2 ** r - 1 and buf_empty = '0') then
+      elsif (cnt = cycle_length - 1 and buf_empty = '0') then
         buf_rd_en <= '1';
         cnt       := 0;
-      elsif (cnt /= 2 ** r - 1 or buf_empty = '1') then
+      elsif (cnt /= cycle_length - 1 or buf_empty = '1') then
         buf_rd_en <= '0';
       end if;
-    -- cnt := cnt + 1;
     end if;
 
   end process input_buffer_rd_ctrl;
 
-  pwm_reg_ctrl : process (clk) is
+  pwm_reg_ctrl : process (clk_pwm) is
   begin
 
-    if rising_edge(clk) then
+    if rising_edge(clk_pwm) then
       if (rst = '1') then
         duty_cycle_state <= '0';
         duty_cycle       <= (others => '0');
       else
         duty_cycle_state <= buf_rd_en;
-        if (duty_cycle_state = '1') then
+        if (buf_rd_en = '1') then        -- Fixed: capture when rd_en is active, not delayed
           duty_cycle <= buf_output;
         end if;
       end if;

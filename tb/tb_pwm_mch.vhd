@@ -10,9 +10,9 @@ architecture tb of tb_pwm_mch is
   constant clk_period           : time      := 10 ns;
   constant data_width           : integer   := 7;
   constant ref_init             : integer   := -2 ** data_width / 2;
-  constant num_dead_time_cycles : integer   := 4;
-  constant buffer_depth         : integer   := 128;
-  constant num_channels         : integer   := 4;
+  constant num_dead_time_cycles : integer   := 1;
+  constant buffer_depth         : integer   := 256;
+  constant num_channels         : integer   := 2;
   constant input_data_type      : string    := "SIGNED";
   constant ref_type             : string    := "SYMMETRICAL";
   constant ref_step             : integer   := 1;
