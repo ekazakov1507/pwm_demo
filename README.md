@@ -1,104 +1,243 @@
-# PWM demo
-Тестовый проект, 2 симметричного ШИМ с частотой 1 МГц. Модулируется гармоническое колебание с частотой 100 кГц.
+# PWM Demo - FPGA Pulse Width Modulation Generator
 
-## ПО
-Xilinx Vivado 2018.3\
-Octave (9.0.2).
+A modular FPGA-based PWM generator implemented in VHDL for Xilinx Zynq-7000 series devices, featuring symmetrical PWM generation with dead-time control and buffered multi-channel output.
+
+## Overview
+
+This project implements a high-frequency PWM modulation system with the following key features:
+
+- **Symmetrical (center-aligned) PWM** generation for reduced harmonic distortion
+- **Multi-channel output** (default: 4 channels with complementary pairs)
+- **Dead-time insertion** to prevent shoot-through in power electronics applications
+- **Buffered architecture** using asynchronous FIFOs for reliable clock domain crossing
+- **MMCM clock generation** for precise frequency control
+- **Configurable parameters** including data width, dead-time cycles, and reference signal type
+
+## Technical Specifications
+
+### Current Configuration (v3)
+- **PWM Frequency:** ~1 MHz (symmetrical)
+- **Modulation:** 100 kHz sinusoidal signal
+- **Resolution:** 6-bit PWM (configurable)
+- **Clock Frequency:** 250 MHz (system), derived from 125 MHz input
+- **Dead Time:** 4 clock cycles
+- **Buffer Depth:** 1024 samples
+- **Wave Table Length:** 2048 points
+
+### Architecture
+```
+System Clock (125 MHz)
+    ↓
+[IBUF] → [BUFG] → [MMCM]
+                     ↓
+              clk (250 MHz) ──→ [Sine Generator] ──→ [PWM Module] ──→ [OBUF] → PWM Outputs
+              clk_pwm (125 MHz) ──→ [Reference Counter]
+```
+
+## Project Structure
+
+```
+pwm_demo/
+├── src/                        # Source files
+│   ├── main.vhd               # Top-level design
+│   ├── pwm/                   # PWM generation modules
+│   │   ├── pwm_1ch.vhd        # Single-channel PWM with dead-time
+│   │   └── pwm_mch_buf.vhd    # Multi-channel buffered PWM
+│   ├── counters/              # Counter implementations
+│   │   ├── up_counter_signed.vhd
+│   │   ├── up_counter_unsigned.vhd
+│   │   ├── updown_counter_signed.vhd
+│   │   └── updown_counter_unsigned.vhd
+│   ├── signal_chain/          # Signal generation & conditioning
+│   │   ├── sine_gen_simple.vhd  # Sine wave lookup table
+│   │   ├── data_decimator.vhd
+│   │   ├── scaler_signed.vhd
+│   │   └── scaler_unsigned.vhd
+│   ├── buffers/               # FIFO buffers
+│   │   └── async_fifo.vhd     # Asynchronous FIFO for clock domain crossing
+│   └── utils/                 # Utility modules
+│       ├── edge_delay.vhd
+│       └── range_divider_pkg.vhd
+├── tb/                         # Testbenches
+│   ├── tb_main.vhd
+│   ├── tb_pwm_1ch.vhd
+│   ├── tb_pwm_mch.vhd
+│   ├── tb_counters.vhd
+│   ├── tb_async_fifo.vhd
+│   ├── tb_sync_fifo.vhd
+│   └── ...
+├── constraints/                # Pin constraints for target boards
+│   ├── Zybo_board.xdc         # Digilent Zybo Z7
+│   ├── Z7_LITE.xdc            # Microphase Z7-Lite
+│   └── Antminer-S9.xdc        # Antminer S9 (custom target)
+├── octave/                     # MATLAB/Octave simulation scripts
+│   ├── pwm_platform.m         # Main simulation script
+│   ├── pwm_c.m                # Symmetrical PWM model
+│   ├── table_cos.m            # Cosine table generation
+│   └── cos_table.txt          # Pre-computed cosine values
+├── python/                     # Python utilities
+├── sim/                        # Simulation files
+└── ip/                         # Generated IP cores
+```
+
+## Supported Hardware
+
+This project has been developed and tested on the following Xilinx Zynq-7000 development boards:
+
+- **[Digilent Zybo Z7](https://digilent.com/reference/programmable-logic/zybo-z7/start)** - Zynq-7010/7020
+- **[Microphase Z7-Lite](https://github.com/hw/Microphase-Z7-Lite)** - Zynq-7010
+- **[MYiR Z-turn Board V2](https://www.myirtech.com/list.asp?id=708)** - Zynq-7020
+- **Antminer S9** - Custom ASIC miner board (repurposed)
+
+## Requirements
+
+### Software
+- **Xilinx Vivado 2018.3** (or compatible version)
+- **GNU Octave 9.0+** or MATLAB (for algorithm validation)
+- **Python 3.x** (optional, for utilities)
+
+### Hardware
+- Xilinx Zynq-7000 FPGA (Z7010/Z7020)
+- Appropriate constraint file for your target board
+
+## Quick Start
+
+### 1. Open Project in Vivado
+```bash
+# Launch Vivado 2018.3
+vivado &
+
+# Open the project
+File → Open Project → Select pwm_demo.xpr
+```
+
+### 2. Run Synthesis & Implementation
+```bash
+# In Vivado Tcl Console:
+launch_runs synth_1 -jobs 4
+wait_on_run synth_1
+
+launch_runs impl_1 -to_step write_bitstream -jobs 4
+wait_on_run impl_1
+```
+
+### 3. Generate Bitstream
+```bash
+launch_runs impl_1 -to_step write_bitstream
+```
+
+### 4. Program FPGA
+```bash
+open_hw_manager
+connect_hw_server
+current_hw_target [get_hw_targets]
+open_hw_target
+set_property PROGRAM.FILE {<path_to_bitstream>} [current_hw_device]
+program_hw_devices
+```
+
+### 5. Run Simulations
+```bash
+# In Vivado:
+launch_simulation
+
+# Or from command line:
+xsim tb_main_behav -runall
+```
+
+## Design Parameters
+
+The top-level module (`main.vhd`) accepts the following generics:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `num_channels` | 4 | Number of PWM output channels |
+| `data_width` | 6 | PWM resolution in bits |
+| `num_dead_time_cycles` | 4 | Dead-time duration in clock cycles |
+| `buffer_depth` | 1024 | Depth of input data buffer |
+| `wave_length` | 2048 | Sine wave table length |
+| `ref_type` | "SYMMETRICAL" | Reference signal type |
+| `ref_step` | 1 | Reference counter increment |
+| `ref_updwn` | '1' | Up/down counting mode |
+
+## Algorithm Description
+
+### PWM Generation
+The system implements **symmetrical (center-aligned) PWM** where:
+- The reference counter counts up and down (triangle wave)
+- Input waveform value is compared against reference counter
+- PWM output toggles when reference crosses waveform value
+- Center-aligned PWM reduces harmonic content compared to edge-aligned
+
+### Clock Architecture
+- **Input Clock:** 125 MHz from external oscillator
+- **System Clock (clk):** 250 MHz via MMCM (for PWM logic)
+- **PWM Clock (clk_pwm):** 125 MHz via MMCM (for reference counter)
+- **Asynchronous FIFO:** Bridges clock domain between sine generator and PWM module
+
+### Dead-Time Insertion
+- Complementary PWM outputs (PWM and PWM_N) include programmable dead-time
+- Prevents shoot-through current in bridge configurations
+- Configurable via `num_dead_time_cycles` generic
+
+## Algorithm Versions
+
+### Version 3 (Current) - Reference-Aligned Modulation
+- Module signal adapts to reference signal characteristics
+- Integer-only counter increments for simplicity
+- Optimized for 1 MHz PWM with 250 MHz clock
+- Uses symmetrical PWM with triangle reference
+
+### Version 2 (Legacy) - Module-Aligned Reference
+- Reference signal adapts to module signal
+- Required fractional MMCM dividers (not supported)
+- Effective PWM frequency: 0.9765 MHz (with 250 MHz clock)
+
+### Version 1 (Legacy) - High Resolution
+- 16-bit resolution with 100 MHz clock
+- PWM frequency range: 1.5 kHz to 1.2 MHz
+- Trade-off table between frequency and resolution
+
+## Validation & Simulation
+
+### Octave Simulation
+The `octave/` directory contains MATLAB-compatible scripts for algorithm validation:
+
+```bash
+# Run PWM platform simulation
+octave-cli pwm_platform.m
+
+# Generate cosine table
+octave-cli table_cos.m
+```
+
+### VHDL Testbenches
+Comprehensive testbenches are provided in `tb/`:
+
+```bash
+# Run specific testbench in Vivado
+launch_simulation -scripts_only
+```
 
 ## TO DO
-* **Имплементация:**
-    * Критически предупреждения. Невыполнение требований пол задержкам для z7020.
-* **Файлы ограничений для плат**
-    * xdc для MYiR z7020.
 
-## Используемые отладочные платы
-[Zybo Z7](https://digilent.com/reference/programmable-logic/zybo-z7/start)\
-[Microphase-Z7-Lite](https://github.com/hw/Microphase-Z7-Lite)\
-[MYiR Z-turn Board V2](https://www.myirtech.com/list.asp?id=708)
+- [ ] Address timing closure warnings for Z7020
+- [ ] Complete timing constraint validation
+- [ ] Add support for asymmetrical PWM mode
+- [ ] Implement dynamic frequency control
+- [ ] Add documentation for Python utilities
 
-## Структура проекта
-Octave, для тестирования
-```
-├── cos_table.txt // таблица косинуса
-├── table_cos.m // формирование таблицы косинуса
-├── pwm_platform.m // основной файл
-├── pwm_l.m // ассиметричный (левый) ШИМ НЕ ИСПОЛЬЗУЕТСЯ
-└── pwm_c.m // симметричный (центрированный) ШИМ
-```
+## License
 
-Vivado
-```
-pwm_demo_z7010-z7020
-├── src
-│   ├── cos_table_gen.vhd // таблица значений косинуса
-│   ├── pwm_platform.vhd // верхний уровень
-│   ├── pwm_l.vhd // ассиметричный (левый) ШИМ НЕ ИСПОЛЬЗУЕТСЯ
-│   ├── pwm_c.vhd // симметричный (центрированный) ШИМ
-├── tb
-│   ├── tb_pwm_platform.vhd // test bench
-├── ip
-│   ├── dds_compiler_0 // генератор тестового синуса НЕ ИСПОЛЬЗУЕТСЯ
-└──
-```
+This project is provided as-is for educational and research purposes.
 
-## Описание ШИМ-модулятора
-Текущая версия 2.
+## Contact & Support
 
-## 3 версия. ШИМ второго рода
-В разработке.
+For issues, questions, or contributions, please open an issue in the repository.
 
-## 2 версия. Модулируемый сигнал подстраивается под опорный
-Начальные допущения.
-* Счетчик опорного сигнала (треугольного или пилообразного) имеет инкремент равный единице и только единице. 
-* Разрешение ШИМ 7 бит, значения опорного счетчика 0 - 127.
-* Требуемая частота ШИМ 1МГц.
+---
 
-Соответственно, модулируемый сигнал подстраивается под опорный в случае для DDS. При формировании из таблицы в Octave создается таблица значений косинуса, занимающая 0.9 от диапазона значений опорного счетчика, т.е 6 - 122.
-
-Для получения ШИМ 1 МГц необходимо.
-
-$$f_{clk} = f_{PWM} \cdot 2 \cdot PWM_{Levels} = 1 \cdot 10^6 \cdot 2 \cdot 128 = 256\, МГц$$
-
-Тактовая частота в $f_{clk}$ 256 МГц (128 в случае пилообразной опоры) требует использования дробных значений делителей в блоке ММСМ, но ММСМ поддерживает только целые значения делителей. Фактическая тактовая частота устанавливается 250 МГц. Тогда реальная частоты ШИМ 0.9765 МГц (1.02 мкс).
-
-Формирование таблицы, содержащей значения половины периода косинуса с частотой $f_0$ 100 кГц потребует:
-
-$$NTAB = \frac{f_{clk}}{2 \cdot f_0} = \frac{250 \cdot 10^6}{2 \cdot 1 cdot 10^5} = 1250\, значений$$
-
-Диапазон значений в таблице косинуса равен 0.9 от диапазона значений опорного счетчика. Значения в таблице имеют то же разрешения, что сигнал счетчика, т.е. 7 бит. Таблица может быть сокращена с учетом того, что сигналы имеют низкое разрешение и многие значения в таблице повторяются.
-
-## 1 версия. Опорный сигнал подстраивается под модулируемый
-* Тактовая частота 100 МГц, период 10 нс (плоская вершина 5 нс).
-* Разрешение тестового сигнала и опорного (счетчика для ШИМ) сигналов 16 бит (0 - 65535).
-* Частота опорного сигнала из dds compiler'а - 15.258 кГц (точность настройки зависит также от установленной тактовой частоты).
-* Разрешение и частоты ШИМ:
-
-    | Инкремент | Частота ШИМ, МГц | Разрешение, бит | 
-    |---|---|---|
-    | 1 | 0.001525 | 15.9 |
-    | 3 | 0.004577 | 14.4 |
-    | 5 | 0.007629 | 13.7 |
-    | 51 | 0.077821 | 10.3 |
-    | 255 | 0.389105 | 8.0 |
-    | 771 | 1.176470 | 4.4 |
-
-**Пояснение к таблице**
-
-Разрешение сигналов по 16 бит. Возможный диапазон значений от 0 до 65535. Тогда, чтобы иметь целые кратные шаги опорного сигнала в ШИМ необходимо делить 65535 нацело иначе потребуется сложный неточный код для подстройки опоры под модулируемый сигнал (как я делал в магистерской), или необходимо использовать числа с плавающей точкой.
-
-Все делители числа 65 535: 
-1, 3, 5, 15, 17, 51, 85, 255, 257, 771, 1285, 3855, 4369, 13107, 21845, 65535. 
-
-Эти делители и есть инкременты для счетчика опорного сигнала. 
-
-$$ PWM_{Levels} = \frac{2^R-1}{Increment} = \frac{2^{16} - 1 = 65535}{51} = 1285 $$
-
-$$ f_{PWM} = \frac{f_{clk}}{PVM\_Levels} = \frac{100 \cdot 10^6}{1285} = 0.077821 = 77.8\, кГц $$
-
-$$ PWM_{Resolution} = \log_2(PWM_{Levels}) = \log_2(1285) = 10.3\, бит $$
-
-
-
-
-
-
+**Development Environment:** Xilinx Vivado 2018.3  
+**Target Devices:** Xilinx Zynq-7000 (XC7Z010/XC7Z020)  
+**Language:** VHDL-2008  
+**Last Updated:** 2026-04-09
