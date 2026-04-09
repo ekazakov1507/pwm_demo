@@ -2,15 +2,15 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
-entity tb_sync_fifo is
+entity tb_input_buffer is
 --  Port ( );
-end entity tb_sync_fifo;
+end entity tb_input_buffer;
 
-architecture tb of tb_sync_fifo is
+architecture tb of tb_input_buffer is
 
   constant clk_period : time     := 10 ns;
-  constant data_width : positive := 8;
-  constant fifo_depth : positive := 4;
+  constant data_width : positive := 7;
+  constant fifo_depth : positive := 128;
 
   signal clk      : std_logic                                 := '0';
   signal rst      : std_logic                                 := '0';
@@ -24,7 +24,18 @@ architecture tb of tb_sync_fifo is
 
 begin
 
-  -- Instantiate the FIFO
+  dut_sine : entity work.sine_gen_simple
+    generic map (
+      wave_length => 1024,
+      bit_width   => data_width,
+      data_type   => "UNSIGNED"
+    )
+    port map (
+      clk         => clk,
+      reset       => rst,
+      output_data => data_in
+    );
+
   uut : entity work.sync_fifo
     generic map (
       data_width => DATA_WIDTH,
@@ -42,57 +53,25 @@ begin
       count    => count
     );
 
-  -- Clock generation
   clk <= not clk after clk_period / 2;
 
-  -- Stimulus process
   stim_proc : process is
   begin
 
-    -- Reset the FIFO
-    rst <= '1';
+    rst   <= '1';
     wait for clk_period * 2;
-    rst <= '0';
+    rst   <= '0';
     wait for clk_period;
-
-    -- Test 1: Write until full
-    for i in 1 to fifo_depth loop
-
-      wr_en   <= '1';
-      data_in <= std_logic_vector(to_unsigned(i, data_width));
-      wait for clk_period;
-
-    end loop;
-
+    wr_en <= '1';
+    wait for clk_period;
+    rd_en <= '1';
+    wait for 100 * clk_period;
     wr_en <= '0';
-    wait for clk_period * 2;
-
-    -- Test 2: Read until empty
-    for i in 1 to fifo_depth loop
-
-      rd_en <= '1';
-      wait for clk_period;
-
-    end loop;
-
+    rd_en <= '1';
+    wait for 100 * clk_period;
+    wr_en <= '1';
     rd_en <= '0';
-    wait for clk_period * 2;
-
-    -- Test 3: Simultaneous read and write
-    for i in 1 to fifo_depth * 2 loop
-
-      wr_en   <= '1';
-      rd_en   <= '1';
-      data_in <= std_logic_vector(to_unsigned(i + 10, data_width));
-      wait for clk_period;
-
-    end loop;
-
-    wr_en <= '0';
-    rd_en <= '0';
-    wait for clk_period * 2;
-
-    -- End simulation
+    wait for clk_period;
     wait;
 
   end process stim_proc;
