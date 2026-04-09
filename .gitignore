@@ -1,6 +1,7 @@
 # project
 sim/
 pics/
+figures/
 *.txt
 *.dat
 
@@ -10,7 +11,17 @@ pwm_demo.cache/
 pwm_demo.runs/
 pwm_demo.ip_user_files/
 pwm_demo.sim/
+pwm_demo.srcs/
 pwm_demo.xpr
 
 # python
 __pycache__/
+
+# qwen
+.qwen/
+gha-creds-*.json
+
+.vscode/
+.github/
+
+octave/
