@@ -8,11 +8,11 @@ library work;
 
 entity pwm_mch is
   generic (
-    r               : integer   := 7;             -- PWM resolution bits
-    d               : integer   := 2;             -- Num dead-time cycles
+    r               : integer   := 7;
+    d               : integer   := 2;
     num_channels    : integer   := 2;
-    input_data_type : string    := "SIGNED";      -- signed or unsigned
-    ref_type        : string    := "SYMMETRICAL"; -- Symmetrical and Asymmetrical
+    input_data_type : string    := "SIGNED";
+    ref_type        : string    := "SYMMETRICAL";
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1'
   );
@@ -38,30 +38,9 @@ begin
                                                       index => i,
                                                       n     => num_channels);
 
-    component pwm_1ch is
-      generic (
-        r               : integer := r;
-        d               : integer := d;
-        ref_type        : string  := ref_type;
-        input_data_type : string  := input_data_type;
-        ref_init        : integer := chunk.val;
-        ref_step        : integer := ref_step;
-        ref_updwn       : std_logic := chunk.flag
-      );
-      port (
-        clk        : in    std_logic;
-        rst        : in    std_logic;
-        enable     : in    std_logic;
-        input_wave : in    std_logic_vector(r - 1 downto 0);
-        pwm        : out   std_logic;
-        pwm_n      : out   std_logic
-      );
-    end component pwm_1ch;
-
   begin
 
-    -- pwm_mod : entity work.pwm_1ch
-    pwm_ich : component pwm_1ch
+    pwm_ich : entity work.pwm_1ch
       generic map (
         r               => r,
         d               => d,

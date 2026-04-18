@@ -8,14 +8,16 @@ library work;
 
 entity pwm_mch_buf is
   generic (
-    r               : integer   := 7;             -- PWM resolution bits
-    d               : integer   := 2;             -- Num dead-time cycles
+    r               : integer   := 7;
+    d               : integer   := 2;
     num_channels    : integer   := 2;
-    input_data_type : string    := "SIGNED";      -- signed or unsigned
+    input_data_type : string    := "SIGNED";
     buffer_depth    : integer   := 1024;
-    ref_type        : string    := "SYMMETRICAL"; -- Symmetrical and Asymmetrical
+    ref_type        : string    := "SYMMETRICAL";
     ref_step        : integer   := 1;
-    ref_updwn       : std_logic := '1'
+    ref_updwn       : std_logic := '1';
+    clk_freq_hz     : integer   := 100_000_000;
+    clk_pwm_freq_hz : integer   := 200_000_000
   );
   port (
     clk        : in    std_logic;
@@ -30,30 +32,54 @@ end entity pwm_mch_buf;
 
 architecture src of pwm_mch_buf is
 
-  -- Decimation factor must balance write/read rates:
-  -- SYMMETRICAL:     decimation = clk / (clk_pwm / 2^(r+1)) = 100M / (200M/256) = 128 (for r=7)
-  -- ASYMMETRICAL:    decimation = clk / (clk_pwm / 2^r)   = 100M / (200M/128) = 64  (for r=7)
-  constant decimation_factor : integer := 32;  -- Use 128 for symmetrical, 64 for asymmetrical (r=7)
+  function get_pwm_cycle_length return integer is
+  begin
+    if ref_type = "SYMMETRICAL" then
+      return 2 ** (r + 1);
+    else
+      return 2 ** r;
+    end if;
+  end function;
 
-  -- signal buf_in : std_logic_vector(R-1 downto 0) := (others => '0');
+  constant pwm_cycle_length : integer := get_pwm_cycle_length;
+
+  constant decimation_factor_raw : integer := (clk_freq_hz * pwm_cycle_length + clk_pwm_freq_hz / 2) / clk_pwm_freq_hz;
+
+  constant decimation_factor : integer := (decimation_factor_raw * 95 + 50) / 100;
+
   signal buf_input  : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal buf_output : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal buf_rd_en  : std_logic                        := '0';
   signal buf_wr_en  : std_logic                        := '0';
   signal buf_full   : std_logic                        := '0';
   signal buf_empty  : std_logic                        := '0';
-  -- signal buf_count ;
 
   signal dec_wave   : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal valid_wave : std_logic                        := '0';
 
-  signal duty_cycle_state : std_logic                        := '0';
-  signal duty_cycle       : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal duty_cycle : std_logic_vector(r - 1 downto 0) := (others => '0');
 
-  -- Synchronizer for FIFO empty flag (prevents metastability)
-  signal buf_empty_sync   : std_logic_vector(2 downto 0)     := "000";
+  signal buf_empty_sync : std_logic_vector(2 downto 0) := "000";
+
+  signal rst_sync : std_logic_vector(2 downto 0) := "000";
+  signal rst_pwm  : std_logic                    := '1';
+
+  signal enable_sync : std_logic_vector(2 downto 0) := "000";
+  signal enable_pwm : std_logic                    := '0';
 
 begin
+
+  assert num_channels > 0
+    report "num_channels must be >= 1"
+    severity failure;
+
+  assert buffer_depth > 0
+    report "buffer_depth must be >= 1"
+    severity failure;
+
+  assert decimation_factor > 0
+    report "decimation_factor must be >= 1. Check clock frequencies and resolution."
+    severity failure;
 
   dec_sine : entity work.data_decimator
     generic map (
@@ -80,7 +106,7 @@ begin
       full     => buf_full,
       data_in  => buf_input,
       rd_clk   => clk_pwm,
-      rd_rst   => rst,
+      rd_rst   => rst_pwm,
       rd_en    => buf_rd_en,
       empty    => buf_empty,
       data_out => buf_output
@@ -103,32 +129,46 @@ begin
 
   end process input_buffer_wr_ctrl;
 
+  rst_sync_proc : process (clk_pwm) is
+  begin
+    if rising_edge(clk_pwm) then
+      rst_sync <= rst_sync(1 downto 0) & rst;
+      rst_pwm  <= rst_sync(2);
+    end if;
+  end process rst_sync_proc;
+
+  enable_sync_proc : process (clk_pwm) is
+  begin
+    if rising_edge(clk_pwm) then
+      if (rst_pwm = '1') then
+        enable_sync <= "000";
+        enable_pwm  <= '0';
+      else
+        enable_sync <= enable_sync(1 downto 0) & enable;
+        enable_pwm  <= enable_sync(2);
+      end if;
+    end if;
+  end process enable_sync_proc;
+
   input_buffer_rd_ctrl : process (clk_pwm) is
 
-    variable cnt : integer := 0;
-    variable cycle_length : integer := 2 ** r;  -- Default: asymmetrical (128 for r=7)
+    -- Count one full PWM frame before requesting next buffered sample.
+    variable cnt : integer range 0 to pwm_cycle_length - 1 := 0;
   begin
 
-    -- Set cycle length based on ref_type
-    if (ref_type = "SYMMETRICAL") then
-      cycle_length := 2 ** (r + 1);  -- Symmetrical: 256 for r=7 (triangle wave)
-    else
-      cycle_length := 2 ** r;        -- Asymmetrical: 128 for r=7 (sawtooth)
-    end if;
-
     if rising_edge(clk_pwm) then
-      -- Synchronize buf_empty flag through 3-stage shift register
       buf_empty_sync <= buf_empty_sync(1 downto 0) & buf_empty;
 
-      cnt := cnt + 1;
-      if (rst = '1') then
+      if (rst_pwm = '1') then
         cnt       := 0;
         buf_rd_en <= '0';
-      elsif (cnt = cycle_length - 1 and buf_empty_sync(2) = '0') then
+      -- elsif (cnt = pwm_cycle_length - 1 and buf_empty_sync(2) = '0') then
+      elsif (cnt = pwm_cycle_length - 1) then
         buf_rd_en <= '1';
         cnt       := 0;
-      elsif (cnt /= cycle_length - 1 or buf_empty_sync(2) = '1') then
+      else
         buf_rd_en <= '0';
+        cnt       := cnt + 1;
       end if;
     end if;
 
@@ -138,12 +178,10 @@ begin
   begin
 
     if rising_edge(clk_pwm) then
-      if (rst = '1') then
-        duty_cycle_state <= '0';
-        duty_cycle       <= (others => '0');
+      if (rst_pwm = '1') then
+        duty_cycle <= (others => '0');
       else
-        duty_cycle_state <= buf_rd_en;
-        if (buf_rd_en = '1') then        -- Fixed: capture when rd_en is active, not delayed
+        if (buf_rd_en = '1') then
           duty_cycle <= buf_output;
         end if;
       end if;
@@ -159,30 +197,9 @@ begin
                                                       index => i,
                                                       n     => num_channels);
 
-    component pwm_1ch is
-      generic (
-        r               : integer := r;
-        d               : integer := d;
-        ref_type        : string  := ref_type;
-        input_data_type : string  := input_data_type;
-        ref_init        : integer := chunk.val;
-        ref_step        : integer := ref_step;
-        ref_updwn       : std_logic := chunk.flag
-      );
-      port (
-        clk        : in    std_logic;
-        rst        : in    std_logic;
-        enable     : in    std_logic;
-        input_wave : in    std_logic_vector(r - 1 downto 0);
-        pwm        : out   std_logic;
-        pwm_n      : out   std_logic
-      );
-    end component pwm_1ch;
-
   begin
 
-    -- pwm_mod : entity work.pwm_1ch
-    pwm_ich : component pwm_1ch
+    pwm_ich : entity work.pwm_1ch
       generic map (
         r               => r,
         d               => d,
@@ -194,8 +211,8 @@ begin
       )
       port map (
         clk        => clk_pwm,
-        rst        => rst,
-        enable     => enable,
+        rst        => rst_pwm,
+        enable     => enable_pwm,
         input_wave => duty_cycle,
         pwm        => pwm(i),
         pwm_n      => pwm_n(i)

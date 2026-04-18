@@ -5,9 +5,6 @@ library ieee;
 library unisim;
   use unisim.vcomponents.all;
 
-library unimacro;
-  use unimacro.vcomponents.all;
-
 entity main is
   generic (
     num_channels : integer := 4
@@ -21,9 +18,7 @@ end entity main;
 
 architecture src of main is
 
-  -- constants
   constant data_width           : integer   := 6;
-  constant ref_init             : integer   := -2 ** data_width / 2;
   constant num_dead_time_cycles : integer   := 4;
   constant buffer_depth         : integer   := 1024;
   constant wave_length          : integer   := 2048;
@@ -32,25 +27,19 @@ architecture src of main is
   constant ref_step             : integer   := 1;
   constant ref_updwn            : std_logic := '1';
 
-  -- clk
-  signal ibuf_clk  : std_logic := '0';
   signal obuf_clk  : std_logic := '0';
   signal gobuf_clk : std_logic := '0';
 
-  -- mmcm
   signal mmcm_fb_in    : std_logic := '0';
-  signal mmcm_fb_out   : std_logic := '0';
   signal mmcm_clk_lock : std_logic := '0';
 
-  -- pwm module
   signal clk      : std_logic                                 := '0';
   signal clk_pwm  : std_logic                                 := '0';
   signal rst      : std_logic                                 := '1';
+  signal mmcm_lock_sync : std_logic_vector(1 downto 0)      := "00";
+  signal rst_shreg      : std_logic_vector(2 downto 0)      := (others => '1');
   signal enable   : std_logic                                 := '1';
   signal sine_out : std_logic_vector(data_width - 1 downto 0) := (others => '0');
-
-  -- signal p   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  -- signal p_n : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
   signal p_buf   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_buf : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
@@ -100,13 +89,6 @@ begin
       locked   => mmcm_clk_lock
     );
 
-  -- IDELAYCTRL_inst : IDELAYCTRL
-  -- port map (
-  --    RDY => mmcm_fb_out,
-  --    REFCLK => mmcm_fb_in,
-  --    RST => '1'
-  -- );
-
   dut_sine : entity work.sine_gen_simple
     generic map (
       wave_length => wave_length,
@@ -118,25 +100,6 @@ begin
       reset       => rst,
       output_data => sine_out
     );
-
-  -- simple_pwm : entity work.pwm_mch
-  --   generic map (
-  --     r               => DATA_WIDTH,
-  --     d               => NUM_DEAD_TIME_CYCLES,
-  --     num_channels    => NUM_CHANNELS,
-  --     input_data_type => INPUT_DATA_TYPE,
-  --     ref_type        => REF_TYPE,
-  --     ref_step        => REF_STEP,
-  --     ref_updwn       => ref_updwn
-  --   )
-  --   port map (
-  --     clk        => clk,
-  --     rst        => rst,
-  --     enable     => enable,
-  --     input_wave => data_in,
-  --     pwm        => p,
-  --     pwm_n      => p_n
-  --   );
 
   adv_pwm : entity work.pwm_mch_buf
     generic map (
@@ -175,13 +138,20 @@ begin
 
   end generate pwm_obufs;
 
-  enable_control : process (mmcm_clk_lock) is
+  -- MMCM lock synchronized into clk domain; reset re-asserts if lock is lost.
+  rst_gen : process (clk) is
   begin
 
-    if (mmcm_clk_lock = '1') then
-      rst <= '0';
+    if rising_edge(clk) then
+      mmcm_lock_sync <= mmcm_lock_sync(0) & mmcm_clk_lock;
+      if (mmcm_lock_sync(1) = '0') then
+        rst_shreg <= (others => '1');
+      else
+        rst_shreg <= rst_shreg(1 downto 0) & '0';
+      end if;
+      rst <= rst_shreg(2);
     end if;
 
-  end process enable_control;
+  end process rst_gen;
 
 end architecture src;

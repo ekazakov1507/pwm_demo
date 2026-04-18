@@ -4,10 +4,10 @@ library ieee;
 
 entity up_counter_unsigned is
   generic (
-    r     : integer := 7;   -- Resolution
+    r     : integer := 7;
     init  : integer := 0;
-    start : integer := 0;   -- 0
-    stop  : integer := 127; -- 2^R-1
+    start : integer := 0;
+    stop  : integer := 127;
     step  : integer := 1
   );
   port (
@@ -20,32 +20,30 @@ end entity up_counter_unsigned;
 
 architecture src of up_counter_unsigned is
 
-  -- Registered counter limits (removes combinatorial to_unsigned() calls)
-  constant counter_min_reg : unsigned(r - 1 downto 0) := to_unsigned(start, r);
-  constant counter_max_reg : unsigned(r - 1 downto 0) := to_unsigned(stop, r);
+  constant counter_min_reg  : unsigned(r - 1 downto 0) := to_unsigned(start, r);
+  constant counter_max_reg  : unsigned(r - 1 downto 0) := to_unsigned(stop, r);
   constant counter_step_reg : unsigned(r - 1 downto 0) := to_unsigned(step, r);
+
+  signal counter_reg : unsigned(r - 1 downto 0) := to_unsigned(init, r);
 
 begin
 
-  up_down_counter : process (clk, rst) is
-
-    variable counter : unsigned(r - 1 downto 0) := to_unsigned(init, r);
-
+  up_counter : process (clk, rst) is
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        counter := to_unsigned(init, r);
-      elsif (rst = '0' and enable = '1') then
-        if (counter < counter_max_reg + 1 - counter_step_reg) then
-          counter := counter + counter_step_reg;
-        elsif (counter = counter_max_reg + 1 - counter_step_reg) then
-          counter := counter_min_reg;
+        counter_reg <= to_unsigned(init, r);
+      elsif (enable = '1') then
+        if (counter_reg <= counter_max_reg - counter_step_reg) then
+          counter_reg <= counter_reg + counter_step_reg;
+        else
+          counter_reg <= counter_min_reg;
         end if;
       end if;
-      cnt <= std_logic_vector(counter(r - 1 downto 0));
+      cnt <= std_logic_vector(counter_reg);
     end if;
 
-  end process up_down_counter;
+  end process up_counter;
 
 end architecture src;

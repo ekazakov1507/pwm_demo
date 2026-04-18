@@ -6,24 +6,21 @@ library ieee;
 entity async_fifo is
   generic (
     data_width : integer := 8;
-    fifo_depth : integer := 16  -- MUST be power of 2
+    fifo_depth : integer := 16
   );
   port (
-    -- Write Clock Domain
-    wr_clk   : in    std_logic;
-    wr_rst   : in    std_logic;
-    wr_en    : in    std_logic;
-    data_in  : in    std_logic_vector(data_width - 1 downto 0);
-    full     : out   std_logic;
-    wr_count : out   std_logic_vector(integer(ceil(log2(real(fifo_depth + 1)))) - 1 downto 0);
-
-    -- Read Clock Domain
-    rd_clk   : in    std_logic;
-    rd_rst   : in    std_logic;
-    rd_en    : in    std_logic;
-    data_out : out   std_logic_vector(data_width - 1 downto 0);
-    empty    : out   std_logic;
-    rd_count : out   std_logic_vector(integer(ceil(log2(real(fifo_depth + 1)))) - 1 downto 0)
+    wr_clk     : in    std_logic;
+    wr_rst     : in    std_logic;
+    wr_en      : in    std_logic;
+    data_in    : in    std_logic_vector(data_width - 1 downto 0);
+    full       : out   std_logic;
+    wr_count   : out   std_logic_vector(integer(ceil(log2(real(fifo_depth + 1)))) - 1 downto 0);
+    rd_clk     : in    std_logic;
+    rd_rst     : in    std_logic;
+    rd_en      : in    std_logic;
+    data_out   : out   std_logic_vector(data_width - 1 downto 0);
+    empty      : out   std_logic;
+    rd_count   : out   std_logic_vector(integer(ceil(log2(real(fifo_depth + 1)))) - 1 downto 0)
   );
 end entity async_fifo;
 
@@ -38,21 +35,16 @@ architecture src of async_fifo is
   attribute ram_style : string;
   attribute ram_style of memory : signal is "block";
 
-  -- Write Pointer
-  signal wr_ptr_bin      : unsigned(addr_width downto 0)         := (others => '0');
-  signal wr_ptr_gray     : std_logic_vector(addr_width downto 0) := (others => '0');
-  signal wr_ptr_gray_rd  : std_logic_vector(addr_width downto 0) := (others => '0');
+  signal wr_ptr_bin  : unsigned(addr_width downto 0) := (others => '0');
+  signal wr_ptr_gray : std_logic_vector(addr_width downto 0) := (others => '0');
   signal wr_ptr_gray_rd1 : std_logic_vector(addr_width downto 0) := (others => '0');
   signal wr_ptr_gray_rd2 : std_logic_vector(addr_width downto 0) := (others => '0');
 
-  -- Read Pointer
-  signal rd_ptr_bin      : unsigned(addr_width downto 0)         := (others => '0');
-  signal rd_ptr_gray     : std_logic_vector(addr_width downto 0) := (others => '0');
-  signal rd_ptr_gray_wr  : std_logic_vector(addr_width downto 0) := (others => '0');
+  signal rd_ptr_bin  : unsigned(addr_width downto 0) := (others => '0');
+  signal rd_ptr_gray : std_logic_vector(addr_width downto 0) := (others => '0');
   signal rd_ptr_gray_wr1 : std_logic_vector(addr_width downto 0) := (others => '0');
   signal rd_ptr_gray_wr2 : std_logic_vector(addr_width downto 0) := (others => '0');
 
-  -- Status & Count
   signal full_i  : std_logic                          := '0';
   signal empty_i : std_logic                          := '1';
   signal wr_cnt  : unsigned(count_width - 1 downto 0) := (others => '0');
@@ -89,7 +81,6 @@ architecture src of async_fifo is
 
 begin
 
-  -- Write Process
   wr_proc : process (wr_clk, wr_rst) is
   begin
 
@@ -104,8 +95,9 @@ begin
 
       if (wr_en = '1' and full_i = '0') then
         memory(to_integer(wr_ptr_bin(addr_width - 1 downto 0))) <= data_in;
-        wr_ptr_bin                                              <= wr_ptr_bin + 1;
-        wr_ptr_gray                                             <= bin2gray(wr_ptr_bin);  -- Fixed: current pointer
+        wr_ptr_bin  <= wr_ptr_bin + 1;
+        -- Gray must track post-increment binary (signal update is end-of-process).
+        wr_ptr_gray <= bin2gray(wr_ptr_bin + 1);
       end if;
 
       if (wr_ptr_bin(addr_width - 1 downto 0) = gray2bin(rd_ptr_gray_wr2)(addr_width - 1 downto 0) and
@@ -124,7 +116,6 @@ begin
 
   end process wr_proc;
 
-  -- Read Process
   rd_proc : process (rd_clk, rd_rst) is
   begin
 
@@ -141,7 +132,7 @@ begin
       if (rd_en = '1' and empty_i = '0') then
         data_out    <= memory(to_integer(rd_ptr_bin(addr_width - 1 downto 0)));
         rd_ptr_bin  <= rd_ptr_bin + 1;
-        rd_ptr_gray <= bin2gray(rd_ptr_bin);  -- Fixed: current pointer
+        rd_ptr_gray <= bin2gray(rd_ptr_bin + 1);
       end if;
 
       if (rd_ptr_bin = gray2bin(wr_ptr_gray_rd2)) then

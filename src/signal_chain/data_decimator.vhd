@@ -4,15 +4,13 @@ library ieee;
 
 entity data_decimator is
   generic (
-    data_width        : integer := 16; -- Width of your sine data
-    decimation_factor : integer := 100 -- 100MHz / 100 = 1MHz
+    data_width        : integer := 16;
+    decimation_factor : integer := 100
   );
   port (
-    clk : in    std_logic;
-    rst : in    std_logic;
-    -- Input Stream (Assumed continuous at 100MHz)
-    data_in : in    std_logic_vector(data_width - 1 downto 0);
-    -- Output Stream (Valid at 1MHz)
+    clk       : in    std_logic;
+    rst       : in    std_logic;
+    data_in   : in    std_logic_vector(data_width - 1 downto 0);
     data_out  : out   std_logic_vector(data_width - 1 downto 0);
     valid_out : out   std_logic
   );
@@ -33,14 +31,12 @@ begin
       valid_int <= '0';
       data_out  <= (others => '0');
     elsif rising_edge(clk) then
-      -- Default
       valid_int <= '0';
 
-      -- Counter Logic
       if (count_reg = decimation_factor - 1) then
         count_reg <= 0;
-        valid_int <= '1';                         -- Assert valid for 1 clock cycle
-        data_out  <= data_in;                     -- Capture new data
+        valid_int <= '1';
+        data_out  <= data_in;
       else
         count_reg <= count_reg + 1;
       end if;
