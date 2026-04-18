@@ -2,12 +2,18 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
+library work;
+  use work.pwm_1ch_drive_pkg.all;
+
 entity pwm_1ch is
   generic (
     r               : integer   := 7;
     d               : integer   := 2;
     input_data_type : string    := "SIGNED";
     ref_type        : string    := "SYMMETRICAL";
+    -- COMPLEMENTARY: pwm_n = not pwm (after dead time).
+    -- BIPOLAR_SPLIT: three-level — pwm only for command > neutral, pwm_n only for command < neutral.
+    output_mode     : string    := "COMPLEMENTARY";
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
     ref_init        : integer   := 0;
@@ -61,9 +67,11 @@ architecture src of pwm_1ch is
   signal pwm_state   : std_logic := '0';
   signal pwm_n_state : std_logic := '0';
 
-  signal cmp_result : std_logic := '0';
-
 begin
+
+  assert OUTPUT_MODE = "COMPLEMENTARY" or OUTPUT_MODE = "BIPOLAR_SPLIT"
+    report "pwm_1ch: output_mode must be COMPLEMENTARY or BIPOLAR_SPLIT"
+    severity failure;
 
   set_pwm_s_unsigned : if (REF_TYPE = "ASYMMETRICAL" and INPUT_DATA_TYPE = "UNSIGNED") generate
 
@@ -205,35 +213,35 @@ begin
   end process input_control;
 
   pwm_set_control : process (clk) is
+    variable legs : pwm_leg_pair;
   begin
 
     if rising_edge(clk) then
       if (rst = '1') then
-        pwm_state  <= '0';
+        pwm_state   <= '0';
         pwm_n_state <= '0';
-        pwm_ref    <= (others => '0');
-        cmp_result <= '0';
+        pwm_ref     <= (others => '0');
       else
         if (counter = std_logic_vector(to_signed(start, r))) then
           pwm_ref <= scaled_output;
         end if;
 
-        if (input_data_type = "SIGNED") then
-          if (signed(counter) < signed(pwm_ref)) then
-            cmp_result <= '1';
+        if (output_mode = "BIPOLAR_SPLIT") then
+          if (input_data_type = "SIGNED") then
+            legs := drive_bipolar_signed(counter, pwm_ref);
           else
-            cmp_result <= '0';
+            legs := drive_bipolar_unsigned(counter, pwm_ref);
           end if;
         else
-          if (unsigned(counter) < unsigned(pwm_ref)) then
-            cmp_result <= '1';
+          if (input_data_type = "SIGNED") then
+            legs := drive_complementary_signed(counter, pwm_ref);
           else
-            cmp_result <= '0';
+            legs := drive_complementary_unsigned(counter, pwm_ref);
           end if;
         end if;
 
-        pwm_state   <= cmp_result;
-        pwm_n_state <= not cmp_result;
+        pwm_state   <= legs.pwm;
+        pwm_n_state <= legs.pwm_n;
       end if;
     end if;
 

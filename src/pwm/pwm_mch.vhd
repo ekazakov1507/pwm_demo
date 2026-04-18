@@ -13,6 +13,7 @@ entity pwm_mch is
     num_channels    : integer   := 2;
     input_data_type : string    := "SIGNED";
     ref_type        : string    := "SYMMETRICAL";
+    output_mode     : string    := "COMPLEMENTARY";
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1'
   );
@@ -45,6 +46,7 @@ begin
         r               => r,
         d               => d,
         ref_type        => ref_type,
+        output_mode     => output_mode,
         ref_init        => chunk.val,
         ref_step        => ref_step,
         ref_updwn       => chunk.flag,
