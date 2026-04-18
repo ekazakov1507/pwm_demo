@@ -210,10 +210,9 @@ main.vhd (Top-Level)
             ├── Scaler (Amplitude scaling)
             │   ├── scaler_signed
             │   └── scaler_unsigned
-            ├── Comparator (Pipeline stages)
-            └── edge_delay × 2 (Dead-time insertion)
-                ├── pwm_state → pwm
-                └── pwm_n_state → pwm_n
+            ├── pwm_1ch_drive_pkg (complementary or bipolar split legs)
+            └── dead_time_generator (dead-time insertion)
+                ├── pwm_state / pwm_n_state → pwm / pwm_n
 ```
 
 ## Key Design Parameters

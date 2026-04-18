@@ -165,27 +165,19 @@ output:      ─────────────────────┐ 
 ### Usage in PWM System
 
 ```vhdl
--- In pwm_1ch.vhd:
-dead_time_control_p : entity work.edge_delay
+-- In pwm_1ch.vhd (both legs through one dead-time block):
+dead_time_ctrl : entity work.dead_time_generator
   generic map (
-    r => r,   -- Counter width (matches PWM resolution)
-    d => d    -- Dead-time cycles (e.g., 4)
+    r           => r,
+    dead_time_d => d
   )
   port map (
-    clk    => clk,
-    input  => pwm_state,   -- Raw PWM signal
-    output => pwm          -- Delayed output
-  );
-
-dead_time_control_n : entity work.edge_delay
-  generic map (
-    r => r,
-    d => d
-  )
-  port map (
-    clk    => clk,
-    input  => pwm_n_state,
-    output => pwm_n
+    clk       => clk,
+    rst       => rst,
+    pwm_in    => pwm_state,
+    pwm_n_in  => pwm_n_state,
+    pwm_out   => pwm,
+    pwm_n_out => pwm_n
   );
 ```
 
@@ -197,8 +189,8 @@ pwm_state:    ────────┐              ┌───────�
                       │              │
                       └──────────────┘
 
-edge_delay:     ──┐
-                  │ (delay d cycles)
+dead_time:      ──┐
+                  │ (safe gap)
                   └────────────────────────────────────
 
 pwm output:     ────────┐              ┌──────────────────────
@@ -211,8 +203,8 @@ pwm_n_state:    ┌────────────────────�
                 │                                      │
                 └──────────────────────────────────────┘
 
-edge_delay:     └────────────┐
-                             │ (delay d cycles)
+dead_time:      └────────────┐
+                             │ (safe gap)
                              └────────────────────
 
 pwm_n output:   ┌──────────────────────────────────────┐

@@ -29,11 +29,10 @@ pwm_demo (Project Root)
 │               ├── pwm_reg_ctrl [process]
 │               │
 │               └── pwm_1ch.vhd × N (channels)
-│                   ├── updown_counter_signed.vhd (SYMMETRICAL)
-│                   ├── up_counter_signed.vhd (ASYMMETRICAL)
-│                   ├── scaler_signed.vhd (SIGNED mode)
-│                   ├── scaler_unsigned.vhd (UNSIGNED mode)
-│                   └── edge_delay.vhd × 2 (dead-time)
+│                   ├── updown_counter_*.vhd / up_counter_*.vhd (carrier)
+│                   ├── scaler_signed / scaler_unsigned
+│                   ├── pwm_1ch_drive_pkg.vhd (pre-drive legs)
+│                   └── dead_time_generator.vhd
 │
 ├── Counter Modules
 │   ├── up_counter_signed.vhd
@@ -51,6 +50,7 @@ pwm_demo (Project Root)
 │   └── async_fifo.vhd
 │
 ├── Utility Modules
+│   ├── dead_time_generator.vhd
 │   ├── edge_delay.vhd
 │   └── range_divider_pkg.vhd
 │       ├── value_flag_pair [type]
@@ -102,8 +102,7 @@ pwm_mch_buf
 └─► channels_gen[i] (pwm_1ch) [generate loop]
     ├─► set_pwm_t_signed (updown_counter_signed) [or asymmetrical]
     ├─► set_scaler_type_signed (scaler_signed) [or unsigned]
-    ├─► dead_time_control_p (edge_delay)
-    ├─► dead_time_control_n (edge_delay)
+    ├─► dead_time_ctrl (dead_time_generator)
     ├─► input_control [process]
     └─► pwm_set_control [process]
 ```
@@ -123,8 +122,8 @@ pwm_1ch
 │   ├─► SIGNED → scaler_signed
 │   └─► UNSIGNED → scaler_unsigned
 │
-├─► dead_time_control_p (edge_delay)
-├─► dead_time_control_n (edge_delay)
+├─► dead_time_ctrl (dead_time_generator)
+├─► pwm_1ch_drive_pkg (functions)
 ├─► input_control [process]
 └─► pwm_set_control [process]
 ```
@@ -163,8 +162,12 @@ graph TB
     end
 
     subgraph "Utilities"
-        EDGE[edge_delay.vhd]
+        DT[dead_time_generator.vhd]
         RANGE[range_divider_pkg.vhd]
+    end
+
+    subgraph "Packages"
+        DRV[pwm_1ch_drive_pkg.vhd]
     end
 
     MAIN --> SINE
@@ -182,7 +185,8 @@ graph TB
 
     PWM_1CH --> SCALE_S
     PWM_1CH --> SCALE_U
-    PWM_1CH --> EDGE
+    PWM_1CH --> DT
+    PWM_1CH -.-> DRV
 
     style MAIN fill:#ffe1e1
     style SINE fill:#e1ffe1
@@ -209,7 +213,7 @@ graph TB
 | pwm_1ch.vhd | clk_pwm | 125 MHz | PWM clock |
 | All counters | clk_pwm | 125 MHz | PWM clock |
 | All scalers | clk_pwm | 125 MHz | PWM clock |
-| edge_delay | clk_pwm | 125 MHz | PWM clock |
+| dead_time_generator | clk_pwm | 125 MHz | PWM clock |
 
 ---
 
@@ -256,6 +260,7 @@ entity pwm_mch_buf is
     input_data_type : string    := "SIGNED";
     buffer_depth    : integer   := 1024;
     ref_type        : string    := "SYMMETRICAL";
+    output_mode     : string    := "COMPLEMENTARY";
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1'
   );
@@ -280,6 +285,7 @@ entity pwm_1ch is
     d               : integer   := 2;
     input_data_type : string    := "SIGNED";
     ref_type        : string    := "SYMMETRICAL";
+    output_mode     : string    := "COMPLEMENTARY";
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
     ref_init        : integer   := 0;
@@ -306,6 +312,7 @@ src/
 ├── main.vhd                              # Top-level design
 ├── pwm/
 │   ├── pwm_1ch.vhd                       # Single-channel PWM
+│   ├── pwm_1ch_drive_pkg.vhd           # Complementary / bipolar drive functions
 │   ├── pwm_mch_buf.vhd                   # Multi-channel buffered
 │   └── pwm_mch.vhd                       # Multi-channel (legacy)
 ├── counters/
@@ -321,6 +328,7 @@ src/
 ├── buffers/
 │   └── async_fifo.vhd
 └── utils/
+    ├── dead_time_generator.vhd
     ├── edge_delay.vhd
     └── range_divider_pkg.vhd
 ```
@@ -337,7 +345,7 @@ src/
 | FFs | ~40 | Pipeline registers |
 | Counters | 1 | Up/down counter |
 | Scalers | 1 | Amplitude scaling |
-| Edge Delays | 2 | Dead-time insertion |
+| Dead-time block | 1 | `dead_time_generator` per channel |
 
 ### Shared Resources
 

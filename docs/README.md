@@ -50,7 +50,8 @@ docs/
 
 #### PWM Generation
 - [PWM Modules](./src/pwm/README.md) - Single and multi-channel PWM with buffering
-  - `pwm_1ch.vhd` - Single channel with dead-time
+  - `pwm_1ch.vhd` - Single channel with dead-time and `output_mode` (complementary / bipolar split)
+  - `pwm_1ch_drive_pkg.vhd` - Pre-drive leg functions
   - `pwm_mch_buf.vhd` - Multi-channel buffered
   - `pwm_mch.vhd` - Multi-channel (legacy)
 
@@ -74,7 +75,8 @@ docs/
 
 #### Utilities
 - [Utils](./src/utils/README.md) - Supporting modules
-  - `edge_delay.vhd` - Programmable delay for dead-time
+  - `dead_time_generator.vhd` - PWM leg dead time (used by `pwm_1ch`)
+  - `edge_delay.vhd` - Programmable delay (general-purpose)
   - `range_divider_pkg.vhd` - Channel phase distribution
 
 ---

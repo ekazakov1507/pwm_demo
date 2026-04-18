@@ -2,8 +2,9 @@
 
 ## Overview
 
-The PWM generation system consists of two main modules:
+The PWM generation system consists of:
 - **pwm_1ch.vhd**: Single-channel PWM with dead-time control
+- **pwm_1ch_drive_pkg.vhd**: Complementary vs bipolar (three-level) pre-drive logic
 - **pwm_mch_buf.vhd**: Multi-channel buffered PWM with clock domain crossing
 - **pwm_mch.vhd**: Multi-channel PWM (legacy, non-buffered)
 
@@ -39,16 +40,13 @@ graph TB
             PWM_REF[pwm_ref]
         end
 
-        subgraph "PWM Generation (Pipeline)"
-            LATCH[Latch at cycle start]
-            DELAY1[pwm_ref_delayed<br/>Pipeline Stage 1]
-            CMP[Comparator<br/>Pipeline Stage 2]
-            OUT_REG[Output Register<br/>Pipeline Stage 3]
+        subgraph "PWM generation"
+            LATCH[Latch scaled_output<br/>at counter = START]
+            DRIVE[pwm_1ch_drive_pkg<br/>COMPLEMENTARY or BIPOLAR_SPLIT]
         end
 
-        subgraph "Dead-Time Insertion"
-            EDGE_P[edge_delay<br/>pwm_state → pwm]
-            EDGE_N[edge_delay<br/>pwm_n_state → pwm_n]
+        subgraph "Dead time"
+            DT[dead_time_generator<br/>pwm_state / pwm_n_state → outputs]
         end
 
         PWM[pwm]
@@ -69,13 +67,11 @@ graph TB
 
     SCALED --> LATCH
     PWM_REF --> LATCH
-    LATCH --> DELAY1
-    DELAY1 --> CMP
-    CMP --> OUT_REG
-    OUT_REG --> EDGE_P
-    OUT_REG -->|NOT| EDGE_N
-    EDGE_P --> PWM
-    EDGE_N --> PWM_N
+    PWM_REF --> DRIVE
+    LATCH --> DRIVE
+    DRIVE --> DT
+    DT --> PWM
+    DT --> PWM_N
 
     style INPUT fill:#e1f5ff
     style PWM fill:#ffe1e1
@@ -93,6 +89,7 @@ entity pwm_1ch is
     d               : integer   := 2;             -- Num dead-time cycles
     input_data_type : string    := "SIGNED";      -- signed or unsigned
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
+    output_mode     : string    := "COMPLEMENTARY"; -- COMPLEMENTARY or BIPOLAR_SPLIT
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
     ref_init        : integer   := 0;
@@ -118,6 +115,7 @@ end entity pwm_1ch;
 | `d` | integer | 2 | Number of dead-time clock cycles |
 | `input_data_type` | string | "SIGNED" | Data format: "SIGNED" or "UNSIGNED" |
 | `ref_type` | string | "SYMMETRICAL" | Reference type: "SYMMETRICAL" or "ASYMMETRICAL" |
+| `output_mode` | string | "COMPLEMENTARY" | "COMPLEMENTARY" (pwm_n ≈ not pwm) or "BIPOLAR_SPLIT" (three-level; see below) |
 | `scale_factor` | real | 0.8 | Amplitude scaling factor |
 | `offset_factor` | real | 0.1 | DC offset factor |
 | `ref_init` | integer | 0 | Counter initial value |
@@ -132,8 +130,8 @@ end entity pwm_1ch;
 | `rst` | in | 1 | Active-high reset |
 | `enable` | in | 1 | Enable signal |
 | `input_wave` | in | r | Input waveform value |
-| `pwm` | out | 1 | PWM output (positive) |
-| `pwm_n` | out | 1 | PWM output (negative/complementary) |
+| `pwm` | out | 1 | PWM high-side (or positive-half) command after dead time |
+| `pwm_n` | out | 1 | PWM low-side (or negative-half) command after dead time; meaning depends on `output_mode` |
 
 ### Internal Architecture
 
@@ -157,41 +155,37 @@ graph TD
     style INPUT2 fill:#f0e1ff
 ```
 
-#### 2. PWM Generation Pipeline
+#### 2. Reference latch and drive functions
+
+On each rising edge of `clk`, when `counter` equals the period **START** value, `pwm_ref` samples `scaled_output`. The pre-drive legs `pwm_state` / `pwm_n_state` come from **`pwm_1ch_drive_pkg`**:
+
+- **`drive_complementary_*`**: same compare as classic PWM; `pwm_n_state = not pwm_state`.
+- **`drive_bipolar_signed`**: neutral at 0 — only `pwm` pulses for positive `pwm_ref`, only `pwm_n` for negative `pwm_ref`, both off at zero.
+- **`drive_bipolar_unsigned`**: neutral at **`2**(r-1)`** — same idea on offset samples vs midpoint.
 
 ```mermaid
 graph LR
-    A[scaled_output] --> B[Latch at START]
-    C[counter] --> B
-    B --> D[Stage 1:<br/>pwm_ref_delayed]
-    D --> E[Stage 2:<br/>Comparator]
-    E --> F[Stage 3:<br/>Output Register]
-    F --> G[pwm_state]
-    F -->|NOT| H[pwm_n_state]
+    A[scaled_output] --> B[Latch → pwm_ref<br/>when counter = START]
+    C[counter] --> D[pwm_1ch_drive_pkg]
+    B --> D
+    D --> E[pwm_state / pwm_n_state]
+    E --> F[dead_time_generator]
 
     style A fill:#fff4e1
     style B fill:#e1ffe1
     style D fill:#e1ffe1
-    style E fill:#e1ffe1
-    style F fill:#e1ffe1
+    style F fill:#ffe1e1
 ```
-
-**Pipeline Stages:**
-
-1. **Stage 0 - Latch**: Capture `scaled_output` when counter reaches START
-2. **Stage 1 - Delay**: Register reference value for comparison
-3. **Stage 2 - Compare**: Registered comparison (breaks critical path)
-4. **Stage 3 - Output**: Registered output update
 
 #### 3. Dead-Time Control
 
 ```mermaid
 graph TB
-    pwm_state --> EDGE_P[edge_delay<br/>d cycles]
-    pwm_n_state --> EDGE_N[edge_delay<br/>d cycles]
+    pwm_state --> DT[dead_time_generator]
+    pwm_n_state --> DT
 
-    EDGE_P --> pwm
-    EDGE_N --> pwm_n
+    DT --> pwm
+    DT --> pwm_n
 
     style pwm_state fill:#fff4e1
     style pwm_n_state fill:#fff4e1
@@ -248,13 +242,16 @@ Reference Counter:
     └──────────────────► time
    START        STOP
 
-Comparator:
+Comparator (COMPLEMENTARY mode):
     if (counter < pwm_ref) then
         pwm_state = '1'
     else
         pwm_state = '0'
     end if
+    pwm_n_state = not pwm_state   -- before dead_time_generator
 ```
+
+For **BIPOLAR_SPLIT**, the carrier and latch are unchanged; leg rules are described in [BIPOLAR_SPLIT](#bipolar_split-three-level) and in **`pwm_1ch_drive_pkg`**.
 
 #### Asymmetrical PWM (Sawtooth Reference)
 
@@ -272,12 +269,38 @@ Reference Counter:
    (reset)
 ```
 
+#### BIPOLAR_SPLIT (three-level)
+
+Uses the **same** reference counter and `pwm_ref` latch as complementary mode; only the compare rules in **`pwm_1ch_drive_pkg`** change.
+
+**SIGNED** (neutral = 0):
+
+- `pwm_ref > 0`: `pwm_state` follows `counter < pwm_ref`; `pwm_n_state = '0'`.
+- `pwm_ref < 0`: `pwm_n_state` follows `counter > pwm_ref`; `pwm_state = '0'`.
+- `pwm_ref = 0`: both legs off.
+
+**UNSIGNED** (neutral = `2**(r-1)`): same structure on offset samples  
+`to_integer(unsigned(x)) - 2**(r-1)` for `counter` and `pwm_ref`.
+
 ### Key Design Features
 
-1. **Pipeline Architecture**: 3-stage pipeline breaks critical timing path
-2. **Cycle-Aligned Latching**: Input captured at start of each PWM cycle
-3. **Dead-Time Insertion**: Prevents shoot-through in power stages
-4. **Flexible Configuration**: Supports signed/unsigned, symmetrical/asymmetrical
+1. **Cycle-aligned latching**: `scaled_output` captured at counter START each PWM frame
+2. **Drive package**: Shared combinational functions for complementary vs bipolar leg generation
+3. **Dead-time insertion**: `dead_time_generator` on both legs
+4. **Flexible configuration**: Signed/unsigned, symmetrical/asymmetrical, complementary or bipolar split
+
+---
+
+## pwm_1ch_drive_pkg.vhd - Pre-drive leg generation
+
+Pure VHDL **package** (no entity). Used only from `pwm_1ch.vhd` to keep the main architecture readable.
+
+| Function | Role |
+|----------|------|
+| `drive_complementary_signed` / `drive_complementary_unsigned` | Classic PWM: one compare, complementary legs |
+| `drive_bipolar_signed` / `drive_bipolar_unsigned` | Three-level split: mutually exclusive legs around neutral (0 or `2**(r-1)`) |
+
+Return type is **`pwm_leg_pair`** (`pwm`, `pwm_n`), i.e. the signals fed into **`dead_time_generator`**.
 
 ---
 
@@ -387,6 +410,7 @@ entity pwm_mch_buf is
     input_data_type : string    := "SIGNED";      -- signed or unsigned
     buffer_depth    : integer   := 1024;          -- FIFO depth
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
+    output_mode     : string    := "COMPLEMENTARY"; -- Passed to each pwm_1ch
     ref_step        : integer   := 1;             -- Counter increment
     ref_updwn       : std_logic := '1';           -- Up/down control
     -- CRITICAL: Clock frequencies for proper decimation calculation
@@ -497,13 +521,13 @@ else
     cycle_length := 2^r;      -- 64 for r=6
 end if;
 
--- Read at end of each PWM cycle
-if (cnt = cycle_length - 1 and buf_empty_sync(2) = '0') then
+-- Read at end of each PWM frame (implementation may gate on FIFO empty later)
+if (cnt = cycle_length - 1) then
     buf_rd_en <= '1';
-    cnt <= 0;
+    cnt := 0;
 else
     buf_rd_en <= '0';
-    cnt <= cnt + 1;
+    cnt := cnt + 1;
 end if;
 ```
 
@@ -590,6 +614,7 @@ pwm_mch_buf_inst : entity work.pwm_mch_buf
     r               => 7,
     num_channels    => 2,
     ref_type        => "SYMMETRICAL",
+    output_mode     => "COMPLEMENTARY",  -- or "BIPOLAR_SPLIT"
     clk_freq_hz     => 100_000_000,   -- Your clk frequency
     clk_pwm_freq_hz => 100_000_000    -- Your clk_pwm frequency
   )
@@ -656,6 +681,7 @@ graph TB
 | Clock domains | Single | Dual (clk + clk_pwm) |
 | Buffering | None | async_fifo |
 | Decimation | None | data_decimator |
+| `output_mode` | Yes (per-channel `pwm_1ch`) | Yes (forwarded to each `pwm_1ch`) |
 | Timing | Critical path | Relaxed via FIFO |
 | Use case | Low frequency | High frequency |
 
@@ -700,7 +726,12 @@ graph TD
 
 ## See Also
 
-- [Counter Modules](../src/counters/README.md)
-- [Scaler Modules](../src/signal_chain/scalers.md)
-- [Edge Delay](../src/utils/edge_delay.md)
-- [Async FIFO](../src/buffers/async_fifo.md)
+- [Counter Modules](../counters/README.md)
+- [Signal chain / scalers](../signal_chain/README.md)
+- [Dead time / utilities](../utils/README.md) (`dead_time_generator`)
+- [Async FIFO](../buffers/async_fifo.md)
+
+### Testbenches
+
+- `tb/tb_pwm_1ch.vhd` — two instances: **COMPLEMENTARY** vs **BIPOLAR_SPLIT**, shared sine
+- `tb/tb_pwm_mch.vhd` — same for `pwm_mch` and `pwm_mch_buf` (four DUTs total)
