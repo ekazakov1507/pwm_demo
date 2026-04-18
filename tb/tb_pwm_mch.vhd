@@ -86,7 +86,8 @@ begin
 
   clk <= not clk after clk_period / 2;
 
-  clk_pwm <= not clk_pwm after clk_period / 4; -- 2x for sym pwm
+  -- Symmetric PWM + pwm_mch_buf expect faster pwm clock (2x main clk here).
+  clk_pwm <= not clk_pwm after clk_period / 4;
 
   stim_proc : process is
   begin

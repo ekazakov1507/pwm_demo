@@ -12,14 +12,14 @@
    </db_ref_list>
    <zoom_setting>
       <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="61000000001fs"></ZoomEndTime>
-      <Cursor1Time time="61000000000fs"></Cursor1Time>
+      <ZoomEndTime time="11000000001fs"></ZoomEndTime>
+      <Cursor1Time time="11000000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="254"></NameColumnWidth>
+      <NameColumnWidth column_width="230"></NameColumnWidth>
       <ValueColumnWidth column_width="116"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="20" />
+   <WVObjectSize size="19" />
    <wave_markers>
       <marker time="31802500000" label="" />
       <marker time="30542500000" label="" />
@@ -52,6 +52,7 @@
    <wvobject fp_name="/tb_pwm_mch/adv_pwm/dec_sine/data_out" type="array">
       <obj_property name="ElementShortName">data_out[6:0]</obj_property>
       <obj_property name="ObjectShortName">data_out[6:0]</obj_property>
+      <obj_property name="Radix">SIGNEDMAGRADIX</obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_mch/adv_pwm/dec_sine/data_out" type="array">
       <obj_property name="ElementShortName">data_out[6:0]</obj_property>
@@ -120,9 +121,5 @@
    <wvobject fp_name="/tb_pwm_mch/adv_pwm/buf_empty" type="logic">
       <obj_property name="ElementShortName">buf_empty</obj_property>
       <obj_property name="ObjectShortName">buf_empty</obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_mch/adv_pwm/duty_cycle_state" type="logic">
-      <obj_property name="ElementShortName">duty_cycle_state</obj_property>
-      <obj_property name="ObjectShortName">duty_cycle_state</obj_property>
    </wvobject>
 </wave_config>
