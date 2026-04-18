@@ -208,10 +208,6 @@ pwm_state:    ────────┐              ┌───────�
                       └──────────────┘
 
                       ◄── dead_time ─►
-edge_delay:     ──────┐
-                      │ (delay d cycles)
-                      └────────────────────────────────────
-
 pwm output:     ──────┐              ┌──────────────────────
                       │              │
                       │              │
@@ -222,17 +218,19 @@ pwm_n_state:    ┌────────────────────�
                 │                                      │
                 └──────────────────────────────────────┘
 
-                      ◄── dead_time ─►
-edge_delay:           └────────────┐
-                                   │ (delay d cycles)
-                                   └────────────────────
+                                   ◄── dead_time ──►
+pwm_n output:   ┌─────────────────┐              ┌────
+                │                 │              │
+                └─────────────────┘              └────
 
-pwm_n output:   ┌──────────────────────────────────────┐
-                │                                      │
-                └──────────────────────────────────────┘
-
-                ◄──── dead_time (both edges) ────►
+                ◄──── dead_time (BOTH edges delayed) ────►
 ```
+
+**CRITICAL SAFETY FEATURE:**
+- ✅ **Rising edges delayed**: Prevents turn-on until complementary signal is OFF + dead_time
+- ✅ **Falling edges delayed**: Ensures complementary signal stays OFF for dead_time
+- ✅ **Both edges delayed**: Guarantees no shoot-through in power stage
+- ⚠️ **PREVIOUS BUG**: Old implementation only delayed rising edges, allowing shoot-through
 
 ### Operation Modes
 
@@ -390,7 +388,10 @@ entity pwm_mch_buf is
     buffer_depth    : integer   := 1024;          -- FIFO depth
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
     ref_step        : integer   := 1;             -- Counter increment
-    ref_updwn       : std_logic := '1'            -- Up/down control
+    ref_updwn       : std_logic := '1';           -- Up/down control
+    -- CRITICAL: Clock frequencies for proper decimation calculation
+    clk_freq_hz     : integer   := 100_000_000;   -- Input clock frequency (clk domain)
+    clk_pwm_freq_hz : integer   := 100_000_000    -- PWM clock frequency (clk_pwm domain)
   );
   port (
     clk        : in    std_logic;
@@ -536,17 +537,68 @@ graph TB
 
 ### Decimation Factor
 
+**CRITICAL: The decimation factor must be calculated based on actual clock frequencies to prevent FIFO overflow/underflow.**
+
+#### Formula
+
 ```
 For SYMMETRICAL mode:
-    decimation = clk / (clk_pwm / 2^(r+1))
-    Example: 100M / (200M/128) = 64 (for r=6)
+    pwm_cycle_length = 2^(r+1)
+    decimation_factor = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
 
 For ASYMMETRICAL mode:
-    decimation = clk / (clk_pwm / 2^r)
-    Example: 100M / (200M/64) = 32 (for r=6)
+    pwm_cycle_length = 2^r
+    decimation_factor = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
 ```
 
-**Current setting:** `decimation_factor = 32`
+#### Examples
+
+**Example 1: Equal clocks (clk = clk_pwm = 100MHz), SYMMETRICAL, r=7**
+```
+pwm_cycle_length = 2^8 = 256
+decimation_factor = (100e6 * 256) / 100e6 = 256
+→ Write every 256 clk cycles, read every 256 clk_pwm cycles (balanced)
+```
+
+**Example 2: Faster input clock (clk=200MHz, clk_pwm=100MHz), SYMMETRICAL, r=7**
+```
+pwm_cycle_length = 2^8 = 256
+decimation_factor = (200e6 * 256) / 100e6 = 512
+→ Write every 512 clk cycles, read every 256 clk_pwm cycles
+  (write is faster in absolute time, prevents FIFO underflow)
+```
+
+#### Safety Margin
+
+The implementation applies a **5% safety margin** to ensure write rate > read rate:
+```vhdl
+decimation_factor = (calculated_value * 95 + 50) / 100
+```
+
+This prevents FIFO underflow due to:
+- Clock drift
+- Phase differences
+- Jitter
+
+#### Configuration
+
+You **MUST** set the clock frequency generics to match your hardware:
+
+```vhdl
+pwm_mch_buf_inst : entity work.pwm_mch_buf
+  generic map (
+    r               => 7,
+    num_channels    => 2,
+    ref_type        => "SYMMETRICAL",
+    clk_freq_hz     => 100_000_000,   -- Your clk frequency
+    clk_pwm_freq_hz => 100_000_000    -- Your clk_pwm frequency
+  )
+  port map (
+    ...
+  );
+```
+
+⚠️ **PREVIOUS BUG**: Old implementation used `decimation_factor = pwm_cycle_length / 2`, which completely ignored clock frequencies and would cause FIFO overflow/underflow in most configurations.
 
 ---
 
