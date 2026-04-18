@@ -22,8 +22,11 @@ architecture tb of tb_pwm_1ch is
   signal enable  : std_logic                                 := '0';
   signal data_in : std_logic_vector(data_width - 1 downto 0) := (others => '0');
 
-  signal p   : std_logic := '0';
-  signal p_n : std_logic := '0';
+  -- Two DUTs: classic complementary vs three-level bipolar split (same stimulus).
+  signal p_comp   : std_logic := '0';
+  signal p_n_comp : std_logic := '0';
+  signal p_bi     : std_logic := '0';
+  signal p_n_bi   : std_logic := '0';
 
 begin
 
@@ -39,24 +42,46 @@ begin
       output_data => data_in
     );
 
-  pwm_mod : entity work.pwm_1ch
+  pwm_comp : entity work.pwm_1ch
     generic map (
       r               => data_width,
       d               => num_dead_time_cycles,
       ref_type        => ref_type,
+      output_mode     => "COMPLEMENTARY",
       ref_init        => ref_init,
       ref_step        => ref_step,
       input_data_type => input_data_type,
-      scale_factor    => scale_Factor,
-      offset_factor   => offset_Factor
+      scale_factor    => scale_factor,
+      offset_factor   => offset_factor
     )
     port map (
       clk        => clk,
       rst        => rst,
       enable     => enable,
       input_wave => data_in,
-      pwm        => p,
-      pwm_n      => p_n
+      pwm        => p_comp,
+      pwm_n      => p_n_comp
+    );
+
+  pwm_bipolar : entity work.pwm_1ch
+    generic map (
+      r               => data_width,
+      d               => num_dead_time_cycles,
+      ref_type        => ref_type,
+      output_mode     => "BIPOLAR_SPLIT",
+      ref_init        => ref_init,
+      ref_step        => ref_step,
+      input_data_type => input_data_type,
+      scale_factor    => scale_factor,
+      offset_factor   => offset_factor
+    )
+    port map (
+      clk        => clk,
+      rst        => rst,
+      enable     => enable,
+      input_wave => data_in,
+      pwm        => p_bi,
+      pwm_n      => p_n_bi
     );
 
   clk <= not clk after clk_period / 2;

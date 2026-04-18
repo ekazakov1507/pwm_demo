@@ -24,11 +24,17 @@ architecture tb of tb_pwm_mch is
   signal enable  : std_logic                                 := '0';
   signal data_in : std_logic_vector(data_width - 1 downto 0) := (others => '0');
 
-  signal p   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  -- pwm_mch @ clk: complementary vs bipolar
+  signal p        : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_n      : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_bi     : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_n_bi   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
-  signal p_buf   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_buf : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  -- pwm_mch_buf @ clk / clk_pwm: same pair of modes
+  signal p_buf      : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_n_buf    : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_buf_bi   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_n_buf_bi : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
 begin
 
@@ -46,12 +52,13 @@ begin
 
   simple_pwm : entity work.pwm_mch
     generic map (
-      r               => DATA_WIDTH,
-      d               => NUM_DEAD_TIME_CYCLES,
-      num_channels    => NUM_CHANNELS,
-      input_data_type => INPUT_DATA_TYPE,
-      ref_type        => REF_TYPE,
-      ref_step        => REF_STEP,
+      r               => data_width,
+      d               => num_dead_time_cycles,
+      num_channels    => num_channels,
+      input_data_type => input_data_type,
+      ref_type        => ref_type,
+      output_mode     => "COMPLEMENTARY",
+      ref_step        => ref_step,
       ref_updwn       => ref_updwn
     )
     port map (
@@ -63,15 +70,36 @@ begin
       pwm_n      => p_n
     );
 
+  simple_pwm_bipolar : entity work.pwm_mch
+    generic map (
+      r               => data_width,
+      d               => num_dead_time_cycles,
+      num_channels    => num_channels,
+      input_data_type => input_data_type,
+      ref_type        => ref_type,
+      output_mode     => "BIPOLAR_SPLIT",
+      ref_step        => ref_step,
+      ref_updwn       => ref_updwn
+    )
+    port map (
+      clk        => clk,
+      rst        => rst,
+      enable     => enable,
+      input_wave => data_in,
+      pwm        => p_bi,
+      pwm_n      => p_n_bi
+    );
+
   adv_pwm : entity work.pwm_mch_buf
     generic map (
-      r               => DATA_WIDTH,
-      d               => NUM_DEAD_TIME_CYCLES,
-      num_channels    => NUM_CHANNELS,
-      ref_type        => REF_TYPE,
-      input_data_type => INPUT_DATA_TYPE,
-      buffer_depth    => BUFFER_DEPTH,
-      ref_step        => REF_STEP,
+      r               => data_width,
+      d               => num_dead_time_cycles,
+      num_channels    => num_channels,
+      ref_type        => ref_type,
+      output_mode     => "COMPLEMENTARY",
+      input_data_type => input_data_type,
+      buffer_depth    => buffer_depth,
+      ref_step        => ref_step,
       ref_updwn       => ref_updwn
     )
     port map (
@@ -82,6 +110,28 @@ begin
       input_wave => data_in,
       pwm        => p_buf,
       pwm_n      => p_n_buf
+    );
+
+  adv_pwm_bipolar : entity work.pwm_mch_buf
+    generic map (
+      r               => data_width,
+      d               => num_dead_time_cycles,
+      num_channels    => num_channels,
+      ref_type        => ref_type,
+      output_mode     => "BIPOLAR_SPLIT",
+      input_data_type => input_data_type,
+      buffer_depth    => buffer_depth,
+      ref_step        => ref_step,
+      ref_updwn       => ref_updwn
+    )
+    port map (
+      clk        => clk,
+      clk_pwm    => clk_pwm,
+      rst        => rst,
+      enable     => enable,
+      input_wave => data_in,
+      pwm        => p_buf_bi,
+      pwm_n      => p_n_buf_bi
     );
 
   clk <= not clk after clk_period / 2;
