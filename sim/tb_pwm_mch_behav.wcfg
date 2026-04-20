@@ -5,6 +5,7 @@
    <db_ref_list>
       <db_ref path="tb_pwm_mch_behav.wdb" id="1">
          <top_modules>
+            <top_module name="pwm_1ch_drive_pkg" />
             <top_module name="range_divider_pkg" />
             <top_module name="tb_pwm_mch" />
          </top_modules>
@@ -12,14 +13,14 @@
    </db_ref_list>
    <zoom_setting>
       <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="11000000001fs"></ZoomEndTime>
-      <Cursor1Time time="11000000000fs"></Cursor1Time>
+      <ZoomEndTime time="21000000001fs"></ZoomEndTime>
+      <Cursor1Time time="21000000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="230"></NameColumnWidth>
+      <NameColumnWidth column_width="222"></NameColumnWidth>
       <ValueColumnWidth column_width="116"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="19" />
+   <WVObjectSize size="22" />
    <wave_markers>
       <marker time="31802500000" label="" />
       <marker time="30542500000" label="" />
@@ -96,16 +97,6 @@
       <obj_property name="ElementShortName">valid_out</obj_property>
       <obj_property name="ObjectShortName">valid_out</obj_property>
    </wvobject>
-   <wvobject fp_name="/tb_pwm_mch/p" type="array">
-      <obj_property name="ElementShortName">p[1:0]</obj_property>
-      <obj_property name="ObjectShortName">p[1:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
-   <wvobject fp_name="/tb_pwm_mch/p_buf" type="array">
-      <obj_property name="ElementShortName">p_buf[1:0]</obj_property>
-      <obj_property name="ObjectShortName">p_buf[1:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
-   </wvobject>
    <wvobject fp_name="/tb_pwm_mch/adv_pwm/buf_rd_en" type="logic">
       <obj_property name="ElementShortName">buf_rd_en</obj_property>
       <obj_property name="ObjectShortName">buf_rd_en</obj_property>
@@ -121,5 +112,25 @@
    <wvobject fp_name="/tb_pwm_mch/adv_pwm/buf_empty" type="logic">
       <obj_property name="ElementShortName">buf_empty</obj_property>
       <obj_property name="ObjectShortName">buf_empty</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_mch/p" type="array">
+      <obj_property name="ElementShortName">p[1:0]</obj_property>
+      <obj_property name="ObjectShortName">p[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_mch/p_n" type="array">
+      <obj_property name="ElementShortName">p_n[1:0]</obj_property>
+      <obj_property name="ObjectShortName">p_n[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_mch/p_buf" type="array">
+      <obj_property name="ElementShortName">p_buf[1:0]</obj_property>
+      <obj_property name="ObjectShortName">p_buf[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_mch/p_buf_bi" type="array">
+      <obj_property name="ElementShortName">p_buf_bi[1:0]</obj_property>
+      <obj_property name="ObjectShortName">p_buf_bi[1:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/tb_pwm_mch/p_n_buf_bi" type="array">
+      <obj_property name="ElementShortName">p_n_buf_bi[1:0]</obj_property>
+      <obj_property name="ObjectShortName">p_n_buf_bi[1:0]</obj_property>
    </wvobject>
 </wave_config>
