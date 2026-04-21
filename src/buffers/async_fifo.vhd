@@ -81,7 +81,13 @@ architecture src of async_fifo is
 
 begin
 
+  assert fifo_depth = 2 ** addr_width
+    report "async_fifo fifo_depth must be a power of two"
+    severity failure;
+
   wr_proc : process (wr_clk, wr_rst) is
+    variable rd_ptr_bin_sync : unsigned(addr_width downto 0);
+    variable wr_ptr_next     : unsigned(addr_width downto 0);
   begin
 
     if (wr_rst = '1') then
@@ -92,31 +98,32 @@ begin
     elsif rising_edge(wr_clk) then
       rd_ptr_gray_wr2 <= rd_ptr_gray_wr1;
       rd_ptr_gray_wr1 <= rd_ptr_gray;
+      rd_ptr_bin_sync := gray2bin(rd_ptr_gray_wr2);
+      wr_ptr_next     := wr_ptr_bin;
 
       if (wr_en = '1' and full_i = '0') then
         memory(to_integer(wr_ptr_bin(addr_width - 1 downto 0))) <= data_in;
-        wr_ptr_bin  <= wr_ptr_bin + 1;
-        -- Gray must track post-increment binary (signal update is end-of-process).
-        wr_ptr_gray <= bin2gray(wr_ptr_bin + 1);
+        wr_ptr_next                                             := wr_ptr_bin + 1;
       end if;
 
-      if (wr_ptr_bin(addr_width - 1 downto 0) = gray2bin(rd_ptr_gray_wr2)(addr_width - 1 downto 0) and
-          wr_ptr_bin(addr_width) /= gray2bin(rd_ptr_gray_wr2)(addr_width)) then
+      wr_ptr_bin  <= wr_ptr_next;
+      wr_ptr_gray <= bin2gray(wr_ptr_next);
+
+      if (wr_ptr_next(addr_width - 1 downto 0) = rd_ptr_bin_sync(addr_width - 1 downto 0) and
+          wr_ptr_next(addr_width) /= rd_ptr_bin_sync(addr_width)) then
         full_i <= '1';
       else
         full_i <= '0';
       end if;
 
-      if (wr_ptr_bin >= gray2bin(rd_ptr_gray_wr2)) then
-        wr_cnt <= resize(wr_ptr_bin - gray2bin(rd_ptr_gray_wr2), count_width);
-      else
-        wr_cnt <= resize((2 ** (addr_width + 1)) + wr_ptr_bin - gray2bin(rd_ptr_gray_wr2), count_width);
-      end if;
+      wr_cnt <= resize(wr_ptr_next - rd_ptr_bin_sync, count_width);
     end if;
 
   end process wr_proc;
 
   rd_proc : process (rd_clk, rd_rst) is
+    variable wr_ptr_bin_sync : unsigned(addr_width downto 0);
+    variable rd_ptr_next     : unsigned(addr_width downto 0);
   begin
 
     if (rd_rst = '1') then
@@ -128,24 +135,24 @@ begin
     elsif rising_edge(rd_clk) then
       wr_ptr_gray_rd2 <= wr_ptr_gray_rd1;
       wr_ptr_gray_rd1 <= wr_ptr_gray;
+      wr_ptr_bin_sync := gray2bin(wr_ptr_gray_rd2);
+      rd_ptr_next     := rd_ptr_bin;
 
       if (rd_en = '1' and empty_i = '0') then
         data_out    <= memory(to_integer(rd_ptr_bin(addr_width - 1 downto 0)));
-        rd_ptr_bin  <= rd_ptr_bin + 1;
-        rd_ptr_gray <= bin2gray(rd_ptr_bin + 1);
+        rd_ptr_next := rd_ptr_bin + 1;
       end if;
 
-      if (rd_ptr_bin = gray2bin(wr_ptr_gray_rd2)) then
+      rd_ptr_bin  <= rd_ptr_next;
+      rd_ptr_gray <= bin2gray(rd_ptr_next);
+
+      if (rd_ptr_next = wr_ptr_bin_sync) then
         empty_i <= '1';
       else
         empty_i <= '0';
       end if;
 
-      if (gray2bin(wr_ptr_gray_rd2) >= rd_ptr_bin) then
-        rd_cnt <= resize(gray2bin(wr_ptr_gray_rd2) - rd_ptr_bin, count_width);
-      else
-        rd_cnt <= resize((2 ** (addr_width + 1)) + gray2bin(wr_ptr_gray_rd2) - rd_ptr_bin, count_width);
-      end if;
+      rd_cnt <= resize(wr_ptr_bin_sync - rd_ptr_next, count_width);
     end if;
 
   end process rd_proc;

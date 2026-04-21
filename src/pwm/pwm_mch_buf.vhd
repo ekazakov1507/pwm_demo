@@ -60,13 +60,12 @@ architecture src of pwm_mch_buf is
 
   signal duty_cycle : std_logic_vector(r - 1 downto 0) := (others => '0');
 
-  signal buf_empty_sync : std_logic_vector(2 downto 0) := "000";
-
   signal rst_sync : std_logic_vector(2 downto 0) := "000";
   signal rst_pwm  : std_logic                    := '1';
 
   signal enable_sync : std_logic_vector(2 downto 0) := "000";
-  signal enable_pwm : std_logic                    := '0';
+  signal enable_pwm  : std_logic                    := '0';
+  signal buf_rd_valid : std_logic                   := '0';
 
 begin
 
@@ -158,18 +157,23 @@ begin
   begin
 
     if rising_edge(clk_pwm) then
-      buf_empty_sync <= buf_empty_sync(1 downto 0) & buf_empty;
-
       if (rst_pwm = '1') then
-        cnt       := 0;
-        buf_rd_en <= '0';
-      -- elsif (cnt = pwm_cycle_length - 1 and buf_empty_sync(2) = '0') then
+        cnt          := 0;
+        buf_rd_en    <= '0';
+        buf_rd_valid <= '0';
       elsif (cnt = pwm_cycle_length - 1) then
-        buf_rd_en <= '1';
-        cnt       := 0;
+        cnt          := 0;
+        buf_rd_valid <= buf_rd_en;
+
+        if (buf_empty = '0') then
+          buf_rd_en <= '1';
+        else
+          buf_rd_en <= '0';
+        end if;
       else
-        buf_rd_en <= '0';
-        cnt       := cnt + 1;
+        buf_rd_en    <= '0';
+        buf_rd_valid <= buf_rd_en;
+        cnt          := cnt + 1;
       end if;
     end if;
 
@@ -182,7 +186,7 @@ begin
       if (rst_pwm = '1') then
         duty_cycle <= (others => '0');
       else
-        if (buf_rd_en = '1') then
+        if (buf_rd_valid = '1') then
           duty_cycle <= buf_output;
         end if;
       end if;

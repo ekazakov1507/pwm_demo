@@ -139,10 +139,14 @@ begin
   end generate pwm_obufs;
 
   -- MMCM lock synchronized into clk domain; reset re-asserts if lock is lost.
-  rst_gen : process (clk) is
+  rst_gen : process (clk, mmcm_clk_lock) is
   begin
 
-    if rising_edge(clk) then
+    if (mmcm_clk_lock = '0') then
+      mmcm_lock_sync <= (others => '0');
+      rst_shreg      <= (others => '1');
+      rst            <= '1';
+    elsif rising_edge(clk) then
       mmcm_lock_sync <= mmcm_lock_sync(0) & mmcm_clk_lock;
       if (mmcm_lock_sync(1) = '0') then
         rst_shreg <= (others => '1');

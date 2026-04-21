@@ -53,19 +53,27 @@ begin
         pwm_in_prev   <= pwm_in;
         pwm_n_in_prev <= pwm_n_in;
 
-        -- Start/restart dead time on any request transition.
+        -- Start dead time only when the requested state changes.
         if req_changed then
-          dead_timer  <= to_unsigned(dead_time_d, r);
-          dead_active <= true;
           pwm_latch   <= pwm_in;
           pwm_n_latch <= pwm_n_in;
-          -- Force safe state immediately when transition is detected.
-          pwm_out_reg  <= '0';
-          pwm_n_out_reg <= '0';
+
+          if (dead_time_d = 0) then
+            dead_active    <= false;
+            dead_timer     <= (others => '0');
+            pwm_out_reg    <= pwm_in;
+            pwm_n_out_reg  <= pwm_n_in;
+          else
+            dead_timer     <= to_unsigned(dead_time_d - 1, r);
+            dead_active    <= true;
+            pwm_out_reg    <= '0';
+            pwm_n_out_reg  <= '0';
+          end if;
         elsif dead_active then
           -- During dead time: force both outputs low (safe state)
-          pwm_out_reg  <= '0';
+          pwm_out_reg   <= '0';
           pwm_n_out_reg <= '0';
+
           if dead_timer = 0 then
             -- Dead time expired: apply latched target state
             dead_active   <= false;
@@ -74,6 +82,9 @@ begin
           else
             dead_timer <= dead_timer - 1;
           end if;
+        else
+          pwm_out_reg   <= pwm_latch;
+          pwm_n_out_reg <= pwm_n_latch;
         end if;
 
       end if;
