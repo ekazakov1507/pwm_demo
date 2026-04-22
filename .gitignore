@@ -6,6 +6,7 @@ figures/
 *.dat
 
 .XIL/
+xsim.dir/
 build/
 *.log
 *.jou
