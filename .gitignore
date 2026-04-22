@@ -5,6 +5,13 @@ figures/
 *.txt
 *.dat
 
+.XIL/
+build/
+*.log
+*.jou
+*.pb
+*.wdb
+
 # Vivado 
 pwm_demo.hw/
 pwm_demo.cache/
