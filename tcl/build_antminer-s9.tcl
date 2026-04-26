@@ -1,7 +1,7 @@
 set script_dir [file dirname [info script]]
-set part "xc7z020clg400-1"
-set board_name "z7-lite"
-set xdc_file [file join $script_dir .. constraints Z7_LITE.xdc]
+set part "xc7z010clg400-1"
+set board_name "antminer-s9"
+set xdc_file [file join $script_dir .. constraints Antminer-S9.xdc]
 set output_dir [file normalize [file join $script_dir .. bit]]
 
 set config_name ""
