@@ -1,5 +1,6 @@
 library ieee;
   use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
 entity tb_pwm_mch is
 --  Port ( );
@@ -35,6 +36,16 @@ architecture tb of tb_pwm_mch is
   signal p_n_buf    : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_buf_bi   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_buf_bi : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+
+  signal saw_pos_simple_pwm_hi     : boolean := false;
+  signal saw_neg_simple_pwm_n_hi   : boolean := false;
+  signal saw_pos_simple_pwm_n_only : boolean := false;
+  signal saw_neg_simple_pwm_only   : boolean := false;
+
+  signal saw_pos_buf_pwm_hi     : boolean := false;
+  signal saw_neg_buf_pwm_n_hi   : boolean := false;
+  signal saw_pos_buf_pwm_n_only : boolean := false;
+  signal saw_neg_buf_pwm_only   : boolean := false;
 
 begin
 
@@ -147,9 +158,95 @@ begin
     rst    <= '0';
     wait for clk_period;
     enable <= '1';
+    wait for 250 us;
+
+    assert saw_pos_simple_pwm_hi
+      report "pwm_mch BIPOLAR_SPLIT: expected pwm high during positive half-cycle"
+      severity failure;
+    assert not saw_pos_simple_pwm_n_only
+      report "pwm_mch BIPOLAR_SPLIT: pwm_n must stay low during positive half-cycle"
+      severity failure;
+    assert saw_neg_simple_pwm_n_hi
+      report "pwm_mch BIPOLAR_SPLIT: expected pwm_n high during negative half-cycle"
+      severity failure;
+    assert not saw_neg_simple_pwm_only
+      report "pwm_mch BIPOLAR_SPLIT: pwm must stay low during negative half-cycle"
+      severity failure;
+
+    assert saw_pos_buf_pwm_hi
+      report "pwm_mch_buf BIPOLAR_SPLIT: expected pwm high during positive half-cycle"
+      severity failure;
+    assert not saw_pos_buf_pwm_n_only
+      report "pwm_mch_buf BIPOLAR_SPLIT: pwm_n must stay low during positive half-cycle"
+      severity failure;
+    assert saw_neg_buf_pwm_n_hi
+      report "pwm_mch_buf BIPOLAR_SPLIT: expected pwm_n high during negative half-cycle"
+      severity failure;
+    assert not saw_neg_buf_pwm_only
+      report "pwm_mch_buf BIPOLAR_SPLIT: pwm must stay low during negative half-cycle"
+      severity failure;
+
     wait for clk_period;
     wait;
 
   end process stim_proc;
+
+  bipolar_monitor : process (clk) is
+    variable sample : integer;
+  begin
+    if rising_edge(clk) then
+      if (rst = '1') then
+        saw_pos_simple_pwm_hi   <= false;
+        saw_neg_simple_pwm_n_hi <= false;
+      elsif (enable = '1') then
+        sample := to_integer(signed(data_in));
+
+        if (sample > 0) then
+          if (p_bi(0) = '1') then
+            saw_pos_simple_pwm_hi <= true;
+          end if;
+          if (p_n_bi(0) = '1') then
+            saw_pos_simple_pwm_n_only <= true;
+          end if;
+        elsif (sample < 0) then
+          if (p_bi(0) = '1') then
+            saw_neg_simple_pwm_only <= true;
+          end if;
+          if (p_n_bi(0) = '1') then
+            saw_neg_simple_pwm_n_hi <= true;
+          end if;
+        end if;
+      end if;
+    end if;
+  end process bipolar_monitor;
+
+  bipolar_buf_monitor : process (clk_pwm) is
+    variable sample : integer;
+  begin
+    if rising_edge(clk_pwm) then
+      if (rst = '1') then
+        saw_pos_buf_pwm_hi   <= false;
+        saw_neg_buf_pwm_n_hi <= false;
+      elsif (enable = '1') then
+        sample := to_integer(signed(data_in));
+
+        if (sample > 0) then
+          if (p_buf_bi(0) = '1') then
+            saw_pos_buf_pwm_hi <= true;
+          end if;
+          if (p_n_buf_bi(0) = '1') then
+            saw_pos_buf_pwm_n_only <= true;
+          end if;
+        elsif (sample < 0) then
+          if (p_buf_bi(0) = '1') then
+            saw_neg_buf_pwm_only <= true;
+          end if;
+          if (p_n_buf_bi(0) = '1') then
+            saw_neg_buf_pwm_n_hi <= true;
+          end if;
+        end if;
+      end if;
+    end if;
+  end process bipolar_buf_monitor;
 
 end architecture tb;

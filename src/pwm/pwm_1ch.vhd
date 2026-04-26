@@ -12,7 +12,7 @@ entity pwm_1ch is
     input_data_type : string    := "SIGNED";
     ref_type        : string    := "SYMMETRICAL";
     -- COMPLEMENTARY: pwm_n = not pwm (after dead time).
-    -- BIPOLAR_SPLIT: three-level — pwm only for command > neutral, pwm_n only for command < neutral.
+    -- BIPOLAR_SPLIT: pwm only for command > neutral, pwm_n only for command < neutral.
     output_mode     : string    := "COMPLEMENTARY";
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;

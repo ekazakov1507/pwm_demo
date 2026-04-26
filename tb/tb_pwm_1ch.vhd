@@ -1,5 +1,6 @@
 library ieee;
   use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
 
 entity tb_pwm_1ch is
 --  Port ( );
@@ -27,6 +28,11 @@ architecture tb of tb_pwm_1ch is
   signal p_n_comp : std_logic := '0';
   signal p_bi     : std_logic := '0';
   signal p_n_bi   : std_logic := '0';
+
+  signal saw_pos_pwm_hi     : boolean := false;
+  signal saw_neg_pwm_n_hi   : boolean := false;
+  signal saw_pos_pwm_n_only : boolean := false;
+  signal saw_neg_pwm_only   : boolean := false;
 
 begin
 
@@ -94,9 +100,53 @@ begin
     rst    <= '0';
     wait for clk_period;
     enable <= '1';
+    wait for 100 us;
+
+    assert saw_pos_pwm_hi
+      report "BIPOLAR_SPLIT: expected pwm high during positive half-cycle"
+      severity failure;
+    assert not saw_pos_pwm_n_only
+      report "BIPOLAR_SPLIT: pwm_n must stay low during positive half-cycle"
+      severity failure;
+    assert not saw_neg_pwm_only
+      report "BIPOLAR_SPLIT: pwm must stay low during negative half-cycle"
+      severity failure;
+    assert saw_neg_pwm_n_hi
+      report "BIPOLAR_SPLIT: expected pwm_n high during negative half-cycle"
+      severity failure;
+
     wait for clk_period;
     wait;
 
   end process stim_proc;
+
+  bipolar_monitor : process (clk) is
+    variable sample : integer;
+  begin
+    if rising_edge(clk) then
+      if (rst = '1') then
+        saw_pos_pwm_hi   <= false;
+        saw_neg_pwm_n_hi <= false;
+      elsif (enable = '1') then
+        sample := to_integer(signed(data_in));
+
+        if (sample > 0) then
+          if (p_bi = '1') then
+            saw_pos_pwm_hi <= true;
+          end if;
+          if (p_n_bi = '1') then
+            saw_pos_pwm_n_only <= true;
+          end if;
+        elsif (sample < 0) then
+          if (p_bi = '1') then
+            saw_neg_pwm_only <= true;
+          end if;
+          if (p_n_bi = '1') then
+            saw_neg_pwm_n_hi <= true;
+          end if;
+        end if;
+      end if;
+    end if;
+  end process bipolar_monitor;
 
 end architecture tb;
