@@ -18,6 +18,8 @@ end entity scaler_signed;
 
 architecture src of scaler_signed is
 
+  attribute use_dsp : string;
+
   constant max_val    : integer := 2 ** (r - 1) - 1;
   constant scale_int  : integer := integer(scale_factor * real(max_val));
   constant offset_int : integer := integer(offset_factor * real(max_val));
@@ -29,6 +31,8 @@ architecture src of scaler_signed is
   signal product   : signed(2 * r - 1 downto 0) := (others => '0');
   signal scaled    : signed(r - 1 downto 0)     := (others => '0');
   signal result    : signed(r - 1 downto 0)     := (others => '0');
+
+  attribute use_dsp of product : signal is "yes";
 
 begin
 
