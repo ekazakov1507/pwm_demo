@@ -1,7 +1,7 @@
 set script_dir [file dirname [info script]]
 set repo_root [file dirname $script_dir]
 
-source [file join $repo_root pwm_core tcl pwm_core_sources.tcl]
+source [file join $repo_root src pwm_core tcl pwm_core_sources.tcl]
 
 set pwm_demo_local_vhdl_files [list \
   [file join $repo_root src utils edge_delay.vhd] \
