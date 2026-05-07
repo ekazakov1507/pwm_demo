@@ -1,6 +1,7 @@
 library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
+  use ieee.math_real.all;
 
 library work;
   use work.range_divider_pkg.get_chunk_end;
@@ -33,7 +34,16 @@ end entity pwm_mch_buf;
 
 architecture src of pwm_mch_buf is
 
-  function get_pwm_cycle_length return integer is
+  function clamp_positive(value : integer) return positive is
+  begin
+    if value < 1 then
+      return 1;
+    else
+      return value;
+    end if;
+  end function;
+
+  function get_pwm_cycle_length return positive is
   begin
     if ref_type = "SYMMETRICAL" then
       return 2 ** (r + 1);
@@ -42,11 +52,15 @@ architecture src of pwm_mch_buf is
     end if;
   end function;
 
-  constant pwm_cycle_length : integer := get_pwm_cycle_length;
+  constant pwm_cycle_length : positive := get_pwm_cycle_length;
 
-  constant decimation_factor_raw : integer := (clk_freq_hz * pwm_cycle_length + clk_pwm_freq_hz / 2) / clk_pwm_freq_hz;
+  -- Use real arithmetic for elaboration-time scaling so the product
+  -- clk_freq_hz * pwm_cycle_length cannot overflow 32-bit integer.
+  constant decimation_factor_real : real := (real(clk_freq_hz) * real(pwm_cycle_length)) / real(clk_pwm_freq_hz);
 
-  constant decimation_factor : integer := (decimation_factor_raw * 95 + 50) / 100;
+  constant decimation_factor_raw : integer := integer(round(decimation_factor_real));
+
+  constant decimation_factor : positive := clamp_positive(integer(round(decimation_factor_real * 0.95)));
 
   signal buf_input  : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal buf_output : std_logic_vector(r - 1 downto 0) := (others => '0');
@@ -77,7 +91,7 @@ begin
     report "buffer_depth must be >= 1"
     severity failure;
 
-  assert decimation_factor > 0
+  assert decimation_factor_raw > 0
     report "decimation_factor must be >= 1. Check clock frequencies and resolution."
     severity failure;
 
@@ -207,9 +221,11 @@ begin
     pwm_ich : entity work.pwm_1ch
       generic map (
         r               => r,
+        input_width     => r,
         d               => d,
         ref_type        => ref_type,
         output_mode     => output_mode,
+        fp23_binary_point => r - 1,
         ref_init        => chunk.val,
         ref_step        => ref_step,
         ref_updwn       => chunk.flag,

@@ -64,12 +64,14 @@ begin
   simple_pwm : entity work.pwm_mch
     generic map (
       r               => data_width,
+      input_width     => data_width,
       d               => num_dead_time_cycles,
       num_channels    => num_channels,
       input_data_type => input_data_type,
       ref_type        => ref_type,
       output_mode     => "COMPLEMENTARY",
       ref_step        => ref_step,
+      fp23_binary_point => data_width - 1,
       ref_updwn       => ref_updwn
     )
     port map (
@@ -84,12 +86,14 @@ begin
   simple_pwm_bipolar : entity work.pwm_mch
     generic map (
       r               => data_width,
+      input_width     => data_width,
       d               => num_dead_time_cycles,
       num_channels    => num_channels,
       input_data_type => input_data_type,
       ref_type        => ref_type,
       output_mode     => "BIPOLAR_SPLIT",
       ref_step        => ref_step,
+      fp23_binary_point => data_width - 1,
       ref_updwn       => ref_updwn
     )
     port map (

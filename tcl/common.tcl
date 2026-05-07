@@ -1,5 +1,32 @@
-set pwm_demo_tcl_dir [file dirname [info script]]
-set pwm_demo_repo_root [file dirname $pwm_demo_tcl_dir]
+proc find_pwm_demo_repo_root {script_path} {
+  set candidates [list "C:/Users/user/VivadoProjects/2018-3/pwm_demo"]
+
+  if {[file pathtype $script_path] eq "absolute"} {
+    lappend candidates [file dirname [file dirname $script_path]]
+  } else {
+    lappend candidates [file dirname [file dirname [file join [pwd] $script_path]]]
+  }
+
+  if {![catch {exec cmd.exe /c cd} cmd_pwd]} {
+    set cmd_pwd [string trim $cmd_pwd]
+    if {$cmd_pwd ne ""} {
+      lappend candidates [file dirname [file dirname [file join $cmd_pwd $script_path]]]
+    }
+  }
+
+  foreach candidate $candidates {
+    set candidate [string map {\\ /} $candidate]
+    if {[file exists [file join $candidate src main.vhd]] &&
+        [file exists [file join $candidate tcl common.tcl]]} {
+      return $candidate
+    }
+  }
+
+  error "Could not locate pwm_demo repo root from: $candidates"
+}
+
+set pwm_demo_repo_root [find_pwm_demo_repo_root [info script]]
+set pwm_demo_tcl_dir [file join $pwm_demo_repo_root tcl]
 
 proc read_pwm_demo_core_sources {repo_root} {
   uplevel #0 [list source [file join $repo_root tcl pwm_core_sources.tcl]]

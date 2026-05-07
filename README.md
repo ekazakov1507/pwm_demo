@@ -85,7 +85,7 @@ pwm_demo/
 This project has been developed and tested on the following Xilinx Zynq-7000 development boards:
 
 - **[Digilent Zybo Z7](https://digilent.com/reference/programmable-logic/zybo-z7/start)** - Zynq-7010/7020
-- **[Microphase Z7-Lite](https://github.com/hw/Microphase-Z7-Lite)** - Zynq-7010
+- **[Microphase Z7-Lite](https://github.com/hw/Microphase-Z7-Lite)** - Zynq-7010/Zynq-7020 variants; SD boot wrapper targets XC7Z020
 - **[MYiR Z-turn Board V2](https://www.myirtech.com/list.asp?id=708)** - Zynq-7020
 - **Antminer S9** - Custom ASIC miner board (repurposed)
 
@@ -101,6 +101,8 @@ This project has been developed and tested on the following Xilinx Zynq-7000 dev
 - Appropriate constraint file for your target board
 
 ## Quick Start
+
+For complete PowerShell/Vivado batch commands for synthesis, simulation, bitstream generation, and Z7-Lite `BOOT.bin`, see [docs/console_build_guide.md](docs/console_build_guide.md).
 
 ### 1. Open Project in Vivado
 ```bash
@@ -136,13 +138,23 @@ set_property PROGRAM.FILE {<path_to_bitstream>} [current_hw_device]
 program_hw_devices
 ```
 
-### 5. Run Simulations
-```bash
-# In Vivado:
-launch_simulation
+JTAG programming is volatile on Zynq boards: after a power cycle the PL bitstream is gone. For persistent Microphase Z7-Lite startup from microSD, generate a Zynq boot image instead:
 
-# Or from command line:
-xsim tb_main_behav -runall
+```powershell
+.\tools\build_z7_lite_sd_boot.ps1
+```
+
+Copy `build\z7_lite_sd_boot\BOOT.bin` to the root of a FAT32 microSD card, set the Z7-Lite `J1` boot-mode jumper to SD boot, and power-cycle the board. See [docs/z7_lite_sd_boot.md](docs/z7_lite_sd_boot.md) for the full flow.
+
+### 5. Run Simulations
+```tcl
+# In Vivado Tcl Console:
+launch_simulation
+```
+
+```powershell
+# From PowerShell:
+.\tools\sim_pwm_demo.ps1 -Testbench tb_pwm_mch
 ```
 
 ## Design Parameters

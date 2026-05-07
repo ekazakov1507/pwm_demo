@@ -39,9 +39,11 @@ docs/
 
 ### Getting Started
 
+- [Console Build Guide](./console_build_guide.md) - PowerShell/Vivado batch synthesis, simulation, bitstream, and SD boot flows
 - [Architecture Overview](./architecture/overview.md) - Start here for system-level understanding
 - [Module Hierarchy](./architecture/hierarchy.md) - Complete module tree and dependencies
 - [Clock Domains](./architecture/clock_domains.md) - Clock architecture and CDC
+- [Microphase Z7-Lite SD Boot](./z7_lite_sd_boot.md) - Persistent PL startup from microSD
 
 ### Module Documentation
 
@@ -166,10 +168,14 @@ docs/
 
 ### Constraint Files
 
+The Microphase Z7-Lite SD boot wrapper targets the XC7Z020 board variant used by this workspace.
+
 Constraint files are located in `constraints/`:
 - `Zybo_board.xdc` - Digilent Zybo Z7
 - `Z7_LITE.xdc` - Microphase Z7-Lite
 - `Antminer-S9.xdc` - Antminer S9
+
+The Microphase Z7-Lite microSD slot is wired to Zynq PS MIO, not PL pins, so SD boot does not require additions to `Z7_LITE.xdc`.
 
 ---
 
@@ -317,6 +323,7 @@ When adding new modules, please:
 - [Source Code](../src/) - VHDL source files
 - [Testbenches](../tb/) - Simulation testbenches
 - [Constraints](../constraints/) - Board-specific constraints
+- [Microphase Z7-Lite SD Boot](./z7_lite_sd_boot.md) - BOOT.bin generation and SD-card setup
 
 ---
 

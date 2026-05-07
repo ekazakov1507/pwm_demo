@@ -51,6 +51,7 @@ begin
   pwm_comp : entity work.pwm_1ch
     generic map (
       r               => data_width,
+      input_width     => data_width,
       d               => num_dead_time_cycles,
       ref_type        => ref_type,
       output_mode     => "COMPLEMENTARY",
@@ -58,7 +59,8 @@ begin
       ref_step        => ref_step,
       input_data_type => input_data_type,
       scale_factor    => scale_factor,
-      offset_factor   => offset_factor
+      offset_factor   => offset_factor,
+      fp23_binary_point => data_width - 1
     )
     port map (
       clk        => clk,
@@ -72,6 +74,7 @@ begin
   pwm_bipolar : entity work.pwm_1ch
     generic map (
       r               => data_width,
+      input_width     => data_width,
       d               => num_dead_time_cycles,
       ref_type        => ref_type,
       output_mode     => "BIPOLAR_SPLIT",
@@ -79,7 +82,8 @@ begin
       ref_step        => ref_step,
       input_data_type => input_data_type,
       scale_factor    => scale_factor,
-      offset_factor   => offset_factor
+      offset_factor   => offset_factor,
+      fp23_binary_point => data_width - 1
     )
     port map (
       clk        => clk,
