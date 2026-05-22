@@ -13,11 +13,11 @@
    </db_ref_list>
    <zoom_setting>
       <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="21000000001fs"></ZoomEndTime>
-      <Cursor1Time time="21000000000fs"></Cursor1Time>
+      <ZoomEndTime time="51000000001fs"></ZoomEndTime>
+      <Cursor1Time time="51000000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="222"></NameColumnWidth>
+      <NameColumnWidth column_width="214"></NameColumnWidth>
       <ValueColumnWidth column_width="116"></ValueColumnWidth>
    </column_width_setting>
    <WVObjectSize size="22" />
@@ -116,6 +116,7 @@
    <wvobject fp_name="/tb_pwm_mch/p" type="array">
       <obj_property name="ElementShortName">p[1:0]</obj_property>
       <obj_property name="ObjectShortName">p[1:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_mch/p_n" type="array">
       <obj_property name="ElementShortName">p_n[1:0]</obj_property>
@@ -128,9 +129,11 @@
    <wvobject fp_name="/tb_pwm_mch/p_buf_bi" type="array">
       <obj_property name="ElementShortName">p_buf_bi[1:0]</obj_property>
       <obj_property name="ObjectShortName">p_buf_bi[1:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
    <wvobject fp_name="/tb_pwm_mch/p_n_buf_bi" type="array">
       <obj_property name="ElementShortName">p_n_buf_bi[1:0]</obj_property>
       <obj_property name="ObjectShortName">p_n_buf_bi[1:0]</obj_property>
+      <obj_property name="isExpanded"></obj_property>
    </wvobject>
 </wave_config>
