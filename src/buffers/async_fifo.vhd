@@ -45,6 +45,9 @@ architecture src of async_fifo is
   signal rd_ptr_gray_wr1 : std_logic_vector(addr_width downto 0) := (others => '0');
   signal rd_ptr_gray_wr2 : std_logic_vector(addr_width downto 0) := (others => '0');
 
+  signal rd_ptr_bin_wr_sync : unsigned(addr_width downto 0) := (others => '0');
+  signal wr_ptr_bin_rd_sync : unsigned(addr_width downto 0) := (others => '0');
+
   signal full_i  : std_logic                          := '0';
   signal empty_i : std_logic                          := '1';
   signal wr_cnt  : unsigned(count_width - 1 downto 0) := (others => '0');
@@ -79,80 +82,101 @@ architecture src of async_fifo is
 
   end function gray2bin;
 
+  function fifo_is_full (
+    wr_ptr_next : unsigned;
+    rd_ptr_sync : unsigned
+  ) return std_logic is
+  begin
+
+    if (wr_ptr_next(wr_ptr_next'high - 1 downto 0) = rd_ptr_sync(rd_ptr_sync'high - 1 downto 0) and
+        wr_ptr_next(wr_ptr_next'high) /= rd_ptr_sync(rd_ptr_sync'high)) then
+      return '1';
+    else
+      return '0';
+    end if;
+
+  end function fifo_is_full;
+
+  function fifo_is_empty (
+    rd_ptr_next : unsigned;
+    wr_ptr_sync : unsigned
+  ) return std_logic is
+  begin
+
+    if (rd_ptr_next = wr_ptr_sync) then
+      return '1';
+    else
+      return '0';
+    end if;
+
+  end function fifo_is_empty;
+
 begin
+
+  rd_ptr_bin_wr_sync <= gray2bin(rd_ptr_gray_wr2);
+  wr_ptr_bin_rd_sync <= gray2bin(wr_ptr_gray_rd2);
 
   assert fifo_depth = 2 ** addr_width
     report "async_fifo fifo_depth must be a power of two"
     severity failure;
 
-  wr_proc : process (wr_clk, wr_rst) is
-    variable rd_ptr_bin_sync : unsigned(addr_width downto 0);
-    variable wr_ptr_next     : unsigned(addr_width downto 0);
+  wr_proc : process (wr_clk) is
   begin
 
-    if (wr_rst = '1') then
-      wr_ptr_bin  <= (others => '0');
-      wr_ptr_gray <= (others => '0');
-      full_i      <= '0';
-      wr_cnt      <= (others => '0');
-    elsif rising_edge(wr_clk) then
-      rd_ptr_gray_wr2 <= rd_ptr_gray_wr1;
-      rd_ptr_gray_wr1 <= rd_ptr_gray;
-      rd_ptr_bin_sync := gray2bin(rd_ptr_gray_wr2);
-      wr_ptr_next     := wr_ptr_bin;
-
-      if (wr_en = '1' and full_i = '0') then
-        memory(to_integer(wr_ptr_bin(addr_width - 1 downto 0))) <= data_in;
-        wr_ptr_next                                             := wr_ptr_bin + 1;
-      end if;
-
-      wr_ptr_bin  <= wr_ptr_next;
-      wr_ptr_gray <= bin2gray(wr_ptr_next);
-
-      if (wr_ptr_next(addr_width - 1 downto 0) = rd_ptr_bin_sync(addr_width - 1 downto 0) and
-          wr_ptr_next(addr_width) /= rd_ptr_bin_sync(addr_width)) then
-        full_i <= '1';
+    if rising_edge(wr_clk) then
+      if (wr_rst = '1') then
+        wr_ptr_bin      <= (others => '0');
+        wr_ptr_gray     <= (others => '0');
+        rd_ptr_gray_wr1 <= (others => '0');
+        rd_ptr_gray_wr2 <= (others => '0');
+        full_i          <= '0';
+        wr_cnt          <= (others => '0');
       else
-        full_i <= '0';
-      end if;
+        rd_ptr_gray_wr2 <= rd_ptr_gray_wr1;
+        rd_ptr_gray_wr1 <= rd_ptr_gray;
 
-      wr_cnt <= resize(wr_ptr_next - rd_ptr_bin_sync, count_width);
+        if (wr_en = '1' and full_i = '0') then
+          memory(to_integer(wr_ptr_bin(addr_width - 1 downto 0))) <= data_in;
+          wr_ptr_bin                                             <= wr_ptr_bin + 1;
+          wr_ptr_gray                                            <= bin2gray(wr_ptr_bin + 1);
+          full_i                                                 <= fifo_is_full(wr_ptr_bin + 1, rd_ptr_bin_wr_sync);
+          wr_cnt                                                 <= resize((wr_ptr_bin + 1) - rd_ptr_bin_wr_sync, count_width);
+        else
+          full_i <= fifo_is_full(wr_ptr_bin, rd_ptr_bin_wr_sync);
+          wr_cnt <= resize(wr_ptr_bin - rd_ptr_bin_wr_sync, count_width);
+        end if;
+      end if;
     end if;
 
   end process wr_proc;
 
-  rd_proc : process (rd_clk, rd_rst) is
-    variable wr_ptr_bin_sync : unsigned(addr_width downto 0);
-    variable rd_ptr_next     : unsigned(addr_width downto 0);
+  rd_proc : process (rd_clk) is
   begin
 
-    if (rd_rst = '1') then
-      rd_ptr_bin  <= (others => '0');
-      rd_ptr_gray <= (others => '0');
-      data_out    <= (others => '0');
-      empty_i     <= '1';
-      rd_cnt      <= (others => '0');
-    elsif rising_edge(rd_clk) then
-      wr_ptr_gray_rd2 <= wr_ptr_gray_rd1;
-      wr_ptr_gray_rd1 <= wr_ptr_gray;
-      wr_ptr_bin_sync := gray2bin(wr_ptr_gray_rd2);
-      rd_ptr_next     := rd_ptr_bin;
-
-      if (rd_en = '1' and empty_i = '0') then
-        data_out    <= memory(to_integer(rd_ptr_bin(addr_width - 1 downto 0)));
-        rd_ptr_next := rd_ptr_bin + 1;
-      end if;
-
-      rd_ptr_bin  <= rd_ptr_next;
-      rd_ptr_gray <= bin2gray(rd_ptr_next);
-
-      if (rd_ptr_next = wr_ptr_bin_sync) then
-        empty_i <= '1';
+    if rising_edge(rd_clk) then
+      if (rd_rst = '1') then
+        rd_ptr_bin      <= (others => '0');
+        rd_ptr_gray     <= (others => '0');
+        wr_ptr_gray_rd1 <= (others => '0');
+        wr_ptr_gray_rd2 <= (others => '0');
+        data_out        <= (others => '0');
+        empty_i         <= '1';
+        rd_cnt          <= (others => '0');
       else
-        empty_i <= '0';
-      end if;
+        wr_ptr_gray_rd2 <= wr_ptr_gray_rd1;
+        wr_ptr_gray_rd1 <= wr_ptr_gray;
 
-      rd_cnt <= resize(wr_ptr_bin_sync - rd_ptr_next, count_width);
+        if (rd_en = '1' and empty_i = '0') then
+          data_out    <= memory(to_integer(rd_ptr_bin(addr_width - 1 downto 0)));
+          rd_ptr_bin <= rd_ptr_bin + 1;
+          rd_ptr_gray <= bin2gray(rd_ptr_bin + 1);
+          empty_i <= fifo_is_empty(rd_ptr_bin + 1, wr_ptr_bin_rd_sync);
+          rd_cnt <= resize(wr_ptr_bin_rd_sync - (rd_ptr_bin + 1), count_width);
+        else
+          empty_i <= fifo_is_empty(rd_ptr_bin, wr_ptr_bin_rd_sync);
+          rd_cnt <= resize(wr_ptr_bin_rd_sync - rd_ptr_bin, count_width);
+        end if;
+      end if;
     end if;
 
   end process rd_proc;

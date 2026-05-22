@@ -33,13 +33,13 @@ architecture src of main is
   signal mmcm_fb_in    : std_logic := '0';
   signal mmcm_clk_lock : std_logic := '0';
 
-  signal clk      : std_logic                                 := '0';
-  signal clk_pwm  : std_logic                                 := '0';
-  signal rst      : std_logic                                 := '1';
-  signal mmcm_lock_sync : std_logic_vector(1 downto 0)      := "00";
-  signal rst_shreg      : std_logic_vector(2 downto 0)      := (others => '1');
-  signal enable   : std_logic                                 := '1';
-  signal sine_out : std_logic_vector(data_width - 1 downto 0) := (others => '0');
+  signal clk            : std_logic                                 := '0';
+  signal clk_pwm        : std_logic                                 := '0';
+  signal rst            : std_logic                                 := '1';
+  signal mmcm_lock_sync : std_logic_vector(1 downto 0)             := "00";
+  signal rst_shreg      : std_logic_vector(2 downto 0)             := (others => '1');
+  signal enable         : std_logic                                 := '1';
+  signal sine_out       : std_logic_vector(data_width - 1 downto 0) := (others => '0');
 
   signal p_buf   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_buf : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
@@ -138,22 +138,20 @@ begin
 
   end generate pwm_obufs;
 
-  -- MMCM lock synchronized into clk domain; reset re-asserts if lock is lost.
-  rst_gen : process (clk, mmcm_clk_lock) is
+  rst <= rst_shreg(2);
+
+  -- Keep reset fully synchronous in the MMCM output clock domain so
+  -- downstream BRAM control signals are not driven by async-reset flops.
+  rst_gen : process (clk) is
   begin
 
-    if (mmcm_clk_lock = '0') then
-      mmcm_lock_sync <= (others => '0');
-      rst_shreg      <= (others => '1');
-      rst            <= '1';
-    elsif rising_edge(clk) then
+    if rising_edge(clk) then
       mmcm_lock_sync <= mmcm_lock_sync(0) & mmcm_clk_lock;
       if (mmcm_lock_sync(1) = '0') then
         rst_shreg <= (others => '1');
       else
         rst_shreg <= rst_shreg(1 downto 0) & '0';
       end if;
-      rst <= rst_shreg(2);
     end if;
 
   end process rst_gen;
