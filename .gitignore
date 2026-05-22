@@ -13,6 +13,14 @@ build/
 *.pb
 *.wdb
 
+# Root-level Vivado artifacts from ad hoc batch runs. Board bitstreams that
+# are intentionally versioned live under bit/.
+/*.bit
+/*.dcp
+/*.rpt
+/usage_statistics_webtalk.html
+/usage_statistics_webtalk.xml
+
 # Vivado 
 pwm_demo.hw/
 pwm_demo.cache/
