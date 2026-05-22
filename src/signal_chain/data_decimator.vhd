@@ -4,8 +4,8 @@ library ieee;
 
 entity data_decimator is
   generic (
-    data_width        : integer := 16;
-    decimation_factor : integer := 100
+    data_width        : positive := 16;
+    decimation_factor : positive := 100
   );
   port (
     clk       : in    std_logic;
