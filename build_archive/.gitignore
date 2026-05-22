@@ -1,0 +1,6 @@
+# Keep the archive structure and metadata visible to Git, but avoid adding
+# generated firmware binaries by accident.
+*/*.bit
+*/*.bin
+*/*.dcp
+*/*.rpt

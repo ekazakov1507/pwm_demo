@@ -146,6 +146,23 @@ JTAG programming is volatile on Zynq boards: after a power cycle the PL bitstrea
 
 Copy `build\z7_lite_sd_boot\BOOT.bin` to the root of a FAT32 microSD card, set the Z7-Lite `J1` boot-mode jumper to SD boot, and power-cycle the board. See [docs/z7_lite_sd_boot.md](docs/z7_lite_sd_boot.md) for the full flow.
 
+### Firmware Build Archive
+
+Use `tools\manage_firmware_builds.py` to keep experiment firmware outputs grouped with their build parameters.
+
+```bash
+# Show generated firmware files that are not archived by SHA-256 hash yet.
+python tools/manage_firmware_builds.py check
+
+# Archive a bitstream with experiment metadata.
+python tools/manage_firmware_builds.py archive --bitstream-path bit/Z7_LITE/main.bit --experiment exp01 --board Z7_LITE --build-param pwm_frequency_hz=1000000 --build-param modulation_frequency_hz=100000
+
+# List archived builds.
+python tools/manage_firmware_builds.py list
+```
+
+Each archive entry is written under `build_archive\build_YYYY_MM_DD_expNN\` and contains the firmware file plus `parameters.json`. The JSON records the firmware SHA-256 hash, extracted `src\main.vhd` generics/constants, supplied experiment parameters, optional generic overrides, and Git state. Firmware binaries inside `build_archive\` are ignored by Git; metadata remains visible for review.
+
 ### 5. Run Simulations
 ```tcl
 # In Vivado Tcl Console:
