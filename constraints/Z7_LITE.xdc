@@ -106,6 +106,16 @@ set_property -dict { PACKAGE_PIN U17 IOSTANDARD LVCMOS33 } [get_ports { sys_pwm_
 set_property -dict { PACKAGE_PIN W18 IOSTANDARD LVCMOS33 } [get_ports { sys_pwm[3] }];
 set_property -dict { PACKAGE_PIN W19 IOSTANDARD LVCMOS33 } [get_ports { sys_pwm_n[3] }];
 
+# These PWM pins drive off-board loads and are not captured by a
+# destination device clocked from sys_clk. Mark them as asynchronous
+# outputs so Vivado does not expect set_output_delay constraints.
+# Replace this exception with real set_output_delay constraints if a
+# downstream synchronous interface is added later.
+set_false_path -to [get_ports {
+  sys_pwm[0] sys_pwm[1] sys_pwm[2] sys_pwm[3]
+  sys_pwm_n[0] sys_pwm_n[1] sys_pwm_n[2] sys_pwm_n[3]
+}]
+
 # set_property PACKAGE_PIN N17 [get_ports GPI01_OP]
 # set_property PACKAGE_PIN P18 [get_ports GPI01_ON]
 # set_property PACKAGE_PIN R16 [get_ports GPI01_1P]
