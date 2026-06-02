@@ -38,7 +38,7 @@ proc sanitize_pwm_demo_token {value} {
   regsub -all {_} $token "-" token
   regsub -all {'} $token "" token
   regsub -all {[^a-z0-9]+} $token "-" token
-  regsub -all {-+} $token "-" token
+  regsub -all -- {-+} $token "-" token
   return [string trim $token "-"]
 }
 
