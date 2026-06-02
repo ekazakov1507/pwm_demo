@@ -23,11 +23,9 @@ create_clock -period 10.000 [get_ports sys_clk]
 set_property -dict {PACKAGE_PIN N18 IOSTANDARD LVCMOS33} [get_ports sys_clk]
 
 ############## key define ##################
-# set_property PACKAGE_PIN P16 [get_ports sys_rst]
-# set_property PACKAGE_PIN T12 [get_ports sys_start]
-
-# set_property IOSTANDARD LVCMOS33 [get_ports sys_rst]
-# set_property IOSTANDARD LVCMOS33 [get_ports sys_start]
+set_property -dict {PACKAGE_PIN P16 IOSTANDARD LVCMOS33} [get_ports sys_rst]
+set_property -dict {PACKAGE_PIN T12 IOSTANDARD LVCMOS33} [get_ports sys_pwm_mode]
+set_false_path -from [get_ports {sys_rst sys_pwm_mode}]
 ############## LED define ##################
 # set_property PACKAGE_PIN P15 [get_ports sys_led]
 # set_property PACKAGE_PIN U12 [get_ports PL_LED2]
