@@ -291,25 +291,11 @@ Total:                    ~80 mW
 
 ## Debug and Testing
 
-### ILA (Integrated Logic Analyzer) Probes
+### VIO/ILA Debug Build
 
-```tcl
-# Probe clock domains
-create_debug_core ila_0 ila
-set_property C_DATA_DEPTH 1024 [get_debug_cores ila_0]
+The top-level `debug` generic defaults to `"NO_DEBUG"`. Passing `debug=DEBUG` to the Vivado board scripts instantiates generated `vio_pwm_debug` and `ila_pwm_debug` IP cores.
 
-# Probe clk domain signals
-create_debug_port ila_0 clk_port_0
-set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports ila_0/clk_port_0]
-set_property PORT_WIDTH 16 [get_debug_ports ila_0/clk_port_0]
-add_debug_port ila_0/clk_port_0 sine_out
-
-# Probe clk_pwm domain signals
-create_debug_port ila_0 clk_port_1
-set_property PROBE_TYPE DATA_AND_TRIGGER [get_debug_ports ila_0/clk_port_1]
-set_property PORT_WIDTH 8 [get_debug_ports ila_0/clk_port_1]
-add_debug_port ila_0/clk_port_1 pwm_outputs
-```
+The VIO runs on the internal `clk` domain and provides additive reset and PWM mode controls. The ILA captures physical/effective reset and mode controls plus fixed 4-bit selected PWM/PWM_N probe vectors.
 
 ---
 

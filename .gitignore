@@ -29,6 +29,7 @@ pwm_demo.ip_user_files/
 pwm_demo.sim/
 pwm_demo.srcs/
 pwm_demo.xpr
+/ip/debug/
 
 # python
 __pycache__/

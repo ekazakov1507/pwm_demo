@@ -7,7 +7,8 @@ library unisim;
 
 entity main is
   generic (
-    num_channels : integer := 4
+    num_channels : integer := 4;
+    debug        : string  := "NO_DEBUG"
   );
   port (
     sys_clk      : in    std_logic;
@@ -29,6 +30,28 @@ architecture src of main is
   constant ref_step             : integer   := 1;
   constant ref_updwn            : std_logic := '1';
   constant pwm_idle             : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  constant debug_probe_width    : integer   := 4;
+
+  function resize_pwm_debug_probe (
+    input_value : std_logic_vector
+  ) return std_logic_vector is
+    variable result     : std_logic_vector(debug_probe_width - 1 downto 0) := (others => '0');
+    variable copy_width : integer := 0;
+  begin
+
+    if (input_value'length < debug_probe_width) then
+      copy_width := input_value'length;
+    else
+      copy_width := debug_probe_width;
+    end if;
+
+    for i in 0 to copy_width - 1 loop
+      result(i) := input_value(input_value'low + i);
+    end loop;
+
+    return result;
+
+  end function resize_pwm_debug_probe;
 
   component pwm_mch is
     generic (
@@ -79,6 +102,28 @@ architecture src of main is
     );
   end component pwm_mch_buf;
 
+  component vio_pwm_debug is
+    port (
+      clk        : in    std_logic;
+      probe_out0 : out   std_logic_vector(0 downto 0);
+      probe_out1 : out   std_logic_vector(0 downto 0)
+    );
+  end component vio_pwm_debug;
+
+  component ila_pwm_debug is
+    port (
+      clk    : in    std_logic;
+      probe0 : in    std_logic_vector(0 downto 0);
+      probe1 : in    std_logic_vector(0 downto 0);
+      probe2 : in    std_logic_vector(0 downto 0);
+      probe3 : in    std_logic_vector(0 downto 0);
+      probe4 : in    std_logic_vector(0 downto 0);
+      probe5 : in    std_logic_vector(0 downto 0);
+      probe6 : in    std_logic_vector(debug_probe_width - 1 downto 0);
+      probe7 : in    std_logic_vector(debug_probe_width - 1 downto 0)
+    );
+  end component ila_pwm_debug;
+
   signal obuf_clk  : std_logic := '0';
   signal gobuf_clk : std_logic := '0';
 
@@ -88,11 +133,13 @@ architecture src of main is
   signal clk            : std_logic                                 := '0';
   signal clk_pwm        : std_logic                                 := '0';
   signal rst            : std_logic                                 := '1';
+  signal rst_request    : std_logic                                 := '0';
   signal mmcm_lock_sync : std_logic_vector(1 downto 0)             := "00";
   signal sys_rst_sync   : std_logic_vector(1 downto 0)             := "11";
   signal rst_shreg      : std_logic_vector(2 downto 0)             := (others => '1');
   signal enable         : std_logic                                 := '1';
   signal pwm_mode_sync  : std_logic_vector(2 downto 0)             := "000";
+  signal pwm_mode_request : std_logic                               := '0';
   signal pwm_mode_sel   : std_logic                                 := '0';
   signal sine_out       : std_logic_vector(data_width - 1 downto 0) := (others => '0');
 
@@ -103,7 +150,23 @@ architecture src of main is
   signal p_selected : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_selected : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
+  signal vio_rst_force      : std_logic_vector(0 downto 0) := (others => '0');
+  signal vio_pwm_mode_force : std_logic_vector(0 downto 0) := (others => '0');
+
+  signal debug_probe_sys_rst          : std_logic_vector(0 downto 0) := (others => '0');
+  signal debug_probe_rst_request      : std_logic_vector(0 downto 0) := (others => '0');
+  signal debug_probe_rst              : std_logic_vector(0 downto 0) := (others => '0');
+  signal debug_probe_sys_pwm_mode     : std_logic_vector(0 downto 0) := (others => '0');
+  signal debug_probe_pwm_mode_request : std_logic_vector(0 downto 0) := (others => '0');
+  signal debug_probe_pwm_mode_sel     : std_logic_vector(0 downto 0) := (others => '0');
+  signal debug_probe_p_selected       : std_logic_vector(debug_probe_width - 1 downto 0) := (others => '0');
+  signal debug_probe_p_n_selected     : std_logic_vector(debug_probe_width - 1 downto 0) := (others => '0');
+
 begin
+
+  debug_value_valid : assert ((debug = "NO_DEBUG") or (debug = "DEBUG"))
+    report "main: debug generic must be NO_DEBUG or DEBUG"
+    severity failure;
 
   sys_clk_ibuffer : component ibuf
     port map (
@@ -204,6 +267,51 @@ begin
   p_selected   <= pwm_idle when (rst = '1') else p_buf when (pwm_mode_sel = '1') else p_direct;
   p_n_selected <= pwm_idle when (rst = '1') else p_n_buf when (pwm_mode_sel = '1') else p_n_direct;
 
+  rst_request      <= sys_rst or vio_rst_force(0);
+  pwm_mode_request <= sys_pwm_mode or vio_pwm_mode_force(0);
+
+  debug_probe_sys_rst(0)          <= sys_rst;
+  debug_probe_rst_request(0)      <= rst_request;
+  debug_probe_rst(0)              <= rst;
+  debug_probe_sys_pwm_mode(0)     <= sys_pwm_mode;
+  debug_probe_pwm_mode_request(0) <= pwm_mode_request;
+  debug_probe_pwm_mode_sel(0)     <= pwm_mode_sel;
+  debug_probe_p_selected          <= resize_pwm_debug_probe(p_selected);
+  debug_probe_p_n_selected        <= resize_pwm_debug_probe(p_n_selected);
+
+  no_debug_gen : if debug = "NO_DEBUG" generate
+  begin
+
+    vio_rst_force      <= (others => '0');
+    vio_pwm_mode_force <= (others => '0');
+
+  end generate no_debug_gen;
+
+  debug_gen : if debug = "DEBUG" generate
+  begin
+
+    debug_vio : component vio_pwm_debug
+      port map (
+        clk        => clk,
+        probe_out0 => vio_rst_force,
+        probe_out1 => vio_pwm_mode_force
+      );
+
+    debug_ila : component ila_pwm_debug
+      port map (
+        clk    => clk,
+        probe0 => debug_probe_sys_rst,
+        probe1 => debug_probe_rst_request,
+        probe2 => debug_probe_rst,
+        probe3 => debug_probe_sys_pwm_mode,
+        probe4 => debug_probe_pwm_mode_request,
+        probe5 => debug_probe_pwm_mode_sel,
+        probe6 => debug_probe_p_selected,
+        probe7 => debug_probe_p_n_selected
+      );
+
+  end generate debug_gen;
+
   pwm_obufs : for i in 0 to num_channels - 1 generate
 
     pwm_channel_obuf : component obuf
@@ -229,8 +337,8 @@ begin
 
     if rising_edge(clk) then
       mmcm_lock_sync <= mmcm_lock_sync(0) & mmcm_clk_lock;
-      sys_rst_sync   <= sys_rst_sync(0) & sys_rst;
-      pwm_mode_sync  <= pwm_mode_sync(1 downto 0) & sys_pwm_mode;
+      sys_rst_sync   <= sys_rst_sync(0) & rst_request;
+      pwm_mode_sync  <= pwm_mode_sync(1 downto 0) & pwm_mode_request;
 
       if ((mmcm_lock_sync(1) = '0') or
           (sys_rst_sync(1) = '1') or

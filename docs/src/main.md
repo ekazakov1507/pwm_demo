@@ -68,12 +68,15 @@ graph TB
 ```vhdl
 entity main is
   generic (
-    num_channels : integer := 4        -- Number of PWM channels
+    num_channels : integer := 4;       -- Number of PWM channels
+    debug        : string  := "NO_DEBUG"
   );
   port (
-    sys_clk   : in    std_logic;       -- System clock input
-    sys_pwm   : out   std_logic_vector(num_channels - 1 downto 0);
-    sys_pwm_n : out   std_logic_vector(num_channels - 1 downto 0)
+    sys_clk      : in    std_logic;    -- System clock input
+    sys_rst      : in    std_logic;    -- Board reset input
+    sys_pwm_mode : in    std_logic;    -- Board PWM mode input
+    sys_pwm      : out   std_logic_vector(num_channels - 1 downto 0);
+    sys_pwm_n    : out   std_logic_vector(num_channels - 1 downto 0)
   );
 end entity main;
 ```
@@ -83,12 +86,15 @@ end entity main;
 | Generic | Type | Default | Description |
 |---------|------|---------|-------------|
 | `num_channels` | integer | 4 | Number of PWM output channels (complementary pairs) |
+| `debug` | string | "NO_DEBUG" | Optional "DEBUG" build mode that instantiates generated VIO/ILA IP |
 
 ## Ports
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `sys_clk` | in | 1 | External clock input (125 MHz) |
+| `sys_rst` | in | 1 | Board reset input |
+| `sys_pwm_mode` | in | 1 | Board PWM mode select input |
 | `sys_pwm` | out | `num_channels` | PWM outputs (positive) |
 | `sys_pwm_n` | out | `num_channels` | PWM outputs (negative/complementary) |
 

@@ -70,6 +70,21 @@ The normal `z7-lite` config name is inferred from constants in `src\main.vhd`. Y
 & $Vivado -mode batch -source tcl\build_z7-lite.tcl -tclargs quick_test "num_channels=2"
 ```
 
+Enable the optional VIO/ILA debug IP by passing `debug=DEBUG`. Debug IP output products are generated locally under `ip\debug\`, and debug builds write an `.ltx` probe file beside the bitstream:
+
+```powershell
+& $Vivado -mode batch -source tcl\build_z7-lite.tcl -tclargs z7_debug "debug=DEBUG"
+& $Vivado -mode batch -source tcl\build_zybo-zynq.tcl -tclargs zybo_debug "debug=DEBUG"
+```
+
+The debug VIO exposes additive controls for reset and PWM mode, so the board inputs still work. The ILA captures physical/effective reset and mode controls plus the selected PWM/PWM_N output vectors.
+
+For the local ignored Vivado project, configure the existing Z7-Lite and Zybo synthesis runs for debug with:
+
+```powershell
+& $Vivado -mode batch -source tcl\configure_debug_project_runs.tcl
+```
+
 ## `pwm_demo` Checks
 
 Source-based Z7-Lite implementation check:

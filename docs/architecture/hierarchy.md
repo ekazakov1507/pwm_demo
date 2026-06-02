@@ -223,11 +223,16 @@ graph TB
 
 ```vhdl
 entity main is
-  generic ( num_channels : integer := 4 );
+  generic (
+    num_channels : integer := 4;
+    debug        : string  := "NO_DEBUG"
+  );
   port (
-    sys_clk   : in    std_logic;
-    sys_pwm   : out   std_logic_vector(num_channels - 1 downto 0);
-    sys_pwm_n : out   std_logic_vector(num_channels - 1 downto 0)
+    sys_clk      : in    std_logic;
+    sys_rst      : in    std_logic;
+    sys_pwm_mode : in    std_logic;
+    sys_pwm      : out   std_logic_vector(num_channels - 1 downto 0);
+    sys_pwm_n    : out   std_logic_vector(num_channels - 1 downto 0)
   );
 end entity;
 ```
