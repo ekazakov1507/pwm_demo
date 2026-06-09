@@ -141,12 +141,12 @@ def read_vhdl_build_parameters() -> OrderedDict[str, Any]:
     if generic_match:
         generics = read_vhdl_parameter_block(
             generic_match.group("block"),
-            r"^\s*(?P<name>[A-Za-z][A-Za-z0-9_]*)\s*:\s*(?P<type>[^:=;]+?)\s*:=\s*(?P<value>[^;]+)\s*;?",
+            r"^\s*(?P<name>[A-Za-z][A-Za-z0-9_]*)\s*:\s*(?P<type>[^:=;\r\n]+?)\s*:=\s*(?P<value>[^;\r\n]+?)\s*;?\s*$",
         )
 
     constants = read_vhdl_parameter_block(
         source,
-        r"^\s*constant\s+(?P<name>[A-Za-z][A-Za-z0-9_]*)\s*:\s*(?P<type>[^:=;]+?)\s*:=\s*(?P<value>[^;]+)\s*;",
+        r"^\s*constant\s+(?P<name>[A-Za-z][A-Za-z0-9_]*)\s*:\s*(?P<type>[^:=;\r\n]+?)\s*:=\s*(?P<value>[^;\r\n]+?)\s*;\s*$",
     )
 
     return OrderedDict(

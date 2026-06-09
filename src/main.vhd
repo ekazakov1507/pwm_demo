@@ -7,8 +7,9 @@ library unisim;
 
 entity main is
   generic (
-    num_channels : integer := 4;
-    debug        : string  := "NO_DEBUG"
+    num_channels                 : integer := 4;
+    debug                        : string  := "NO_DEBUG";
+    pwm_mode_switch_delay_cycles : natural := 25_000_000
   );
   port (
     sys_clk      : in    std_logic;
@@ -31,6 +32,11 @@ architecture src of main is
   constant ref_updwn            : std_logic := '1';
   constant pwm_idle             : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   constant debug_probe_width    : integer   := 4;
+  constant vio_ctrl_width       : integer   := 3;
+  constant debug_ctrl_width     : integer   := 6;
+  constant vio_force_bit        : natural   := 0;
+  constant vio_override_en_bit  : natural   := 1;
+  constant vio_override_value_bit : natural := 2;
 
   function resize_pwm_debug_probe (
     input_value : std_logic_vector
@@ -105,22 +111,18 @@ architecture src of main is
   component vio_pwm_debug is
     port (
       clk        : in    std_logic;
-      probe_out0 : out   std_logic_vector(0 downto 0);
-      probe_out1 : out   std_logic_vector(0 downto 0)
+      probe_out0 : out   std_logic_vector(vio_ctrl_width - 1 downto 0);
+      probe_out1 : out   std_logic_vector(vio_ctrl_width - 1 downto 0)
     );
   end component vio_pwm_debug;
 
   component ila_pwm_debug is
     port (
       clk    : in    std_logic;
-      probe0 : in    std_logic_vector(0 downto 0);
-      probe1 : in    std_logic_vector(0 downto 0);
-      probe2 : in    std_logic_vector(0 downto 0);
-      probe3 : in    std_logic_vector(0 downto 0);
-      probe4 : in    std_logic_vector(0 downto 0);
-      probe5 : in    std_logic_vector(0 downto 0);
-      probe6 : in    std_logic_vector(debug_probe_width - 1 downto 0);
-      probe7 : in    std_logic_vector(debug_probe_width - 1 downto 0)
+      probe0 : in    std_logic_vector(debug_ctrl_width - 1 downto 0);
+      probe1 : in    std_logic_vector(debug_ctrl_width - 1 downto 0);
+      probe2 : in    std_logic_vector(debug_probe_width - 1 downto 0);
+      probe3 : in    std_logic_vector(debug_probe_width - 1 downto 0)
     );
   end component ila_pwm_debug;
 
@@ -141,6 +143,8 @@ architecture src of main is
   signal pwm_mode_sync  : std_logic_vector(2 downto 0)             := "000";
   signal pwm_mode_request : std_logic                               := '0';
   signal pwm_mode_sel   : std_logic                                 := '0';
+  signal pwm_mode_delay_active : std_logic                           := '0';
+  signal pwm_mode_delay_count : natural range 0 to pwm_mode_switch_delay_cycles := 0;
   signal sine_out       : std_logic_vector(data_width - 1 downto 0) := (others => '0');
 
   signal p_direct   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
@@ -150,15 +154,10 @@ architecture src of main is
   signal p_selected : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_selected : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
-  signal vio_rst_force      : std_logic_vector(0 downto 0) := (others => '0');
-  signal vio_pwm_mode_force : std_logic_vector(0 downto 0) := (others => '0');
-
-  signal debug_probe_sys_rst          : std_logic_vector(0 downto 0) := (others => '0');
-  signal debug_probe_rst_request      : std_logic_vector(0 downto 0) := (others => '0');
-  signal debug_probe_rst              : std_logic_vector(0 downto 0) := (others => '0');
-  signal debug_probe_sys_pwm_mode     : std_logic_vector(0 downto 0) := (others => '0');
-  signal debug_probe_pwm_mode_request : std_logic_vector(0 downto 0) := (others => '0');
-  signal debug_probe_pwm_mode_sel     : std_logic_vector(0 downto 0) := (others => '0');
+  signal vio_rst_ctrl                  : std_logic_vector(vio_ctrl_width - 1 downto 0) := (others => '0');
+  signal vio_pwm_mode_ctrl             : std_logic_vector(vio_ctrl_width - 1 downto 0) := (others => '0');
+  signal debug_probe_rst_ctrl          : std_logic_vector(debug_ctrl_width - 1 downto 0) := (others => '0');
+  signal debug_probe_pwm_mode_ctrl     : std_logic_vector(debug_ctrl_width - 1 downto 0) := (others => '0');
   signal debug_probe_p_selected       : std_logic_vector(debug_probe_width - 1 downto 0) := (others => '0');
   signal debug_probe_p_n_selected     : std_logic_vector(debug_probe_width - 1 downto 0) := (others => '0');
 
@@ -166,6 +165,10 @@ begin
 
   debug_value_valid : assert ((debug = "NO_DEBUG") or (debug = "DEBUG"))
     report "main: debug generic must be NO_DEBUG or DEBUG"
+    severity failure;
+
+  pwm_mode_switch_delay_valid : assert (pwm_mode_switch_delay_cycles > 0)
+    report "main: pwm_mode_switch_delay_cycles must be greater than 0"
     severity failure;
 
   sys_clk_ibuffer : component ibuf
@@ -267,23 +270,23 @@ begin
   p_selected   <= pwm_idle when (rst = '1') else p_buf when (pwm_mode_sel = '1') else p_direct;
   p_n_selected <= pwm_idle when (rst = '1') else p_n_buf when (pwm_mode_sel = '1') else p_n_direct;
 
-  rst_request      <= sys_rst or vio_rst_force(0);
-  pwm_mode_request <= sys_pwm_mode or vio_pwm_mode_force(0);
+  rst_request <= vio_rst_ctrl(vio_override_value_bit) when (vio_rst_ctrl(vio_override_en_bit) = '1') else
+                 sys_rst or vio_rst_ctrl(vio_force_bit);
 
-  debug_probe_sys_rst(0)          <= sys_rst;
-  debug_probe_rst_request(0)      <= rst_request;
-  debug_probe_rst(0)              <= rst;
-  debug_probe_sys_pwm_mode(0)     <= sys_pwm_mode;
-  debug_probe_pwm_mode_request(0) <= pwm_mode_request;
-  debug_probe_pwm_mode_sel(0)     <= pwm_mode_sel;
+  pwm_mode_request <= vio_pwm_mode_ctrl(vio_override_value_bit) when
+                      (vio_pwm_mode_ctrl(vio_override_en_bit) = '1') else
+                      sys_pwm_mode or vio_pwm_mode_ctrl(vio_force_bit);
+
+  debug_probe_rst_ctrl      <= sys_rst & vio_rst_ctrl & rst_request & rst;
+  debug_probe_pwm_mode_ctrl <= sys_pwm_mode & vio_pwm_mode_ctrl & pwm_mode_request & pwm_mode_sel;
   debug_probe_p_selected          <= resize_pwm_debug_probe(p_selected);
   debug_probe_p_n_selected        <= resize_pwm_debug_probe(p_n_selected);
 
   no_debug_gen : if debug = "NO_DEBUG" generate
   begin
 
-    vio_rst_force      <= (others => '0');
-    vio_pwm_mode_force <= (others => '0');
+    vio_rst_ctrl      <= (others => '0');
+    vio_pwm_mode_ctrl <= (others => '0');
 
   end generate no_debug_gen;
 
@@ -293,21 +296,17 @@ begin
     debug_vio : component vio_pwm_debug
       port map (
         clk        => clk,
-        probe_out0 => vio_rst_force,
-        probe_out1 => vio_pwm_mode_force
+        probe_out0 => vio_rst_ctrl,
+        probe_out1 => vio_pwm_mode_ctrl
       );
 
     debug_ila : component ila_pwm_debug
       port map (
         clk    => clk,
-        probe0 => debug_probe_sys_rst,
-        probe1 => debug_probe_rst_request,
-        probe2 => debug_probe_rst,
-        probe3 => debug_probe_sys_pwm_mode,
-        probe4 => debug_probe_pwm_mode_request,
-        probe5 => debug_probe_pwm_mode_sel,
-        probe6 => debug_probe_p_selected,
-        probe7 => debug_probe_p_n_selected
+        probe0 => debug_probe_rst_ctrl,
+        probe1 => debug_probe_pwm_mode_ctrl,
+        probe2 => debug_probe_p_selected,
+        probe3 => debug_probe_p_n_selected
       );
 
   end generate debug_gen;
@@ -341,17 +340,29 @@ begin
       pwm_mode_sync  <= pwm_mode_sync(1 downto 0) & pwm_mode_request;
 
       if ((mmcm_lock_sync(1) = '0') or
-          (sys_rst_sync(1) = '1') or
-          (pwm_mode_sync(2) /= pwm_mode_sel)) then
+          (sys_rst_sync(1) = '1')) then
         rst_shreg <= (others => '1');
+        pwm_mode_sel <= pwm_mode_sync(2);
+        pwm_mode_delay_active <= '0';
+        pwm_mode_delay_count <= 0;
+      elsif (pwm_mode_delay_active = '1') then
+        rst_shreg <= (others => '1');
+
+        if (pwm_mode_sync(2) = pwm_mode_sel) then
+          pwm_mode_delay_active <= '0';
+          pwm_mode_delay_count <= 0;
+        elsif (pwm_mode_delay_count = 0) then
+          pwm_mode_sel <= pwm_mode_sync(2);
+          pwm_mode_delay_active <= '0';
+        else
+          pwm_mode_delay_count <= pwm_mode_delay_count - 1;
+        end if;
+      elsif (pwm_mode_sync(2) /= pwm_mode_sel) then
+        rst_shreg <= (others => '1');
+        pwm_mode_delay_active <= '1';
+        pwm_mode_delay_count <= pwm_mode_switch_delay_cycles - 1;
       else
         rst_shreg <= rst_shreg(1 downto 0) & '0';
-      end if;
-
-      if ((mmcm_lock_sync(1) = '0') or
-          (sys_rst_sync(1) = '1') or
-          (pwm_mode_sync(2) /= pwm_mode_sel)) then
-        pwm_mode_sel <= pwm_mode_sync(2);
       end if;
     end if;
 

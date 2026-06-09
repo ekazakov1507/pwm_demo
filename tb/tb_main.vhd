@@ -9,8 +9,9 @@ architecture tb of tb_main is
 
   constant clk_period : time := 8 ns;
 
-  constant num_channels : integer := 4;
-  constant pwm_zero     : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  constant num_channels                 : integer := 4;
+  constant pwm_mode_switch_delay_cycles : natural := 256;
+  constant pwm_zero                     : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
   signal sys_clk      : std_logic := '0';
   signal sys_rst      : std_logic := '0';
@@ -28,7 +29,8 @@ begin
 
   main_pwm_demo : entity work.main
     generic map (
-      num_channels => num_channels
+      num_channels                 => num_channels,
+      pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles
     )
     port map (
       sys_clk      => sys_clk,
@@ -66,6 +68,11 @@ begin
 
     sys_pwm_mode <= '1';
     test_phase   <= 2;
+    wait for 500 ns;
+    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
+      report "main: expected outputs blanked during delayed runtime mode switch"
+      severity failure;
+
     wait for 2 us;
     assert saw_switch_blank
       report "main: expected a blanking interval after runtime mode switch"

@@ -12,7 +12,7 @@ This project implements a high-frequency PWM modulation system with the followin
 - **Buffered architecture** using asynchronous FIFOs for reliable clock domain crossing
 - **MMCM clock generation** for precise frequency control
 - **Configurable parameters** including data width, dead-time cycles, and reference signal type
-- **Optional VIO/ILA debug build** for additive reset/mode control and PWM output capture
+- **Optional VIO/ILA debug build** for reset/mode force and override control plus PWM output capture
 
 ## Technical Specifications
 

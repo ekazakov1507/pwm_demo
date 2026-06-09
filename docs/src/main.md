@@ -86,7 +86,7 @@ end entity main;
 | Generic | Type | Default | Description |
 |---------|------|---------|-------------|
 | `num_channels` | integer | 4 | Number of PWM output channels (complementary pairs) |
-| `debug` | string | "NO_DEBUG" | Optional "DEBUG" build mode that instantiates generated VIO/ILA IP |
+| `debug` | string | "NO_DEBUG" | Optional "DEBUG" build mode that instantiates generated VIO/ILA IP for reset/mode force, override, and output capture |
 
 ## Ports
 

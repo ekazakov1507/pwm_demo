@@ -295,7 +295,7 @@ Total:                    ~80 mW
 
 The top-level `debug` generic defaults to `"NO_DEBUG"`. Passing `debug=DEBUG` to the Vivado board scripts instantiates generated `vio_pwm_debug` and `ila_pwm_debug` IP cores.
 
-The VIO runs on the internal `clk` domain and provides additive reset and PWM mode controls. The ILA captures physical/effective reset and mode controls plus fixed 4-bit selected PWM/PWM_N probe vectors.
+The VIO runs on the internal `clk` domain and provides reset and PWM mode force controls plus override-enable/value controls. Force mode preserves the board inputs; override mode can drive the effective control low or high when a physical input is fixed. The ILA captures physical, VIO, effective, and synchronized reset/mode controls plus fixed 4-bit selected PWM/PWM_N probe vectors.
 
 ---
 

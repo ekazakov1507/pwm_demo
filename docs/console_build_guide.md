@@ -4,7 +4,6 @@ This guide covers the local Windows/Vivado 2018.3 console flow for:
 
 - `pwm_demo`: board top, simulation helper, bitstream builds, Z7-Lite SD boot image.
 - `pwm_core`: reusable HDL core only; no board top or bitstream by itself.
-- `pwm_lorentz`: Lorentz top that uses `pwm_core` as a submodule and generates local FIFO IP.
 
 The commands below assume PowerShell.
 
@@ -28,9 +27,6 @@ After cloning or copying the repositories, initialize submodules:
 
 ```powershell
 cd C:\Users\user\VivadoProjects\2018-3\pwm_demo
-git submodule update --init --recursive
-
-cd C:\Users\user\VivadoProjects\2018-3\pwm_lorentz
 git submodule update --init --recursive
 ```
 
@@ -77,7 +73,9 @@ Enable the optional VIO/ILA debug IP by passing `debug=DEBUG`. Debug IP output p
 & $Vivado -mode batch -source tcl\build_zybo-zynq.tcl -tclargs zybo_debug "debug=DEBUG"
 ```
 
-The debug VIO exposes additive controls for reset and PWM mode, so the board inputs still work. The ILA captures physical/effective reset and mode controls plus the selected PWM/PWM_N output vectors.
+The debug VIO exposes reset and PWM mode force controls plus override-enable/value controls. Force mode preserves the board inputs; override mode can drive the effective control low or high when a physical input is fixed. The ILA captures physical, VIO, effective, and synchronized reset/mode controls plus the selected PWM/PWM_N output vectors.
+
+See [VIO/ILA Debug Guide](./vio_ila_debug_guide.md) for the VIO control table, ILA probe map, trigger examples, and Hardware Manager programming commands.
 
 For the local ignored Vivado project, configure the existing Z7-Lite and Zybo synthesis runs for debug with:
 
@@ -181,7 +179,7 @@ Copy `BOOT.bin` to the root of a FAT32 microSD card, set the Z7-Lite `J1` boot j
 - XDC constraints,
 - bitstream script.
 
-Use it through `pwm_demo` or `pwm_lorentz`, or compile it alone only as a syntax/synthesis check:
+Use it through `pwm_demo`, or compile it alone only as a syntax/synthesis check:
 
 ```powershell
 cd C:\Users\user\VivadoProjects\2018-3\pwm_core
@@ -199,34 +197,6 @@ report_utilization
 
 This checks the reusable `pwm_mch` core. It does not produce a usable board bitstream unless you provide a board top and constraints.
 
-## `pwm_lorentz` Bitstream
-
-Run these commands from the `pwm_lorentz` repo root:
-
-```powershell
-cd C:\Users\user\VivadoProjects\2018-3\pwm_lorentz
-git submodule update --init --recursive
-& $Vivado -mode batch -source tcl\build_z7-lite.tcl
-```
-
-Other board scripts:
-
-```powershell
-& $Vivado -mode batch -source tcl\build_zybo-zynq.tcl
-& $Vivado -mode batch -source tcl\build_antminer-s9.tcl
-```
-
-The Lorentz scripts:
-
-- read `src\pwm_core\tcl\pwm_core_sources.tcl`,
-- read local Lorentz sources from `tcl\pwm_lorentz_sources.tcl`,
-- generate and synthesize `ip\lorentz_fifo`,
-- synthesize `src\main.vhd`,
-- run implementation,
-- write `<board>.bit`, DCPs, timing report, and utilization report in the current working directory.
-
-For repeatable output locations, launch Vivado from the repo root as shown above.
-
 ## Common Failures
 
 `vivado` is not recognized:
@@ -235,7 +205,7 @@ Use the full `$Vivado` path or add `C:\Xilinx\Vivado\2018.3\bin` to `PATH`.
 
 `pwm_core_sources.tcl` or submodule files are missing:
 
-Run `git submodule update --init --recursive` in `pwm_demo` or `pwm_lorentz`.
+Run `git submodule update --init --recursive` in `pwm_demo`.
 
 Simulation starts but never finishes:
 

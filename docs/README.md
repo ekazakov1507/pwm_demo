@@ -11,6 +11,7 @@ Comprehensive design documentation for the FPGA-based PWM generator implemented 
 ```
 docs/
 ├── README.md                  ← You are here
+├── vio_ila_debug_guide.md     # VIO/ILA debug build, controls, and probes
 ├── architecture/              # System-level architecture
 │   ├── overview.md            # Top-level system architecture
 │   ├── hierarchy.md           # Module hierarchy tree
@@ -40,6 +41,7 @@ docs/
 ### Getting Started
 
 - [Console Build Guide](./console_build_guide.md) - PowerShell/Vivado batch synthesis, simulation, bitstream, and SD boot flows
+- [VIO/ILA Debug Guide](./vio_ila_debug_guide.md) - Debug bitstreams, VIO controls, ILA probes, and trigger workflows
 - [Architecture Overview](./architecture/overview.md) - Start here for system-level understanding
 - [Module Hierarchy](./architecture/hierarchy.md) - Complete module tree and dependencies
 - [Clock Domains](./architecture/clock_domains.md) - Clock architecture and CDC
@@ -324,6 +326,7 @@ When adding new modules, please:
 - [Testbenches](../tb/) - Simulation testbenches
 - [Constraints](../constraints/) - Board-specific constraints
 - [Microphase Z7-Lite SD Boot](./z7_lite_sd_boot.md) - BOOT.bin generation and SD-card setup
+- [VIO/ILA Debug Guide](./vio_ila_debug_guide.md) - Debug build and Hardware Manager workflow
 
 ---
 
