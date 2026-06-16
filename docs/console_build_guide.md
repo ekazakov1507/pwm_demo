@@ -112,11 +112,11 @@ build\reqp1840_project_check\
 
 ## `pwm_demo` Simulation
 
-Use the checked-in PowerShell helper:
+Use the checked-in Python helper:
 
 ```powershell
 cd C:\Users\user\VivadoProjects\2018-3\pwm_demo
-.\tools\sim_pwm_demo.ps1 -Testbench tb_pwm_mch
+python .\tools\sim_pwm_demo.py --testbench tb_pwm_mch
 ```
 
 Supported testbenches:
@@ -136,8 +136,8 @@ The helper creates a direct XSim work directory under `build\sim\<testbench>\`, 
 Override runtime when needed:
 
 ```powershell
-.\tools\sim_pwm_demo.ps1 -Testbench tb_pwm_1ch -Runtime "150 us"
-.\tools\sim_pwm_demo.ps1 -Testbench tb_main -Runtime "40 us"
+python .\tools\sim_pwm_demo.py --testbench tb_pwm_1ch --runtime "150 us"
+python .\tools\sim_pwm_demo.py --testbench tb_main --runtime "40 us"
 ```
 
 ## Z7-Lite SD Boot Image
@@ -182,7 +182,7 @@ Copy `BOOT.bin` to the root of a FAT32 microSD card, set the Z7-Lite `J1` boot j
 Use it through `pwm_demo`, or compile it alone only as a syntax/synthesis check:
 
 ```powershell
-cd C:\Users\user\VivadoProjects\2018-3\pwm_core
+cd C:\Users\user\VivadoProjects\2018-3\pwm_demo\src\pwm_core
 & $Vivado -mode tcl
 ```
 
@@ -209,7 +209,7 @@ Run `git submodule update --init --recursive` in `pwm_demo`.
 
 Simulation starts but never finishes:
 
-Use `tools\sim_pwm_demo.ps1` or pass a finite XSim runtime. Several testbenches intentionally keep clocks running.
+Use `tools\sim_pwm_demo.py` or pass a finite XSim runtime. Several testbenches intentionally keep clocks running.
 
 Z7-Lite `BOOT.bin` build fails during FSBL:
 

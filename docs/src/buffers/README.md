@@ -386,7 +386,7 @@ end if;
 
 ```mermaid
 graph TB
-    subgraph "clk Domain (250 MHz)"
+    subgraph "clk Domain (50 MHz)"
         SINE[sine_gen_simple]
         DEC[data_decimator]
         WR_CTRL[Write Control]
@@ -397,7 +397,7 @@ graph TB
         FIFO[(async_fifo<br/>Gray Code Pointers)]
     end
 
-    subgraph "clk_pwm Domain (125 MHz)"
+    subgraph "clk_pwm Domain (100 MHz)"
         FIFO_RD[async_fifo<br/>Read Side]
         RD_CTRL[Read Control]
         PWM[pwm_mch_buf]
@@ -453,18 +453,23 @@ begin
   end if;
 
   if rising_edge(clk_pwm) then
-    -- 3-stage synchronization
-    buf_empty_sync <= buf_empty_sync(1 downto 0) & buf_empty;
+    if rst_pwm = '1' then
+      cnt := 0;
+      buf_rd_en <= '0';
+      buf_rd_valid <= '0';
+    elsif cnt = cycle_length - 1 then
+      cnt := 0;
+      buf_rd_valid <= buf_rd_en;
 
-    cnt := cnt + 1;
-    if rst = '1' then
-      cnt := 0;
+      if buf_empty = '0' then
+        buf_rd_en <= '1';
+      else
+        buf_rd_en <= '0';
+      end if;
+    else
       buf_rd_en <= '0';
-    elsif cnt = cycle_length - 1 and buf_empty_sync(2) = '0' then
-      buf_rd_en <= '1';
-      cnt := 0;
-    elsif cnt /= cycle_length - 1 or buf_empty_sync(2) = '1' then
-      buf_rd_en <= '0';
+      buf_rd_valid <= buf_rd_en;
+      cnt := cnt + 1;
     end if;
   end if;
 end process;
@@ -507,7 +512,6 @@ set_multicycle_path -hold -from [get_pins *sync*] 1
 ```
 tb/
 ├── tb_async_fifo.vhd    -- Asynchronous FIFO tests
-├── tb_sync_fifo.vhd     -- Synchronous FIFO tests
 └── tb_main.vhd          -- Integration tests
 ```
 
@@ -524,6 +528,6 @@ tb/
 
 ## See Also
 
-- [PWM Buffered Module](../src/pwm/README.md#pwm_mch_bufvhd)
-- [Clock Domain Details](../architecture/clock_domains.md)
-- [Main Design](../src/main.md)
+- [PWM Buffered Module](../pwm/README.md#pwm_mch_bufvhd)
+- [Clock Domain Details](../../architecture/clock_domains.md)
+- [Main Design](../main.md)

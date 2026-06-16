@@ -4,7 +4,7 @@
 
 The signal chain modules handle waveform generation, scaling, and sample rate conversion:
 
-- **sine_gen_simple.vhd**: Sine wave lookup table generator
+- **sine_gen_simple.vhd**: Sine wave lookup table generator with optional soft-start ramp
 - **data_decimator.vhd**: Sample rate decimator (downsampler)
 - **scaler_signed.vhd**: Signed amplitude scaler
 - **scaler_unsigned.vhd**: Unsigned amplitude scaler with offset
@@ -14,7 +14,7 @@ The signal chain modules handle waveform generation, scaling, and sample rate co
 ```mermaid
 graph TB
     subgraph "Signal Generation"
-        SINE[sine_gen_simple<br/>Waveform Generator]
+        SINE[sine_gen_simple<br/>Waveform Generator<br/>optional ramp]
     end
 
     subgraph "Sample Rate Conversion"
@@ -42,7 +42,7 @@ graph TB
 
 ### Description
 
-Generates a continuous sine wave using a lookup table (LUT) approach with runtime-computed constants.
+Generates a continuous sine wave using a lookup table (LUT) approach with elaboration-time computed constants. When enabled, the ramp logic fades the waveform amplitude in after reset.
 
 ### Block Diagram
 
@@ -53,6 +53,7 @@ graph TB
 
     subgraph "Sine Generator"
         INDEX[Phase Accumulator<br/>0 to wave_length-1]
+        RAMP_COUNT[Ramp Counter<br/>0 to ramp_length]
         
         subgraph "LUT Generation"
             FUNC[generate_sine_wave<br/>function]
@@ -65,10 +66,14 @@ graph TB
     OUTPUT_DATA[output_data<br/>bit_width]
 
     CLK --> INDEX
+    CLK --> RAMP_COUNT
     RST --> INDEX
+    RST --> RAMP_COUNT
     INDEX -->|Address| LUT
     FUNC -->|Elaboration| LUT
-    LUT --> OUTPUT
+    LUT --> RAMP[Signed or unsigned<br/>ramp scaling]
+    RAMP_COUNT --> RAMP
+    RAMP --> OUTPUT
     OUTPUT --> OUTPUT_DATA
 
     style CLK fill:#e1f5ff
@@ -84,7 +89,9 @@ entity sine_gen_simple is
   generic (
     wave_length : positive := 1024;      -- Samples per full cycle
     bit_width   : positive := 16;        -- Output bit width
-    data_type   : string   := "UNSIGNED" -- "UNSIGNED" or "SIGNED"
+    data_type   : string   := "UNSIGNED"; -- "UNSIGNED" or "SIGNED"
+    ramp_enable : boolean  := false;
+    ramp_length : natural  := 0
   );
   port (
     clk         : in    std_logic;
@@ -101,6 +108,8 @@ end entity sine_gen_simple;
 | `wave_length` | positive | 1024 | Number of samples per sine cycle |
 | `bit_width` | positive | 16 | Output resolution in bits |
 | `data_type` | string | "UNSIGNED" | Output format: "SIGNED" or "UNSIGNED" |
+| `ramp_enable` | boolean | false | Enables post-reset amplitude ramp |
+| `ramp_length` | natural | 0 | Ramp length in `clk` cycles; `0` uses `wave_length` |
 
 ### Ports
 
@@ -214,11 +223,17 @@ stateDiagram-v2
     WRAP --> RUNNING: index <= 0
 
     note right of RUNNING
-        Output: SINE_WAVE(index)
-        - Signed: direct output
-        - Unsigned: reinterpret as unsigned
+        Output: ramped SINE_WAVE(index)
+        - Signed: scales sample toward 0
+        - Unsigned: scales AC component around midpoint
     end note
 ```
+
+### Soft-Start Ramp
+
+With `ramp_enable = true`, `ramp_count` increments once per `clk` until the effective ramp length is reached. Signed output multiplies each sample by `ramp_count / ramp_length`, so the waveform starts at zero amplitude. Unsigned output preserves the midpoint and scales only the AC component, so the first active unsigned sample starts near midscale rather than rail zero.
+
+In the current top-level build, `main.vhd` enables the ramp and passes `sine_ramp_length` with a default of 2048 cycles.
 
 ### Usage Example
 
@@ -228,11 +243,13 @@ dut_sine : entity work.sine_gen_simple
   generic map (
     wave_length => 2048,           -- 2048 samples
     bit_width   => 6,              -- 6-bit output
-    data_type   => "SIGNED"        -- Signed output
+    data_type   => "SIGNED",       -- Signed output
+    ramp_enable => true,
+    ramp_length => 2048
   )
   port map (
-    clk         => clk,            -- 250 MHz
-    reset       => rst,
+    clk         => clk,            -- 50 MHz in current board builds
+    reset       => sine_rst,
     output_data => sine_out        -- 6-bit sine wave
   );
 ```
@@ -392,7 +409,7 @@ end process;
 dec_sine : entity work.data_decimator
   generic map (
     data_width        => r,              -- PWM resolution
-    decimation_factor => 32              -- Decimation factor
+    decimation_factor => decimation_factor
   )
   port map (
     clk       => clk,
@@ -407,16 +424,22 @@ dec_sine : entity work.data_decimator
 
 ```
 For SYMMETRICAL PWM:
-    decimation = clk / (clk_pwm / 2^(r+1))
+    pwm_cycle_length = 2^(r+1)
+    decimation_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
+    decimation = round(decimation_real * 0.95)
     
-    Example (r=6):
-    decimation = 250 MHz / (125 MHz / 128) = 256
+    Current top-level ratio (r=6, clk:clk_pwm = 50:100 MHz):
+    decimation_real = (50 MHz * 128) / 100 MHz = 64
+    decimation = round(64 * 0.95) = 61
     
 For ASYMMETRICAL PWM:
-    decimation = clk / (clk_pwm / 2^r)
+    pwm_cycle_length = 2^r
+    decimation_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
+    decimation = round(decimation_real * 0.95)
     
-    Example (r=6):
-    decimation = 250 MHz / (125 MHz / 64) = 128
+    Same clock ratio, r=6:
+    decimation_real = (50 MHz * 64) / 100 MHz = 32
+    decimation = round(32 * 0.95) = 30
 ```
 
 ---
@@ -790,6 +813,6 @@ tb/
 
 ## See Also
 
-- [PWM Modules](../src/pwm/README.md)
-- [Async FIFO](../src/buffers/async_fifo.md)
-- [Counter Modules](../src/counters/README.md)
+- [PWM Modules](../pwm/README.md)
+- [Async FIFO](../buffers/README.md)
+- [Counter Modules](../counters/README.md)

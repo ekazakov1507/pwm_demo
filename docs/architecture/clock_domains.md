@@ -2,14 +2,14 @@
 
 ## Overview
 
-The PWM Demo design implements two distinct clock domains to separate the high-frequency sine wave generation from the PWM modulation logic.
+The PWM Demo design implements two distinct clock domains. The `clk` domain generates the sine source and runs the direct PWM branch. The `clk_pwm` domain runs the buffered PWM branch after the FIFO crossing.
 
 ## Clock Domain Architecture
 
 ```mermaid
 graph TB
     subgraph "External Clock"
-        EXT_CLK[sys_clk<br/>125 MHz]
+        EXT_CLK[sys_clk<br/>100 MHz]
     end
 
     subgraph "Input Buffering"
@@ -23,14 +23,16 @@ graph TB
     end
 
     subgraph "Clock Domain 1: System Clock"
-        CLK_SYS[clk<br/>~250 MHz]
-        SINE[sine_gen_simple]
+        CLK_SYS[clk<br/>50 MHz]
+        SINE[sine_gen_simple<br/>+ soft-start ramp]
+        DIRECT[pwm_mch<br/>direct branch]
         DEC[data_decimator]
         FIFO_WR[async_fifo write]
+        RESET[main_reset_ctrl]
     end
 
     subgraph "Clock Domain 2: PWM Clock"
-        CLK_PWM[clk_pwm<br/>~125 MHz]
+        CLK_PWM[clk_pwm<br/>100 MHz]
         FIFO_RD[async_fifo read]
         PWM[pwm_mch_buf control]
         PWM_CH[pwm_1ch channels]
@@ -42,6 +44,8 @@ graph TB
     MMCM -->|clkout2 ÷8| CLK_PWM
 
     CLK_SYS --> SINE
+    CLK_SYS --> DIRECT
+    CLK_SYS --> RESET
     SINE --> DEC
     DEC --> FIFO_WR
 
@@ -67,7 +71,7 @@ graph TB
 | Parameter | Value | Notes |
 |-----------|-------|-------|
 | Source | External oscillator | Board-dependent |
-| Frequency | 125 MHz | 8 ns period |
+| Frequency | 100 MHz | 10 ns period in `Z7_LITE.xdc` and `Zybo_board.xdc` |
 | Jitter | <50 ps typical | Crystal oscillator |
 | Input Pin | sys_clk | Defined in XDC |
 
@@ -75,8 +79,8 @@ graph TB
 
 | Clock | Source | Multiply | Divide | Frequency | Period |
 |-------|--------|----------|--------|-----------|--------|
-| clk | MMCM clkout1 | ×8.0 | ÷16 | ~250 MHz | ~4 ns |
-| clk_pwm | MMCM clkout2 | ×8.0 | ÷8 | ~125 MHz | ~8 ns |
+| clk | MMCM clkout1 | ×8.0 | ÷16 | 50 MHz | 20 ns |
+| clk_pwm | MMCM clkout2 | ×8.0 | ÷8 | 100 MHz | 10 ns |
 
 ### MMCM Configuration
 
@@ -84,16 +88,16 @@ graph TB
 mmcm_adv : component mmcme2_adv
   generic map (
     clkfbout_mult_f => 8.0,      -- VCO multiplication
-    clkin1_period   => 8.0,      -- 8 ns = 125 MHz
+    clkin1_period   => 8.0,      -- Source metadata in main.vhd
     clkin2_period   => 8.0,      -- Unused (clkinsel='1')
     clkout1_phase   => 0.0,      -- No phase shift
-    clkout1_divide  => 16,       -- 1000/16 = 62.5 MHz*
+    clkout1_divide  => 16,
     clkout2_phase   => 0.0,      -- No phase shift
-    clkout2_divide  => 8         -- 1000/8 = 125 MHz
+    clkout2_divide  => 8
   )
 ```
 
-**Note**: Actual frequencies may differ due to VCO constraints. The design targets 250 MHz for `clk` and 125 MHz for `clk_pwm`.
+**Note**: The board XDC files currently constrain `sys_clk` at 10 ns, and the implementation timing reports show `clk = 50 MHz` and `clk_pwm = 100 MHz`. Keep the XDC clock period and MMCM input-period metadata aligned if the board clock is changed.
 
 ---
 
@@ -101,11 +105,11 @@ mmcm_adv : component mmcme2_adv
 
 ### Crossing Point
 
-The design crosses from `clk` (250 MHz) to `clk_pwm` (125 MHz) at the asynchronous FIFO boundary.
+The buffered branch crosses from `clk` (50 MHz) to `clk_pwm` (100 MHz) at the asynchronous FIFO boundary.
 
 ```mermaid
 graph LR
-    subgraph "clk Domain (250 MHz)"
+    subgraph "clk Domain (50 MHz)"
         SINE[sine_gen_simple<br/>Generates samples]
         DEC[data_decimator<br/>Reduces sample rate]
         WR[async_fifo<br/>Write Logic]
@@ -115,7 +119,7 @@ graph LR
         FIFO[(Async FIFO<br/>Gray Code Pointers)]
     end
 
-    subgraph "clk_pwm Domain (125 MHz)"
+    subgraph "clk_pwm Domain (100 MHz)"
         RD[async_fifo<br/>Read Logic]
         PWM[pwm_1ch<br/>Generates PWM]
     end
@@ -133,12 +137,12 @@ graph LR
 ### Data Rate Matching
 
 ```
-Sine Generator Rate:  250 MHz (1 sample/clock)
-Decimation Factor:    32 (configurable)
-FIFO Write Rate:      250 MHz / 32 = 7.8125 MHz
+Sine Generator Rate:  50 MHz (1 sample/clock)
+Decimation Factor:    61 in the current top-level buffered branch ratio
+FIFO Write Rate:      50 MHz / 61 ≈ 819.7 kHz
 
-PWM Cycle Rate:       125 MHz / 128 = 0.9765625 MHz (r=6, symmetrical)
-FIFO Read Rate:       ~1 MHz (once per PWM cycle)
+PWM Cycle Rate:       100 MHz / 128 = 781.25 kHz (r=6, symmetrical)
+FIFO Read Rate:       781.25 kHz (once per PWM frame)
 
 Result: Write rate > Read rate ✓
 ```
@@ -147,10 +151,10 @@ Result: Write rate > Read rate ✓
 
 | Signal | From | To | Method |
 |--------|------|-----|--------|
-| wr_ptr_gray | clk | clk_pwm | 2-stage synchronizer |
-| rd_ptr_gray | clk_pwm | clk | 2-stage synchronizer |
-| buf_empty | clk_pwm | clk | 3-stage synchronizer |
-| buf_full | clk | clk_pwm | Not used (write faster than read) |
+| FIFO pointers | Between `clk` and `clk_pwm` | Opposite FIFO side | 2-stage Gray-code synchronizers inside `async_fifo` |
+| `rst` | clk | clk_pwm | 3-stage synchronizer in `pwm_mch_buf` |
+| `enable` | clk | clk_pwm | 3-stage synchronizer in `pwm_mch_buf` |
+| `buf_empty` | clk_pwm | clk_pwm | Read-domain FIFO flag, used directly by read control |
 
 ---
 
@@ -160,70 +164,73 @@ Result: Write rate > Read rate ✓
 
 ```tcl
 # Input clock
-create_clock -period 8.0 [get_ports sys_clk]
+create_clock -period 10.000 [get_ports sys_clk]
 
-# Generated clocks
-create_generated_clock -name clk \
-  -source [get_pins mmcm_adv/CLKIN1] \
-  -divide_by 16 -multiply_by 8 \
-  [get_pins mmcm_adv/CLKOUT1]
+# Generated clocks are inferred from the MMCM by Vivado timing reports:
+#   clk     = 20 ns
+#   clk_pwm = 10 ns
 
-create_generated_clock -name clk_pwm \
-  -source [get_pins mmcm_adv/CLKIN1] \
-  -divide_by 8 -multiply_by 8 \
-  [get_pins mmcm_adv/CLKOUT2]
+# Board switches are asynchronous controls into main_reset_ctrl.
+set_false_path -from [get_ports {sys_rst sys_pwm_mode}]
 
-# False paths for clock domain crossing
-set_false_path -from [get_clocks clk] -to [get_clocks clk_pwm] \
-  -through [get_pins *rd_ptr_gray_wr*/D]
-set_false_path -from [get_clocks clk_pwm] -to [get_clocks clk] \
-  -through [get_pins *wr_ptr_gray_rd*/D]
-
-# Synchronizer multi-cycle paths
-set_multicycle_path -setup -from [get_cells *sync*] 2
-set_multicycle_path -hold -from [get_cells *sync*] 1
+# PWM pins drive off-board loads, so the board XDCs mark them as
+# asynchronous outputs until a downstream synchronous interface is added.
+set_false_path -to [get_ports {
+  sys_pwm[0] sys_pwm[1] sys_pwm[2] sys_pwm[3]
+  sys_pwm_n[0] sys_pwm_n[1] sys_pwm_n[2] sys_pwm_n[3]
+}]
 ```
 
 ---
 
 ## Reset Synchronization
 
-### MMCM Lock Detection
+### main_reset_ctrl
 
 ```mermaid
 sequenceDiagram
     participant MMCM
     participant LOCK as mmcm_clk_lock
-    participant RST as rst signal
+    participant CTRL as main_reset_ctrl
     participant SINE as sine_gen_simple
-    participant PWM as pwm_mch_buf
+    participant PWM as PWM branches
 
     Note over MMCM: Acquiring lock...
     MMCM->>LOCK: locked = '0'
-    LOCK->>RST: rst = '1'
-    RST->>SINE: reset asserted
-    RST->>PWM: reset asserted
+    LOCK->>CTRL: lock synchronized in clk domain
+    CTRL->>SINE: sine_rst asserted
+    CTRL->>PWM: pwm_rst asserted
 
     Note over MMCM: Lock achieved!
     MMCM->>LOCK: locked = '1'
-    LOCK->>RST: rst = '0'
-    RST->>SINE: reset deasserted
-    RST->>PWM: reset deasserted
+    LOCK->>CTRL: lock stable
+    CTRL->>SINE: release after reset_release_cycles
+    CTRL->>PWM: release after reset_release_cycles
 
-    SINE->>SINE: Begin operation
+    SINE->>SINE: Begin ramped sine output
     PWM->>PWM: Begin operation
 ```
 
 ### Reset Logic
 
 ```vhdl
-enable_control : process (mmcm_clk_lock) is
-begin
-  if (mmcm_clk_lock = '1') then
-    rst <= '0';  -- Deassert reset when locked
-  end if;
-end process;
+reset_ctrl : entity work.main_reset_ctrl
+  generic map (
+    pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
+    reset_release_cycles         => reset_release_cycles
+  )
+  port map (
+    clk              => clk,
+    mmcm_clk_lock    => mmcm_clk_lock,
+    rst_request      => rst_request,
+    pwm_mode_request => pwm_mode_request,
+    sine_rst         => sine_rst,
+    pwm_rst          => pwm_rst,
+    pwm_mode_sel     => pwm_mode_sel
+  );
 ```
+
+`main_reset_ctrl` keeps both `sine_rst` and `pwm_rst` asserted while MMCM lock is absent or reset is requested. A runtime `sys_pwm_mode` or VIO PWM-mode change asserts only `pwm_rst`, blanks the selected outputs, waits `pwm_mode_switch_delay_cycles`, and then commits `pwm_mode_sel`. The sine generator is left running during this mode handoff.
 
 ---
 
@@ -254,10 +261,10 @@ end process;
 ### Impact on PWM
 
 ```
-PWM Frequency = clk_pwm / (2^(r+1) × 2)  [symmetrical]
+PWM Frequency = clk_pwm / 2^(r+1)  [symmetrical]
 
-For clk_pwm = 125 MHz, r = 6:
-PWM = 125 MHz / 128 = 0.9765625 MHz ≈ 1 MHz
+For clk_pwm = 100 MHz, r = 6:
+PWM = 100 MHz / 128 = 781.25 kHz
 
 With ±250 ps jitter:
 Frequency error < 0.01% (negligible)
@@ -282,9 +289,8 @@ Where:
   V = supply voltage (1.0V for Zynq)
   f = clock frequency
 
-clk domain (250 MHz):    ~50 mW
-clk_pwm domain (125 MHz): ~30 mW
-Total:                    ~80 mW
+clk domain (50 MHz):      board- and activity-dependent
+clk_pwm domain (100 MHz): board- and activity-dependent
 ```
 
 ---

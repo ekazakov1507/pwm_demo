@@ -6,7 +6,7 @@ The PWM generation system consists of:
 - **pwm_1ch.vhd**: Single-channel PWM with dead-time control
 - **pwm_1ch_drive_pkg.vhd**: Complementary vs bipolar (three-level) pre-drive logic
 - **pwm_mch_buf.vhd**: Multi-channel buffered PWM with clock domain crossing
-- **pwm_mch.vhd**: Multi-channel PWM (legacy, non-buffered)
+- **pwm_mch.vhd**: Multi-channel direct PWM (non-buffered)
 
 ---
 
@@ -86,12 +86,14 @@ graph TB
 entity pwm_1ch is
   generic (
     r               : integer   := 7;             -- PWM resolution bits
+    input_width     : integer   := 7;             -- Input waveform width
     d               : integer   := 2;             -- Num dead-time cycles
-    input_data_type : string    := "SIGNED";      -- signed or unsigned
+    input_data_type : string    := "SIGNED";      -- SIGNED, UNSIGNED, FP23, FP23_SIGNED
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
     output_mode     : string    := "COMPLEMENTARY"; -- COMPLEMENTARY or BIPOLAR_SPLIT
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
+    fp23_binary_point : integer := 6;
     ref_init        : integer   := 0;
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1'
@@ -100,7 +102,7 @@ entity pwm_1ch is
     clk        : in    std_logic;
     rst        : in    std_logic;
     enable     : in    std_logic;
-    input_wave : in    std_logic_vector(r - 1 downto 0);
+    input_wave : in    std_logic_vector(input_width - 1 downto 0);
     pwm        : out   std_logic;
     pwm_n      : out   std_logic
   );
@@ -112,12 +114,14 @@ end entity pwm_1ch;
 | Generic | Type | Default | Description |
 |---------|------|---------|-------------|
 | `r` | integer | 7 | PWM resolution in bits |
+| `input_width` | integer | 7 | Input waveform width; use 23 for FP23 inputs |
 | `d` | integer | 2 | Number of dead-time clock cycles |
-| `input_data_type` | string | "SIGNED" | Data format: "SIGNED" or "UNSIGNED" |
+| `input_data_type` | string | "SIGNED" | Data format: "SIGNED", "UNSIGNED", "FP23", or "FP23_SIGNED" |
 | `ref_type` | string | "SYMMETRICAL" | Reference type: "SYMMETRICAL" or "ASYMMETRICAL" |
 | `output_mode` | string | "COMPLEMENTARY" | "COMPLEMENTARY" (pwm_n ≈ not pwm) or "BIPOLAR_SPLIT" (three-level; see below) |
 | `scale_factor` | real | 0.8 | Amplitude scaling factor |
 | `offset_factor` | real | 0.1 | DC offset factor |
+| `fp23_binary_point` | integer | 6 | Binary-point placement used when converting packed FP23 input to the signed PWM reference domain |
 | `ref_init` | integer | 0 | Counter initial value |
 | `ref_step` | integer | 1 | Counter increment value |
 | `ref_updwn` | std_logic | '1' | Up/down control ('1'=up, '0'=down) |
@@ -129,7 +133,7 @@ end entity pwm_1ch;
 | `clk` | in | 1 | Clock input |
 | `rst` | in | 1 | Active-high reset |
 | `enable` | in | 1 | Enable signal |
-| `input_wave` | in | r | Input waveform value |
+| `input_wave` | in | `input_width` | Input waveform value |
 | `pwm` | out | 1 | PWM high-side (or positive-half) command after dead time |
 | `pwm_n` | out | 1 | PWM low-side (or negative-half) command after dead time; meaning depends on `output_mode` |
 
@@ -338,7 +342,6 @@ graph TB
 
         subgraph "Read Control (clk_pwm)"
             RD_CTRL[Input Buffer<br/>Read Control]
-            SYNC[buf_empty_sync<br/>3-stage synchronizer]
         end
 
         subgraph "Duty Cycle Capture (clk_pwm)"
@@ -375,8 +378,7 @@ graph TB
     FIFO_WR -.->|Gray Code| FIFO_RD
 
     CLK_PWM --> RD_CTRL
-    RD_CTRL --> SYNC
-    SYNC --> RD_CTRL
+    BUF_EMPTY --> RD_CTRL
     RD_CTRL --> FIFO_RD
     FIFO_RD --> CAPTURE
     CAPTURE --> DUTY
@@ -407,7 +409,7 @@ entity pwm_mch_buf is
     r               : integer   := 7;             -- PWM resolution bits
     d               : integer   := 2;             -- Num dead-time cycles
     num_channels    : integer   := 2;             -- Number of channels
-    input_data_type : string    := "SIGNED";      -- signed or unsigned
+    input_data_type : string    := "SIGNED";      -- SIGNED, UNSIGNED, FP23, FP23_SIGNED
     buffer_depth    : integer   := 1024;          -- FIFO depth
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
     output_mode     : string    := "COMPLEMENTARY"; -- Passed to each pwm_1ch
@@ -415,7 +417,7 @@ entity pwm_mch_buf is
     ref_updwn       : std_logic := '1';           -- Up/down control
     -- CRITICAL: Clock frequencies for proper decimation calculation
     clk_freq_hz     : integer   := 100_000_000;   -- Input clock frequency (clk domain)
-    clk_pwm_freq_hz : integer   := 100_000_000    -- PWM clock frequency (clk_pwm domain)
+    clk_pwm_freq_hz : integer   := 200_000_000    -- PWM clock frequency (clk_pwm domain)
   );
   port (
     clk        : in    std_logic;
@@ -477,7 +479,6 @@ graph TB
         RD_DATA[buf_output]
         RD_PTR[rd_ptr_gray]
         EMPTY[empty]
-        SYNC[buf_empty_sync]
     end
 
     WR_EN --> MEM
@@ -485,11 +486,10 @@ graph TB
     RD_EN --> MEM
     RD_DATA --> MEM
 
-    WR_PTR -.->|2-stage sync| SYNC
+    WR_PTR -.->|2-stage sync| EMPTY
     RD_PTR -.->|2-stage sync| FULL
 
-    EMPTY --> SYNC
-    SYNC -->|synchronized| RD_CTRL[Read Control]
+    EMPTY --> RD_CTRL[Read Control]
 
     style WR_EN fill:#ffe1e1
     style WR_DATA fill:#ffe1e1
@@ -521,12 +521,23 @@ else
     cycle_length := 2^r;      -- 64 for r=6
 end if;
 
--- Read at end of each PWM frame (implementation may gate on FIFO empty later)
-if (cnt = cycle_length - 1) then
-    buf_rd_en <= '1';
+-- Read at end of each PWM frame when FIFO has data.
+if (rst_pwm = '1') then
     cnt := 0;
+    buf_rd_en <= '0';
+    buf_rd_valid <= '0';
+elsif (cnt = cycle_length - 1) then
+    cnt := 0;
+    buf_rd_valid <= buf_rd_en;
+
+    if (buf_empty = '0') then
+        buf_rd_en <= '1';
+    else
+        buf_rd_en <= '0';
+    end if;
 else
     buf_rd_en <= '0';
+    buf_rd_valid <= buf_rd_en;
     cnt := cnt + 1;
 end if;
 ```
@@ -568,11 +579,13 @@ graph TB
 ```
 For SYMMETRICAL mode:
     pwm_cycle_length = 2^(r+1)
-    decimation_factor = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
+    decimation_factor_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
+    decimation_factor = round(decimation_factor_real * 0.95)
 
 For ASYMMETRICAL mode:
     pwm_cycle_length = 2^r
-    decimation_factor = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
+    decimation_factor_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
+    decimation_factor = round(decimation_factor_real * 0.95)
 ```
 
 #### Examples
@@ -580,23 +593,31 @@ For ASYMMETRICAL mode:
 **Example 1: Equal clocks (clk = clk_pwm = 100MHz), SYMMETRICAL, r=7**
 ```
 pwm_cycle_length = 2^8 = 256
-decimation_factor = (100e6 * 256) / 100e6 = 256
-→ Write every 256 clk cycles, read every 256 clk_pwm cycles (balanced)
+decimation_factor_real = (100e6 * 256) / 100e6 = 256
+decimation_factor = round(256 * 0.95) = 243
+→ Write every 243 clk cycles, read every 256 clk_pwm cycles
 ```
 
 **Example 2: Faster input clock (clk=200MHz, clk_pwm=100MHz), SYMMETRICAL, r=7**
 ```
 pwm_cycle_length = 2^8 = 256
-decimation_factor = (200e6 * 256) / 100e6 = 512
-→ Write every 512 clk cycles, read every 256 clk_pwm cycles
-  (write is faster in absolute time, prevents FIFO underflow)
+decimation_factor_real = (200e6 * 256) / 100e6 = 512
+decimation_factor = round(512 * 0.95) = 486
+→ Write every 486 clk cycles, read every 256 clk_pwm cycles
+```
+
+**Current top-level ratio (clk=50MHz, clk_pwm=100MHz), SYMMETRICAL, r=6**
+```
+pwm_cycle_length = 2^7 = 128
+decimation_factor_real = (50e6 * 128) / 100e6 = 64
+decimation_factor = round(64 * 0.95) = 61
 ```
 
 #### Safety Margin
 
 The implementation applies a **5% safety margin** to ensure write rate > read rate:
 ```vhdl
-decimation_factor = (calculated_value * 95 + 50) / 100
+decimation_factor = round(decimation_factor_real * 0.95)
 ```
 
 This prevents FIFO underflow due to:
@@ -615,7 +636,7 @@ pwm_mch_buf_inst : entity work.pwm_mch_buf
     num_channels    => 2,
     ref_type        => "SYMMETRICAL",
     output_mode     => "COMPLEMENTARY",  -- or "BIPOLAR_SPLIT"
-    clk_freq_hz     => 100_000_000,   -- Your clk frequency
+    clk_freq_hz     => 50_000_000,    -- Your clk frequency
     clk_pwm_freq_hz => 100_000_000    -- Your clk_pwm frequency
   )
   port map (
@@ -627,11 +648,11 @@ pwm_mch_buf_inst : entity work.pwm_mch_buf
 
 ---
 
-## pwm_mch.vhd - Multi-Channel PWM (Legacy)
+## pwm_mch.vhd - Multi-Channel Direct PWM
 
 ### Overview
 
-Simplified version without buffering. All channels share the same clock domain.
+Simplified version without buffering. All channels share the same clock domain. The current top-level `main.vhd` instantiates this as the direct branch selected when `sys_pwm_mode = '0'`.
 
 ### Block Diagram
 
@@ -729,7 +750,7 @@ graph TD
 - [Counter Modules](../counters/README.md)
 - [Signal chain / scalers](../signal_chain/README.md)
 - [Dead time / utilities](../utils/README.md) (`dead_time_generator`)
-- [Async FIFO](../buffers/async_fifo.md)
+- [Async FIFO](../buffers/README.md)
 
 ### Testbenches
 

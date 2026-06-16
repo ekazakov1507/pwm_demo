@@ -53,22 +53,22 @@ docs/
 - [main.vhd](./src/main.md) - Top-level orchestration, clock tree, and I/O
 
 #### PWM Generation
-- [PWM Modules](./src/pwm/README.md) - Single and multi-channel PWM with buffering
+- [PWM Modules](./src/pwm/README.md) - Single and multi-channel PWM with buffering; reusable core RTL lives under `src/pwm_core/rtl`
   - `pwm_1ch.vhd` - Single channel with dead-time and `output_mode` (complementary / bipolar split)
   - `pwm_1ch_drive_pkg.vhd` - Pre-drive leg functions
   - `pwm_mch_buf.vhd` - Multi-channel buffered
-  - `pwm_mch.vhd` - Multi-channel (legacy)
+  - `pwm_mch.vhd` - Multi-channel direct PWM branch
 
 #### Counter Modules
-- [Counters](./src/counters/README.md) - Reference waveform counters
+- [Counters](./src/counters/README.md) - Reference waveform counters from `src/pwm_core/rtl/counters`
   - `up_counter_signed.vhd`
   - `up_counter_unsigned.vhd`
   - `updown_counter_signed.vhd`
   - `updown_counter_unsigned.vhd`
 
 #### Signal Processing
-- [Signal Chain](./src/signal_chain/README.md) - Waveform generation and scaling
-  - `sine_gen_simple.vhd` - Sine wave LUT
+- [Signal Chain](./src/signal_chain/README.md) - Demo sine/decimator plus core scaler modules
+  - `sine_gen_simple.vhd` - Sine wave LUT with optional soft-start ramp
   - `data_decimator.vhd` - Sample rate conversion
   - `scaler_signed.vhd` - Signed amplitude scaling
   - `scaler_unsigned.vhd` - Unsigned scaling with offset
@@ -93,17 +93,18 @@ docs/
 ┌──────────────────────────────────────────────────────────────────┐
 │                         PWM Demo System                           │
 │                                                                   │
-│  sys_clk (125 MHz) ──→ [Clock Tree] ──→ MMCM                     │
+│  sys_clk (100 MHz) ──→ [Clock Tree] ──→ MMCM                     │
 │                                            │                      │
 │                        ┌───────────────────┴───────────────────┐  │
 │                        │                                       │  │
-│                   clk (250 MHz)                           clk_pwm (125 MHz)
+│                    clk (50 MHz)                           clk_pwm (100 MHz)
 │                        │                                       │  │
 │              ┌─────────┴─────────┐                  ┌──────────┴─────────┐
-│              │  Sine Generator   │                  │  PWM Controller    │
-│              │  (2048 samples)   │────── CDC ──────→│  (4 channels)      │
-│              │                   │     (FIFO)       │                    │
-│              └───────────────────┘                  └──────────┬─────────┘
+│              │  Sine Generator   │                  │ Buffered PWM       │
+│              │  + soft start     │────── CDC ──────→│ Controller         │
+│              └─────────┬─────────┘     (FIFO)       └──────────┬─────────┘
+│                        │                                       │          │
+│                        └────────→ Direct PWM ───────→ [Mode Select]       │
 │                                                                │          │
 │                                                        ┌───────┴───────┐  │
 │                                                        │  OBUF × 4    │  │
@@ -118,14 +119,14 @@ docs/
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
-| **Input Clock** | 125 MHz | External oscillator |
-| **System Clock** | ~250 MHz | Via MMCM |
-| **PWM Clock** | ~125 MHz | Via MMCM |
+| **Input Clock** | 100 MHz | Current board XDC constraint |
+| **System Clock** | 50 MHz | `clkout1`, MMCM ratio |
+| **PWM Clock** | 100 MHz | `clkout2`, MMCM ratio |
 | **PWM Resolution** | 6 bits | 64 discrete levels |
 | **PWM Channels** | 4 | Complementary pairs |
-| **PWM Frequency** | ~1 MHz | Symmetrical mode |
-| **Modulation** | 100 kHz | Sinusoidal |
-| **Dead Time** | 4 cycles | ~32 ns |
+| **PWM Frequency** | ~781.25 kHz | Symmetrical mode, `clk_pwm / 128` |
+| **Modulation** | ~24.4 kHz | Sine LUT rate, `clk / 2048` |
+| **Dead Time** | 4 cycles | ~40 ns at 100 MHz `clk_pwm` |
 
 ---
 
@@ -136,6 +137,7 @@ docs/
 - ✅ Complementary outputs with dead-time
 - ✅ Multi-channel support (configurable)
 - ✅ Buffered architecture for high frequency
+- ✅ Runtime direct/buffered PWM mode select with blanked handoff
 - ✅ Pipeline stages for timing closure
 
 ### Clock Domain Crossing
@@ -145,6 +147,7 @@ docs/
 
 ### Signal Generation
 - ✅ Runtime-computed sine wave LUT
+- ✅ Optional sine soft-start ramp
 - ✅ Sample rate decimation
 - ✅ Amplitude scaling with offset
 - ✅ Signed and unsigned data formats
@@ -154,6 +157,7 @@ docs/
 - ✅ Signed/unsigned data types
 - ✅ Symmetrical/asymmetrical PWM modes
 - ✅ Configurable resolution and dead-time
+- ✅ Configurable reset release and PWM mode switch delay
 
 ---
 
@@ -195,12 +199,8 @@ The Microphase Z7-Lite microSD slot is wired to Zynq PS MIO, not PL pins, so SD 
 
 All modules have corresponding testbenches in `tb/`:
 
-```bash
-# Run simulation in Vivado
-launch_simulation
-
-# Or from command line
-xsim tb_main_behav -runall
+```powershell
+python .\tools\sim_pwm_demo.py --testbench tb_main
 ```
 
 ---
@@ -277,8 +277,8 @@ Verify understanding by running testbenches in `tb/`.
 
 ### Clock Domains
 
-- `clk`: System clock (250 MHz)
-- `clk_pwm`: PWM clock (125 MHz)
+- `clk`: System clock (50 MHz in the current board builds)
+- `clk_pwm`: PWM clock (100 MHz in the current board builds)
 - Prefix signals with domain for clarity
 
 ---
@@ -304,6 +304,7 @@ Verify understanding by running testbenches in `tb/`.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-06-16 | 1.1 | Updated clocking, reset/mode control, sine ramp, source layout, and simulation command docs |
 | 2026-04-09 | 1.0 | Initial documentation release |
 
 ---
@@ -330,6 +331,6 @@ When adding new modules, please:
 
 ---
 
-**Documentation Generated:** 2026-04-09  
+**Documentation Generated:** 2026-06-16
 **Project Version:** 3.0  
 **Target Device:** Xilinx Zynq-7000 (XC7Z010/XC7Z020)

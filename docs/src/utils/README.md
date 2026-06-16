@@ -574,6 +574,6 @@ tb/
 
 ## See Also
 
-- [Counter Modules](../src/counters/README.md)
-- [PWM Multi-Channel](../src/pwm/README.md#pwm_mch_bufvhd)
+- [Counter Modules](../counters/README.md)
+- [PWM Multi-Channel](../pwm/README.md#pwm_mch_bufvhd)
 - [Edge Delay](#edge_delayvhd)

@@ -11,6 +11,7 @@ pwm_demo (Project Root)
 │
 ├── Top-Level Design
 │   └── main.vhd
+│       ├── main_reset_ctrl
 │       ├── Clock System
 │       │   ├── IBUF (Xilinx primitive)
 │       │   ├── BUFG (Xilinx primitive)
@@ -18,45 +19,56 @@ pwm_demo (Project Root)
 │       │
 │       ├── Signal Generation (clk domain)
 │       │   └── sine_gen_simple.vhd
-│       │       └── generate_sine_wave() [function]
+│       │       ├── generate_sine_wave() [function]
+│       │       └── optional soft-start ramp
 │       │
-│       └── PWM Generation (clk_pwm domain)
-│           └── pwm_mch_buf.vhd
-│               ├── data_decimator.vhd
-│               ├── async_fifo.vhd
-│               │   ├── bin2gray() [function]
-│               │   └── gray2bin() [function]
-│               ├── pwm_reg_ctrl [process]
-│               │
-│               └── pwm_1ch.vhd × N (channels)
-│                   ├── updown_counter_*.vhd / up_counter_*.vhd (carrier)
-│                   ├── scaler_signed / scaler_unsigned
-│                   ├── pwm_1ch_drive_pkg.vhd (pre-drive legs)
-│                   └── dead_time_generator.vhd
+│       ├── Direct PWM Generation (clk domain)
+│       │   └── pwm_mch.vhd
+│       │       └── pwm_1ch.vhd × N (channels)
+│       │
+│       ├── Buffered PWM Generation (clk/clk_pwm domains)
+│       │   └── pwm_mch_buf.vhd
+│       │       ├── data_decimator.vhd
+│       │       ├── async_fifo.vhd
+│       │       │   ├── bin2gray() [function]
+│       │       │   └── gray2bin() [function]
+│       │       ├── pwm_reg_ctrl [process]
+│       │       │
+│       │       └── pwm_1ch.vhd × N (channels)
+│       │           ├── updown_counter_*.vhd / up_counter_*.vhd (carrier)
+│       │           ├── scaler_signed / scaler_unsigned
+│       │           ├── pwm_1ch_drive_pkg.vhd (pre-drive legs)
+│       │           └── dead_time_generator.vhd
+│       │
+│       └── Output Selection
+│           └── direct/buffered mux blanked by pwm_rst
 │
-├── Counter Modules
-│   ├── up_counter_signed.vhd
-│   ├── up_counter_unsigned.vhd
-│   ├── updown_counter_signed.vhd
-│   └── updown_counter_unsigned.vhd
+├── Reusable PWM Core (`src/pwm_core/rtl`)
+│   ├── PWM Modules
+│   │   ├── pwm_mch.vhd
+│   │   ├── pwm_1ch.vhd
+│   │   └── pwm_1ch_drive_pkg.vhd
+│   ├── Counter Modules
+│   │   ├── up_counter_signed.vhd
+│   │   ├── up_counter_unsigned.vhd
+│   │   ├── updown_counter_signed.vhd
+│   │   └── updown_counter_unsigned.vhd
+│   ├── Signal Chain Modules
+│   │   ├── scaler_fp23.vhd
+│   │   ├── scaler_signed.vhd
+│   │   └── scaler_unsigned.vhd
+│   ├── FP23 Helpers
+│   │   └── fp23_pkg.vhd
+│   └── Utility Modules
+│       ├── dead_time_generator.vhd
+│       └── range_divider_pkg.vhd
 │
-├── Signal Chain Modules
-│   ├── sine_gen_simple.vhd
-│   ├── data_decimator.vhd
-│   ├── scaler_signed.vhd
-│   └── scaler_unsigned.vhd
-│
-├── Buffer Modules
-│   └── async_fifo.vhd
-│
-├── Utility Modules
-│   ├── dead_time_generator.vhd
-│   ├── edge_delay.vhd
-│   └── range_divider_pkg.vhd
-│       ├── value_flag_pair [type]
-│       ├── get_chunk_end()
-│       ├── get_chunk_end_signed()
-│       └── get_chunk_end_unsigned()
+├── Demo-Specific Modules
+│   ├── signal_chain/sine_gen_simple.vhd
+│   ├── signal_chain/data_decimator.vhd
+│   ├── buffers/async_fifo.vhd
+│   ├── pwm/pwm_mch_buf.vhd
+│   └── utils/edge_delay.vhd
 │
 └── Testbenches
     ├── tb_main.vhd
@@ -65,10 +77,8 @@ pwm_demo (Project Root)
     ├── tb_scalers.vhd
     ├── tb_counters.vhd
     ├── tb_async_fifo.vhd
-    ├── tb_sync_fifo.vhd
     ├── tb_output_control.vhd
-    ├── tb_range_divider_pkg.vhd
-    └── range_divider_pkg_tb.vhd
+    └── tb_range_divider_pkg.vhd
 ```
 
 ---
@@ -84,7 +94,9 @@ main
 ├─► clk_gbuffer (BUFG)
 ├─► mmcm_adv (MMCME2_ADV)
 ├─► dut_sine (sine_gen_simple)
-├─► adv_pwm (pwm_mch_buf)
+├─► direct_pwm (pwm_mch)
+├─► buffered_pwm (pwm_mch_buf)
+├─► reset_ctrl (main_reset_ctrl)
 └─► pwm_obufs[i] (OBUF) [generate loop]
 ```
 
@@ -140,6 +152,8 @@ graph TB
 
     subgraph "Clock Domain 1: System Clock"
         SINE[sine_gen_simple.vhd]
+        DIRECT[pwm_mch.vhd]
+        RESET[main_reset_ctrl]
     end
 
     subgraph "Clock Domain 2: PWM Clock"
@@ -171,8 +185,12 @@ graph TB
     end
 
     MAIN --> SINE
+    MAIN --> DIRECT
     MAIN --> PWM_MCH_BUF
+    MAIN --> RESET
 
+    DIRECT --> PWM_1CH
+    DIRECT --> RANGE
     PWM_MCH_BUF --> DEC
     PWM_MCH_BUF --> FIFO
     PWM_MCH_BUF --> PWM_1CH
@@ -190,6 +208,7 @@ graph TB
 
     style MAIN fill:#ffe1e1
     style SINE fill:#e1ffe1
+    style DIRECT fill:#e1ffe1
     style PWM_MCH_BUF fill:#e1ffe1
     style PWM_1CH fill:#e1ffe1
     style FIFO fill:#f0e1ff
@@ -203,17 +222,18 @@ graph TB
 | Module | Clock Domain | Frequency | Notes |
 |--------|--------------|-----------|-------|
 | main.vhd | Mixed | - | Contains both domains |
-| IBUF/BUFG | Input | 125 MHz | External clock |
+| IBUF/BUFG | Input | 100 MHz | Current board XDC clock |
 | MMCME2_ADV | Internal | - | Clock generation |
-| sine_gen_simple.vhd | clk | 250 MHz | System clock |
-| data_decimator.vhd | clk | 250 MHz | System clock |
-| async_fifo.vhd (write) | clk | 250 MHz | Write side |
-| async_fifo.vhd (read) | clk_pwm | 125 MHz | Read side |
-| pwm_mch_buf.vhd (read ctrl) | clk_pwm | 125 MHz | PWM clock |
-| pwm_1ch.vhd | clk_pwm | 125 MHz | PWM clock |
-| All counters | clk_pwm | 125 MHz | PWM clock |
-| All scalers | clk_pwm | 125 MHz | PWM clock |
-| dead_time_generator | clk_pwm | 125 MHz | PWM clock |
+| main_reset_ctrl | clk | 50 MHz | Synchronized reset and mode handoff |
+| sine_gen_simple.vhd | clk | 50 MHz | System clock |
+| pwm_mch.vhd | clk | 50 MHz | Direct PWM branch |
+| data_decimator.vhd | clk | 50 MHz | System clock |
+| async_fifo.vhd (write) | clk | 50 MHz | Write side |
+| async_fifo.vhd (read) | clk_pwm | 100 MHz | Read side |
+| pwm_mch_buf.vhd (read ctrl) | clk_pwm | 100 MHz | Buffered PWM clock |
+| pwm_1ch.vhd in `pwm_mch_buf` | clk_pwm | 100 MHz | Buffered PWM channels |
+| pwm_1ch.vhd in `pwm_mch` | clk | 50 MHz | Direct PWM channels |
+| Counters/scalers/dead-time | Branch clock | 50 or 100 MHz | Clock follows direct or buffered parent |
 
 ---
 
@@ -224,8 +244,11 @@ graph TB
 ```vhdl
 entity main is
   generic (
-    num_channels : integer := 4;
-    debug        : string  := "NO_DEBUG"
+    num_channels                 : integer := 4;
+    debug                        : string  := "NO_DEBUG";
+    pwm_mode_switch_delay_cycles : natural := 25_000_000;
+    sine_ramp_length             : positive := 2048;
+    reset_release_cycles         : positive := 5
   );
   port (
     sys_clk      : in    std_logic;
@@ -244,7 +267,9 @@ entity sine_gen_simple is
   generic (
     wave_length : positive := 1024;
     bit_width   : positive := 16;
-    data_type   : string   := "UNSIGNED"
+    data_type   : string   := "UNSIGNED";
+    ramp_enable : boolean  := false;
+    ramp_length : natural  := 0
   );
   port (
     clk         : in    std_logic;
@@ -267,7 +292,9 @@ entity pwm_mch_buf is
     ref_type        : string    := "SYMMETRICAL";
     output_mode     : string    := "COMPLEMENTARY";
     ref_step        : integer   := 1;
-    ref_updwn       : std_logic := '1'
+    ref_updwn       : std_logic := '1';
+    clk_freq_hz     : integer   := 100_000_000;
+    clk_pwm_freq_hz : integer   := 200_000_000
   );
   port (
     clk        : in    std_logic;
@@ -287,21 +314,23 @@ end entity;
 entity pwm_1ch is
   generic (
     r               : integer   := 7;
+    input_width     : integer   := 7;
     d               : integer   := 2;
     input_data_type : string    := "SIGNED";
     ref_type        : string    := "SYMMETRICAL";
     output_mode     : string    := "COMPLEMENTARY";
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
-    ref_init        : integer   := 0;
-    ref_step        : integer   := 1;
-    ref_updwn       : std_logic := '1'
+    fp23_binary_point : integer   := 6;
+    ref_init          : integer   := 0;
+    ref_step          : integer   := 1;
+    ref_updwn         : std_logic := '1'
   );
   port (
     clk        : in    std_logic;
     rst        : in    std_logic;
     enable     : in    std_logic;
-    input_wave : in    std_logic_vector(r - 1 downto 0);
+    input_wave : in    std_logic_vector(input_width - 1 downto 0);
     pwm        : out   std_logic;
     pwm_n      : out   std_logic
   );
@@ -315,27 +344,34 @@ end entity;
 ```
 src/
 ├── main.vhd                              # Top-level design
+├── pwm_core/rtl/
+│   ├── pwm/
+│   │   ├── pwm_1ch.vhd                   # Single-channel PWM
+│   │   ├── pwm_1ch_drive_pkg.vhd         # Complementary / bipolar drive functions
+│   │   └── pwm_mch.vhd                   # Multi-channel direct PWM
+│   ├── counters/
+│   │   ├── up_counter_signed.vhd
+│   │   ├── up_counter_unsigned.vhd
+│   │   ├── updown_counter_signed.vhd
+│   │   └── updown_counter_unsigned.vhd
+│   ├── signal_chain/
+│   │   ├── scaler_fp23.vhd
+│   │   ├── scaler_signed.vhd
+│   │   └── scaler_unsigned.vhd
+│   ├── fp23/
+│   │   └── fp23_pkg.vhd
+│   └── utils/
+│       ├── dead_time_generator.vhd
+│       └── range_divider_pkg.vhd
 ├── pwm/
-│   ├── pwm_1ch.vhd                       # Single-channel PWM
-│   ├── pwm_1ch_drive_pkg.vhd           # Complementary / bipolar drive functions
-│   ├── pwm_mch_buf.vhd                   # Multi-channel buffered
-│   └── pwm_mch.vhd                       # Multi-channel (legacy)
-├── counters/
-│   ├── up_counter_signed.vhd
-│   ├── up_counter_unsigned.vhd
-│   ├── updown_counter_signed.vhd
-│   └── updown_counter_unsigned.vhd
+│   └── pwm_mch_buf.vhd                   # Multi-channel buffered wrapper
 ├── signal_chain/
 │   ├── sine_gen_simple.vhd
-│   ├── data_decimator.vhd
-│   ├── scaler_signed.vhd
-│   └── scaler_unsigned.vhd
+│   └── data_decimator.vhd
 ├── buffers/
 │   └── async_fifo.vhd
 └── utils/
-    ├── dead_time_generator.vhd
-    ├── edge_delay.vhd
-    └── range_divider_pkg.vhd
+    └── edge_delay.vhd
 ```
 
 ---
@@ -376,4 +412,4 @@ src/
 
 - [Architecture Overview](./overview.md)
 - [Clock Domain Details](./clock_domains.md)
-- [Source Documentation](../src/README.md)
+- [Documentation Index](../README.md)

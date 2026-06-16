@@ -399,10 +399,10 @@ constant counter_step_reg : signed(r-1 downto 0) := to_signed(step, r);
 
 ### Timing Performance
 
-| Counter Type | Max Frequency (Zynq-7020) |
-|--------------|---------------------------|
-| up_counter | >300 MHz |
-| updown_counter | >250 MHz |
+| Counter Type | Current Build Margin |
+|--------------|----------------------|
+| up_counter | Above the 100 MHz PWM branch clock |
+| updown_counter | Above the 100 MHz PWM branch clock |
 
 ---
 
@@ -429,6 +429,6 @@ tb/
 
 ## See Also
 
-- [PWM Modules](../src/pwm/README.md)
-- [Range Divider Package](../src/utils/range_divider_pkg.md)
-- [Counter Testbenches](../../tb/README.md)
+- [PWM Modules](../pwm/README.md)
+- [Range Divider Package](../utils/README.md#range_divider_pkgvhd---range-divider-package)
+- [Counter Testbench](../../../tb/tb_counters.vhd)
