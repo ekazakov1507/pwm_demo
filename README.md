@@ -10,29 +10,33 @@ This project implements a high-frequency PWM modulation system with the followin
 - **Multi-channel output** (default: 4 channels with complementary pairs)
 - **Dead-time insertion** to prevent shoot-through in power electronics applications
 - **Buffered architecture** using asynchronous FIFOs for reliable clock domain crossing
-- **MMCM clock generation** for precise frequency control
+- **MMCM clock generation** for board-clock-derived `clk` and `clk_pwm` domains
+- **Runtime direct/buffered PWM mode select** with blanked output handoff
+- **Sine-wave soft-start ramp** after reset to avoid an immediate full-amplitude step
 - **Configurable parameters** including data width, dead-time cycles, and reference signal type
 - **Optional VIO/ILA debug build** for reset/mode force and override control plus PWM output capture
 
 ## Technical Specifications
 
 ### Current Configuration (v3)
-- **PWM Frequency:** ~1 MHz (symmetrical)
-- **Modulation:** 100 kHz sinusoidal signal
+- **PWM Frequency:** ~781.25 kHz in the current board builds (`clk_pwm` / 128)
+- **Modulation:** Sine LUT source; current board constraints yield ~24.4 kHz for `clk` / 2048
 - **Resolution:** 6-bit PWM (configurable)
-- **Clock Frequency:** 250 MHz (system), derived from 125 MHz input
-- **Dead Time:** 4 clock cycles
+- **Clock Frequency:** 50 MHz `clk` and 100 MHz `clk_pwm`, derived from the 100 MHz board input constraints
+- **Dead Time:** 4 `clk_pwm` cycles (~40 ns with the current constraints)
 - **Buffer Depth:** 1024 samples
 - **Wave Table Length:** 2048 points
+- **Sine Soft Start:** 2048 `clk` cycles by default
 
 ### Architecture
 ```
-System Clock (125 MHz)
+System Clock (100 MHz, constrained by board XDC)
     ↓
 [IBUF] → [BUFG] → [MMCM]
                      ↓
-              clk (250 MHz) ──→ [Sine Generator] ──→ [PWM Module] ──→ [OBUF] → PWM Outputs
-              clk_pwm (125 MHz) ──→ [Reference Counter]
+              clk (50 MHz) ──→ [Sine Generator] ──→ [Direct PWM]
+                            └──→ [Buffered PWM / FIFO] ──→ [Mode Select] ──→ [OBUF] → PWM Outputs
+              clk_pwm (100 MHz) ──→ [Buffered PWM Reference Counter]
 ```
 
 ## Project Structure
@@ -41,19 +45,17 @@ System Clock (125 MHz)
 pwm_demo/
 ├── src/                        # Source files
 │   ├── main.vhd               # Top-level design
-│   ├── pwm/                   # PWM generation modules
-│   │   ├── pwm_1ch.vhd        # Single-channel PWM with dead-time
-│   │   └── pwm_mch_buf.vhd    # Multi-channel buffered PWM
-│   ├── counters/              # Counter implementations
-│   │   ├── up_counter_signed.vhd
-│   │   ├── up_counter_unsigned.vhd
-│   │   ├── updown_counter_signed.vhd
-│   │   └── updown_counter_unsigned.vhd
-│   ├── signal_chain/          # Signal generation & conditioning
-│   │   ├── sine_gen_simple.vhd  # Sine wave lookup table
-│   │   ├── data_decimator.vhd
-│   │   ├── scaler_signed.vhd
-│   │   └── scaler_unsigned.vhd
+│   ├── pwm_core/rtl/          # Reusable PWM core submodule
+│   │   ├── pwm/               # pwm_mch, pwm_1ch, drive package
+│   │   ├── counters/          # Reference counter implementations
+│   │   ├── signal_chain/      # Scalers including FP23 support
+│   │   ├── fp23/              # Packed FP23 helpers
+│   │   └── utils/             # Range divider and dead-time generator
+│   ├── pwm/                   # Demo-specific PWM wrappers
+│   │   └── pwm_mch_buf.vhd    # Multi-channel buffered PWM with CDC
+│   ├── signal_chain/          # Demo-specific signal generation & conditioning
+│   │   ├── sine_gen_simple.vhd  # Sine wave LUT with optional ramp
+│   │   └── data_decimator.vhd
 │   ├── buffers/               # FIFO buffers
 │   │   └── async_fifo.vhd     # Asynchronous FIFO for clock domain crossing
 │   └── utils/                 # Utility modules
@@ -65,7 +67,9 @@ pwm_demo/
 │   ├── tb_pwm_mch.vhd
 │   ├── tb_counters.vhd
 │   ├── tb_async_fifo.vhd
-│   ├── tb_sync_fifo.vhd
+│   ├── tb_scalers.vhd
+│   ├── tb_range_divider_pkg.vhd
+│   ├── tb_output_control.vhd
 │   └── ...
 ├── constraints/                # Pin constraints for target boards
 │   ├── Zybo_board.xdc         # Digilent Zybo Z7
@@ -76,7 +80,7 @@ pwm_demo/
 │   ├── pwm_c.m                # Symmetrical PWM model
 │   ├── table_cos.m            # Cosine table generation
 │   └── cos_table.txt          # Pre-computed cosine values
-├── python/                     # Python utilities
+├── tools/                      # Python build/simulation/archive utilities
 ├── sim/                        # Simulation files
 └── ip/                         # Generated IP cores
 ```
@@ -172,7 +176,7 @@ launch_simulation
 
 ```powershell
 # From PowerShell:
-.\tools\sim_pwm_demo.ps1 -Testbench tb_pwm_mch
+python .\tools\sim_pwm_demo.py --testbench tb_pwm_mch
 ```
 
 ## Design Parameters
@@ -190,6 +194,9 @@ The top-level module (`main.vhd`) accepts the following generics:
 | `ref_step` | 1 | Reference counter increment |
 | `ref_updwn` | '1' | Up/down counting mode |
 | `debug` | "NO_DEBUG" | Optional `"DEBUG"` build mode that instantiates generated VIO/ILA IP |
+| `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime direct/buffered mode change |
+| `sine_ramp_length` | 2048 | Sine soft-start ramp length in `clk` cycles |
+| `reset_release_cycles` | 5 | Minimum synchronized reset assertion length for sine/PWM reset release |
 
 ## Algorithm Description
 
@@ -201,9 +208,9 @@ The system implements **symmetrical (center-aligned) PWM** where:
 - Center-aligned PWM reduces harmonic content compared to edge-aligned
 
 ### Clock Architecture
-- **Input Clock:** 125 MHz from external oscillator
-- **System Clock (clk):** 250 MHz via MMCM (for PWM logic)
-- **PWM Clock (clk_pwm):** 125 MHz via MMCM (for reference counter)
+- **Input Clock:** 100 MHz in the checked-in board constraints
+- **System Clock (clk):** 50 MHz via MMCM ratio in current board builds
+- **PWM Clock (clk_pwm):** 100 MHz via MMCM ratio in current board builds
 - **Asynchronous FIFO:** Bridges clock domain between sine generator and PWM module
 
 ### Dead-Time Insertion
@@ -216,13 +223,15 @@ The system implements **symmetrical (center-aligned) PWM** where:
 ### Version 3 (Current) - Reference-Aligned Modulation
 - Module signal adapts to reference signal characteristics
 - Integer-only counter increments for simplicity
-- Optimized for 1 MHz PWM with 250 MHz clock
+- Uses direct and buffered PWM branches selected by `sys_pwm_mode`
+- Blanks outputs during runtime mode handoff and during PWM reset
+- Enables sine soft-start ramp after reset
 - Uses symmetrical PWM with triangle reference
 
 ### Version 2 (Legacy) - Module-Aligned Reference
 - Reference signal adapts to module signal
 - Required fractional MMCM dividers (not supported)
-- Effective PWM frequency: 0.9765 MHz (with 250 MHz clock)
+- Historical effective PWM frequency estimate: 0.9765 MHz
 
 ### Version 1 (Legacy) - High Resolution
 - 16-bit resolution with 100 MHz clock
@@ -271,4 +280,4 @@ For issues, questions, or contributions, please open an issue in the repository.
 **Development Environment:** Xilinx Vivado 2018.3  
 **Target Devices:** Xilinx Zynq-7000 (XC7Z010/XC7Z020)  
 **Language:** VHDL-2008  
-**Last Updated:** 2026-04-09
+**Last Updated:** 2026-06-16
