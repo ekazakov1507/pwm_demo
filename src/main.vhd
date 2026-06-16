@@ -2,6 +2,97 @@ library ieee;
   use ieee.std_logic_1164.all;
   use ieee.numeric_std.all;
 
+entity main_reset_ctrl is
+  generic (
+    pwm_mode_switch_delay_cycles : natural  := 25_000_000;
+    reset_release_cycles         : positive := 5
+  );
+  port (
+    clk              : in    std_logic;
+    mmcm_clk_lock    : in    std_logic;
+    rst_request      : in    std_logic;
+    pwm_mode_request : in    std_logic;
+    sine_rst         : out   std_logic;
+    pwm_rst          : out   std_logic;
+    pwm_mode_sel     : out   std_logic
+  );
+end entity main_reset_ctrl;
+
+architecture src of main_reset_ctrl is
+
+  signal mmcm_lock_sync       : std_logic_vector(1 downto 0) := "00";
+  signal sys_rst_sync         : std_logic_vector(1 downto 0) := "11";
+  signal pwm_mode_sync        : std_logic_vector(2 downto 0) := "000";
+  signal sine_reset_count     : natural range 0 to reset_release_cycles := reset_release_cycles;
+  signal pwm_reset_count      : natural range 0 to reset_release_cycles := reset_release_cycles;
+  signal pwm_mode_sel_reg     : std_logic := '0';
+  signal pwm_mode_delay_active : std_logic := '0';
+  signal pwm_mode_delay_count : natural range 0 to pwm_mode_switch_delay_cycles := 0;
+
+begin
+
+  pwm_mode_switch_delay_valid : assert (pwm_mode_switch_delay_cycles > 0)
+    report "main_reset_ctrl: pwm_mode_switch_delay_cycles must be greater than 0"
+    severity failure;
+
+  reset_release_cycles_valid : assert (reset_release_cycles >= 5)
+    report "main_reset_ctrl: reset_release_cycles must be at least 5"
+    severity failure;
+
+  sine_rst     <= '1' when (sine_reset_count > 0) else '0';
+  pwm_rst      <= '1' when (pwm_reset_count > 0) else '0';
+  pwm_mode_sel <= pwm_mode_sel_reg;
+
+  rst_gen : process (clk) is
+  begin
+
+    if rising_edge(clk) then
+      mmcm_lock_sync <= mmcm_lock_sync(0) & mmcm_clk_lock;
+      sys_rst_sync   <= sys_rst_sync(0) & rst_request;
+      pwm_mode_sync  <= pwm_mode_sync(1 downto 0) & pwm_mode_request;
+
+      if (sine_reset_count > 0) then
+        sine_reset_count <= sine_reset_count - 1;
+      end if;
+
+      if (pwm_reset_count > 0) then
+        pwm_reset_count <= pwm_reset_count - 1;
+      end if;
+
+      if ((mmcm_lock_sync(1) = '0') or
+          (sys_rst_sync(1) = '1')) then
+        sine_reset_count <= reset_release_cycles;
+        pwm_reset_count <= reset_release_cycles;
+        pwm_mode_sel_reg <= pwm_mode_sync(2);
+        pwm_mode_delay_active <= '0';
+        pwm_mode_delay_count <= 0;
+      elsif (pwm_mode_delay_active = '1') then
+        pwm_reset_count <= reset_release_cycles;
+
+        if (pwm_mode_sync(2) = pwm_mode_sel_reg) then
+          pwm_mode_delay_active <= '0';
+          pwm_mode_delay_count <= 0;
+        elsif (pwm_mode_delay_count = 0) then
+          pwm_mode_sel_reg <= pwm_mode_sync(2);
+          pwm_mode_delay_active <= '0';
+        else
+          pwm_mode_delay_count <= pwm_mode_delay_count - 1;
+        end if;
+      elsif (pwm_mode_sync(2) /= pwm_mode_sel_reg) then
+        pwm_reset_count <= reset_release_cycles;
+        pwm_mode_delay_active <= '1';
+        pwm_mode_delay_count <= pwm_mode_switch_delay_cycles - 1;
+      end if;
+    end if;
+
+  end process rst_gen;
+
+end architecture src;
+
+library ieee;
+  use ieee.std_logic_1164.all;
+  use ieee.numeric_std.all;
+
 library unisim;
   use unisim.vcomponents.all;
 
@@ -9,7 +100,9 @@ entity main is
   generic (
     num_channels                 : integer := 4;
     debug                        : string  := "NO_DEBUG";
-    pwm_mode_switch_delay_cycles : natural := 25_000_000
+    pwm_mode_switch_delay_cycles : natural := 25_000_000;
+    sine_ramp_length             : positive := 2048;
+    reset_release_cycles         : positive := 5
   );
   port (
     sys_clk      : in    std_logic;
@@ -134,17 +227,12 @@ architecture src of main is
 
   signal clk            : std_logic                                 := '0';
   signal clk_pwm        : std_logic                                 := '0';
-  signal rst            : std_logic                                 := '1';
+  signal sine_rst       : std_logic                                 := '1';
+  signal pwm_rst        : std_logic                                 := '1';
   signal rst_request    : std_logic                                 := '0';
-  signal mmcm_lock_sync : std_logic_vector(1 downto 0)             := "00";
-  signal sys_rst_sync   : std_logic_vector(1 downto 0)             := "11";
-  signal rst_shreg      : std_logic_vector(2 downto 0)             := (others => '1');
   signal enable         : std_logic                                 := '1';
-  signal pwm_mode_sync  : std_logic_vector(2 downto 0)             := "000";
   signal pwm_mode_request : std_logic                               := '0';
   signal pwm_mode_sel   : std_logic                                 := '0';
-  signal pwm_mode_delay_active : std_logic                           := '0';
-  signal pwm_mode_delay_count : natural range 0 to pwm_mode_switch_delay_cycles := 0;
   signal sine_out       : std_logic_vector(data_width - 1 downto 0) := (others => '0');
 
   signal p_direct   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
@@ -165,10 +253,6 @@ begin
 
   debug_value_valid : assert ((debug = "NO_DEBUG") or (debug = "DEBUG"))
     report "main: debug generic must be NO_DEBUG or DEBUG"
-    severity failure;
-
-  pwm_mode_switch_delay_valid : assert (pwm_mode_switch_delay_cycles > 0)
-    report "main: pwm_mode_switch_delay_cycles must be greater than 0"
     severity failure;
 
   sys_clk_ibuffer : component ibuf
@@ -218,11 +302,13 @@ begin
     generic map (
       wave_length => wave_length,
       bit_width   => data_width,
-      data_type   => input_data_type
+      data_type   => input_data_type,
+      ramp_enable => true,
+      ramp_length => sine_ramp_length
     )
     port map (
       clk         => clk,
-      reset       => rst,
+      reset       => sine_rst,
       output_data => sine_out
     );
 
@@ -239,7 +325,7 @@ begin
     )
     port map (
       clk        => clk,
-      rst        => rst,
+      rst        => pwm_rst,
       enable     => enable,
       input_wave => sine_out,
       pwm        => p_direct,
@@ -260,15 +346,15 @@ begin
     port map (
       clk        => clk,
       clk_pwm    => clk_pwm,
-      rst        => rst,
+      rst        => pwm_rst,
       enable     => enable,
       input_wave => sine_out,
       pwm        => p_buf,
       pwm_n      => p_n_buf
     );
 
-  p_selected   <= pwm_idle when (rst = '1') else p_buf when (pwm_mode_sel = '1') else p_direct;
-  p_n_selected <= pwm_idle when (rst = '1') else p_n_buf when (pwm_mode_sel = '1') else p_n_direct;
+  p_selected   <= pwm_idle when (pwm_rst = '1') else p_buf when (pwm_mode_sel = '1') else p_direct;
+  p_n_selected <= pwm_idle when (pwm_rst = '1') else p_n_buf when (pwm_mode_sel = '1') else p_n_direct;
 
   rst_request <= vio_rst_ctrl(vio_override_value_bit) when (vio_rst_ctrl(vio_override_en_bit) = '1') else
                  sys_rst or vio_rst_ctrl(vio_force_bit);
@@ -277,7 +363,22 @@ begin
                       (vio_pwm_mode_ctrl(vio_override_en_bit) = '1') else
                       sys_pwm_mode or vio_pwm_mode_ctrl(vio_force_bit);
 
-  debug_probe_rst_ctrl      <= sys_rst & vio_rst_ctrl & rst_request & rst;
+  reset_ctrl : entity work.main_reset_ctrl
+    generic map (
+      pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
+      reset_release_cycles         => reset_release_cycles
+    )
+    port map (
+      clk              => clk,
+      mmcm_clk_lock    => mmcm_clk_lock,
+      rst_request      => rst_request,
+      pwm_mode_request => pwm_mode_request,
+      sine_rst         => sine_rst,
+      pwm_rst          => pwm_rst,
+      pwm_mode_sel     => pwm_mode_sel
+    );
+
+  debug_probe_rst_ctrl      <= sys_rst & vio_rst_ctrl & rst_request & pwm_rst;
   debug_probe_pwm_mode_ctrl <= sys_pwm_mode & vio_pwm_mode_ctrl & pwm_mode_request & pwm_mode_sel;
   debug_probe_p_selected          <= resize_pwm_debug_probe(p_selected);
   debug_probe_p_n_selected        <= resize_pwm_debug_probe(p_n_selected);
@@ -326,46 +427,5 @@ begin
       );
 
   end generate pwm_obufs;
-
-  rst <= rst_shreg(2);
-
-  -- Keep reset fully synchronous in the MMCM output clock domain so
-  -- downstream BRAM control signals are not driven by async-reset flops.
-  rst_gen : process (clk) is
-  begin
-
-    if rising_edge(clk) then
-      mmcm_lock_sync <= mmcm_lock_sync(0) & mmcm_clk_lock;
-      sys_rst_sync   <= sys_rst_sync(0) & rst_request;
-      pwm_mode_sync  <= pwm_mode_sync(1 downto 0) & pwm_mode_request;
-
-      if ((mmcm_lock_sync(1) = '0') or
-          (sys_rst_sync(1) = '1')) then
-        rst_shreg <= (others => '1');
-        pwm_mode_sel <= pwm_mode_sync(2);
-        pwm_mode_delay_active <= '0';
-        pwm_mode_delay_count <= 0;
-      elsif (pwm_mode_delay_active = '1') then
-        rst_shreg <= (others => '1');
-
-        if (pwm_mode_sync(2) = pwm_mode_sel) then
-          pwm_mode_delay_active <= '0';
-          pwm_mode_delay_count <= 0;
-        elsif (pwm_mode_delay_count = 0) then
-          pwm_mode_sel <= pwm_mode_sync(2);
-          pwm_mode_delay_active <= '0';
-        else
-          pwm_mode_delay_count <= pwm_mode_delay_count - 1;
-        end if;
-      elsif (pwm_mode_sync(2) /= pwm_mode_sel) then
-        rst_shreg <= (others => '1');
-        pwm_mode_delay_active <= '1';
-        pwm_mode_delay_count <= pwm_mode_switch_delay_cycles - 1;
-      else
-        rst_shreg <= rst_shreg(1 downto 0) & '0';
-      end if;
-    end if;
-
-  end process rst_gen;
 
 end architecture src;
