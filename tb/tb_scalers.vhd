@@ -15,9 +15,13 @@ architecture tb of tb_scalers is
   signal sine_ramp_signed    : std_logic_vector(15 downto 0) := (others => '0');
   signal sine_pulse_signed   : std_logic_vector(15 downto 0) := (others => '0');
   signal sine_pulse_unsigned : std_logic_vector(15 downto 0) := (others => '0');
+  signal sampled_sine_out    : std_logic_vector(15 downto 0) := (others => '0');
+  signal sampled_sine_sample_ce : std_logic := '0';
+  signal sampled_sine_valid  : std_logic := '0';
   signal scaled_out_unsigned : std_logic_vector(15 downto 0);
   signal scaled_out_signed   : std_logic_vector(15 downto 0);
   signal pulse_checks_done   : boolean := false;
+  signal sampled_checks_done : boolean := false;
 
   constant clk_period                : time     := 10 ns;
   constant ramp_test_wave_length     : positive := 16;
@@ -65,9 +69,10 @@ begin
       data_type   => "UNSIGNED"
     )
     port map (
-      clk         => clk,
-      reset       => reset,
-      output_data => sine_out_unsigned
+      clk          => clk,
+      reset        => reset,
+      output_valid => open,
+      output_data  => sine_out_unsigned
     );
 
   dut_scaler : entity work.scaler_unsigned
@@ -90,9 +95,10 @@ begin
       data_type   => "SIGNED"
     )
     port map (
-      clk         => clk,
-      reset       => reset,
-      output_data => sine_out_signed
+      clk          => clk,
+      reset        => reset,
+      output_valid => open,
+      output_data  => sine_out_signed
     );
 
   ut_scaler : entity work.scaler_signed
@@ -116,9 +122,10 @@ begin
       ramp_length => ramp_test_length
     )
     port map (
-      clk         => clk,
-      reset       => reset,
-      output_data => sine_ramp_unsigned
+      clk          => clk,
+      reset        => reset,
+      output_valid => open,
+      output_data  => sine_ramp_unsigned
     );
 
   ramp_sine_signed : entity work.sine_gen_simple
@@ -130,9 +137,10 @@ begin
       ramp_length => ramp_test_length
     )
     port map (
-      clk         => clk,
-      reset       => reset,
-      output_data => sine_ramp_signed
+      clk          => clk,
+      reset        => reset,
+      output_valid => open,
+      output_data  => sine_ramp_signed
     );
 
   pulse_sine_signed : entity work.sine_gen_simple
@@ -148,9 +156,10 @@ begin
       pulse_fall_cycles        => pulse_test_fall_cycles
     )
     port map (
-      clk         => clk,
-      reset       => reset,
-      output_data => sine_pulse_signed
+      clk          => clk,
+      reset        => reset,
+      output_valid => open,
+      output_data  => sine_pulse_signed
     );
 
   pulse_sine_unsigned : entity work.sine_gen_simple
@@ -166,9 +175,24 @@ begin
       pulse_fall_cycles        => pulse_test_fall_cycles
     )
     port map (
-      clk         => clk,
-      reset       => reset,
-      output_data => sine_pulse_unsigned
+      clk          => clk,
+      reset        => reset,
+      output_valid => open,
+      output_data  => sine_pulse_unsigned
+    );
+
+  sampled_sine : entity work.sine_gen_simple
+    generic map (
+      wave_length => ramp_test_wave_length,
+      bit_width   => 16,
+      data_type   => "SIGNED"
+    )
+    port map (
+      clk          => clk,
+      reset        => reset,
+      sample_ce    => sampled_sine_sample_ce,
+      output_valid => sampled_sine_valid,
+      output_data  => sampled_sine_out
     );
 
   clk <= not clk after clk_period / 2;
@@ -232,6 +256,9 @@ begin
     wait for 3000 * clk_period;
     if (not pulse_checks_done) then
       wait until pulse_checks_done;
+    end if;
+    if (not sampled_checks_done) then
+      wait until sampled_checks_done;
     end if;
 
     report "Simulation finished. Check waveform!";
@@ -297,6 +324,67 @@ begin
     wait;
 
   end process pulse_monitor;
+
+  sampled_monitor : process is
+    variable held_sample  : std_logic_vector(15 downto 0) := (others => '0');
+    variable first_sample : std_logic_vector(15 downto 0) := (others => '0');
+  begin
+
+    wait until reset = '0';
+    sampled_sine_sample_ce <= '0';
+    wait until rising_edge(clk);
+    wait for 1 ns;
+
+    held_sample := sampled_sine_out;
+
+    for i in 1 to 3 loop
+      wait until rising_edge(clk);
+      wait for 1 ns;
+
+      assert sampled_sine_valid = '0'
+        report "Sampled sine: output_valid asserted while sample_ce was low"
+        severity failure;
+      assert sampled_sine_out = held_sample
+        report "Sampled sine: output changed while sample_ce was low"
+        severity failure;
+    end loop;
+
+    sampled_sine_sample_ce <= '1';
+    wait until rising_edge(clk);
+    wait for 1 ns;
+
+    assert sampled_sine_valid = '1'
+      report "Sampled sine: output_valid did not assert with sample_ce"
+      severity failure;
+
+    first_sample := sampled_sine_out;
+    sampled_sine_sample_ce <= '0';
+    wait until rising_edge(clk);
+    wait for 1 ns;
+
+    assert sampled_sine_valid = '0'
+      report "Sampled sine: output_valid did not deassert after sample_ce"
+      severity failure;
+    assert sampled_sine_out = first_sample
+      report "Sampled sine: output did not hold after sample_ce deasserted"
+      severity failure;
+
+    sampled_sine_sample_ce <= '1';
+    wait until rising_edge(clk);
+    wait for 1 ns;
+
+    assert sampled_sine_valid = '1'
+      report "Sampled sine: second output_valid did not assert with sample_ce"
+      severity failure;
+    assert sampled_sine_out /= first_sample
+      report "Sampled sine: waveform did not advance on the second sample_ce"
+      severity failure;
+
+    sampled_sine_sample_ce <= '0';
+    sampled_checks_done <= true;
+    wait;
+
+  end process sampled_monitor;
 
 -- process(clk)
 -- begin

@@ -21,6 +21,9 @@ entity sine_gen_simple is
   port (
     clk         : in    std_logic;
     reset       : in    std_logic;
+    enable      : in    std_logic := '1';
+    sample_ce   : in    std_logic := '1';
+    output_valid : out  std_logic;
     output_data : out   std_logic_vector(bit_width - 1 downto 0)
   );
 end entity sine_gen_simple;
@@ -266,47 +269,53 @@ begin
       index       <= 0;
       ramp_count  <= 0;
       pulse_count <= 0;
+      output_valid <= '0';
       output_data <= (others => '0');
     elsif rising_edge(clk) then
-      sample := SINE_WAVE(index);
+      output_valid <= '0';
 
-      if (pulse_enable) then
-        if (data_type = "SIGNED" or data_type = "signed") then
-          output_data <= std_logic_vector(pulse_signed_sample(sample, pulse_count));
+      if ((enable = '1') and (sample_ce = '1')) then
+        output_valid <= '1';
+        sample := SINE_WAVE(index);
+
+        if (pulse_enable) then
+          if (data_type = "SIGNED" or data_type = "signed") then
+            output_data <= std_logic_vector(pulse_signed_sample(sample, pulse_count));
+          else
+            output_data <= std_logic_vector(pulse_unsigned_sample(sample, pulse_count));
+          end if;
+
+          if (pulse_count = pulse_period_cycles - 1) then
+            pulse_count <= 0;
+          else
+            pulse_count <= pulse_count + 1;
+          end if;
+
+          if (pulse_count_active(pulse_count)) then
+            if (index = wave_length - 1) then
+              index <= 0;
+            else
+              index <= index + 1;
+            end if;
+          else
+            index <= 0;
+          end if;
         else
-          output_data <= std_logic_vector(pulse_unsigned_sample(sample, pulse_count));
-        end if;
+          if (data_type = "SIGNED" or data_type = "signed") then
+            output_data <= std_logic_vector(ramp_signed_sample(sample, ramp_count));
+          else
+            output_data <= std_logic_vector(ramp_unsigned_sample(sample, ramp_count));
+          end if;
 
-        if (pulse_count = pulse_period_cycles - 1) then
-          pulse_count <= 0;
-        else
-          pulse_count <= pulse_count + 1;
-        end if;
+          if (ramp_enable and (ramp_count < effective_ramp_length)) then
+            ramp_count <= ramp_count + 1;
+          end if;
 
-        if (pulse_count_active(pulse_count)) then
           if (index = wave_length - 1) then
             index <= 0;
           else
             index <= index + 1;
           end if;
-        else
-          index <= 0;
-        end if;
-      else
-        if (data_type = "SIGNED" or data_type = "signed") then
-          output_data <= std_logic_vector(ramp_signed_sample(sample, ramp_count));
-        else
-          output_data <= std_logic_vector(ramp_unsigned_sample(sample, ramp_count));
-        end if;
-
-        if (ramp_enable and (ramp_count < effective_ramp_length)) then
-          ramp_count <= ramp_count + 1;
-        end if;
-
-        if (index = wave_length - 1) then
-          index <= 0;
-        else
-          index <= index + 1;
         end if;
       end if;
     end if;
