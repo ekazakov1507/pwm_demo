@@ -101,7 +101,11 @@ entity main is
     num_channels                 : integer := 4;
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
-    sine_ramp_length             : positive := 2048;
+    sine_pulse_period_cycles      : positive := 4096;
+    sine_pulse_start_delay_cycles : natural  := 1024;
+    sine_pulse_duration_cycles    : positive := 2048;
+    sine_pulse_front_cycles       : natural  := 256;
+    sine_pulse_fall_cycles        : natural  := 256;
     reset_release_cycles         : positive := 5
   );
   port (
@@ -121,6 +125,9 @@ architecture src of main is
   constant wave_length          : integer   := 2048;
   constant input_data_type      : string    := "SIGNED";
   constant ref_type             : string    := "SYMMETRICAL";
+  constant output_mode          : string    := "BIPOLAR_SPLIT";
+  constant scale_factor         : real      := 0.8;
+  constant offset_factor        : real      := 0.0;
   constant ref_step             : integer   := 1;
   constant ref_updwn            : std_logic := '1';
   constant pwm_idle             : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
@@ -185,6 +192,8 @@ architecture src of main is
       buffer_depth    : integer   := 1024;
       ref_type        : string    := "SYMMETRICAL";
       output_mode     : string    := "COMPLEMENTARY";
+      scale_factor    : real      := 0.8;
+      offset_factor   : real      := 0.1;
       ref_step        : integer   := 1;
       ref_updwn       : std_logic := '1';
       clk_freq_hz     : integer   := 100_000_000;
@@ -303,8 +312,12 @@ begin
       wave_length => wave_length,
       bit_width   => data_width,
       data_type   => input_data_type,
-      ramp_enable => true,
-      ramp_length => sine_ramp_length
+      pulse_enable             => true,
+      pulse_period_cycles      => sine_pulse_period_cycles,
+      pulse_start_delay_cycles => sine_pulse_start_delay_cycles,
+      pulse_duration_cycles    => sine_pulse_duration_cycles,
+      pulse_front_cycles       => sine_pulse_front_cycles,
+      pulse_fall_cycles        => sine_pulse_fall_cycles
     )
     port map (
       clk         => clk,
@@ -320,6 +333,9 @@ begin
       num_channels      => num_channels,
       input_data_type   => INPUT_DATA_TYPE,
       ref_type          => REF_TYPE,
+      output_mode       => output_mode,
+      scale_factor      => scale_factor,
+      offset_factor     => offset_factor,
       ref_step          => REF_STEP,
       fp23_binary_point => DATA_WIDTH - 1
     )
@@ -338,6 +354,9 @@ begin
       d               => NUM_DEAD_TIME_CYCLES,
       num_channels    => num_channels,
       ref_type        => REF_TYPE,
+      output_mode     => output_mode,
+      scale_factor    => scale_factor,
+      offset_factor   => offset_factor,
       input_data_type => INPUT_DATA_TYPE,
       buffer_depth    => BUFFER_DEPTH,
       ref_step        => REF_STEP,

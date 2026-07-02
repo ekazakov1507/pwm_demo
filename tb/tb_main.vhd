@@ -11,7 +11,11 @@ architecture tb of tb_main is
 
   constant num_channels                 : integer := 4;
   constant pwm_mode_switch_delay_cycles : natural := 16;
-  constant sine_ramp_length             : positive := 32;
+  constant sine_pulse_period_cycles      : positive := 64;
+  constant sine_pulse_start_delay_cycles : natural  := 0;
+  constant sine_pulse_duration_cycles    : positive := 56;
+  constant sine_pulse_front_cycles       : natural  := 8;
+  constant sine_pulse_fall_cycles        : natural  := 8;
   constant reset_release_cycles         : positive := 5;
   constant pwm_zero                     : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
@@ -41,7 +45,11 @@ begin
     generic map (
       num_channels                 => num_channels,
       pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
-      sine_ramp_length             => sine_ramp_length,
+      sine_pulse_period_cycles      => sine_pulse_period_cycles,
+      sine_pulse_start_delay_cycles => sine_pulse_start_delay_cycles,
+      sine_pulse_duration_cycles    => sine_pulse_duration_cycles,
+      sine_pulse_front_cycles       => sine_pulse_front_cycles,
+      sine_pulse_fall_cycles        => sine_pulse_fall_cycles,
       reset_release_cycles         => reset_release_cycles
     )
     port map (
@@ -103,7 +111,7 @@ begin
       severity failure;
 
     test_phase <= 3;
-    wait for 5 us;
+    wait for 10 us;
     assert saw_mode1_activity
       report "main: expected buffered pwm_mch_buf activity in mode 1"
       severity failure;
@@ -219,4 +227,3 @@ begin
   end process activity_monitor;
 
 end architecture tb;
-

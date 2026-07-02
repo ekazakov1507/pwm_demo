@@ -12,6 +12,8 @@ entity pwm_mch_buf is
     buffer_depth    : integer   := 1024;
     ref_type        : string    := "SYMMETRICAL";
     output_mode     : string    := "COMPLEMENTARY";
+    scale_factor    : real      := 0.8;
+    offset_factor   : real      := 0.1;
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1';
     clk_freq_hz     : integer   := 100_000_000;
@@ -425,6 +427,8 @@ begin
         d               => d,
         ref_type        => ref_type,
         output_mode     => output_mode,
+        scale_factor    => scale_factor,
+        offset_factor   => offset_factor,
         fp23_binary_point => r - 1,
         ref_init        => chunk.val,
         ref_step        => ref_step,
