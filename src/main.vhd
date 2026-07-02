@@ -101,11 +101,18 @@ entity main is
     num_channels                 : integer := 4;
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
+    sine_wave_length             : positive := 2048;
     sine_pulse_period_cycles      : positive := 4096;
     sine_pulse_start_delay_cycles : natural  := 1024;
     sine_pulse_duration_cycles    : positive := 2048;
     sine_pulse_front_cycles       : natural  := 256;
     sine_pulse_fall_cycles        : natural  := 256;
+    sine_sample_period_cycles     : positive := 20;
+    sine_buffer_prefill_pulses    : positive := 2;
+    sine_buffer_resume_pulses     : positive := 1;
+    sine_buffer_refill_batch_pulses : positive := 1;
+    sine_buffer_min_safe_pulses   : natural  := 0;
+    sine_buffer_margin_samples    : natural  := 8;
     reset_release_cycles         : positive := 5
   );
   port (
@@ -121,8 +128,8 @@ architecture src of main is
 
   constant data_width           : integer   := 6;
   constant num_dead_time_cycles : integer   := 4;
-  constant buffer_depth         : integer   := 1024;
-  constant wave_length          : integer   := 2048;
+  constant buffer_depth         : integer   := 16384;
+  constant wave_length          : integer   := sine_wave_length;
   constant input_data_type      : string    := "SIGNED";
   constant ref_type             : string    := "SYMMETRICAL";
   constant output_mode          : string    := "BIPOLAR_SPLIT";
@@ -194,6 +201,14 @@ architecture src of main is
       output_mode     : string    := "COMPLEMENTARY";
       scale_factor    : real      := 0.8;
       offset_factor   : real      := 0.1;
+      input_mode       : string    := "DECIMATED";
+      sample_period_cycles : positive := 1;
+      pulse_period_samples : positive := 1024;
+      prefill_pulses       : positive := 2;
+      resume_pulses        : positive := 1;
+      refill_batch_pulses  : positive := 1;
+      min_safe_pulses      : natural  := 0;
+      fifo_margin_samples  : natural  := 4;
       ref_step        : integer   := 1;
       ref_updwn       : std_logic := '1';
       clk_freq_hz     : integer   := 100_000_000;
@@ -205,6 +220,8 @@ architecture src of main is
       rst        : in    std_logic;
       enable     : in    std_logic;
       input_wave : in    std_logic_vector(r - 1 downto 0);
+      input_valid : in   std_logic := '1';
+      input_sample_ce : out std_logic;
       pwm        : out   std_logic_vector(num_channels - 1 downto 0);
       pwm_n      : out   std_logic_vector(num_channels - 1 downto 0)
     );
@@ -238,11 +255,15 @@ architecture src of main is
   signal clk_pwm        : std_logic                                 := '0';
   signal sine_rst       : std_logic                                 := '1';
   signal pwm_rst        : std_logic                                 := '1';
+  signal buffered_sine_rst : std_logic                              := '1';
   signal rst_request    : std_logic                                 := '0';
   signal enable         : std_logic                                 := '1';
   signal pwm_mode_request : std_logic                               := '0';
   signal pwm_mode_sel   : std_logic                                 := '0';
-  signal sine_out       : std_logic_vector(data_width - 1 downto 0) := (others => '0');
+  signal direct_sine_out   : std_logic_vector(data_width - 1 downto 0) := (others => '0');
+  signal buffered_sine_out : std_logic_vector(data_width - 1 downto 0) := (others => '0');
+  signal buffered_sine_valid : std_logic := '0';
+  signal buffered_sine_sample_ce : std_logic := '0';
 
   signal p_direct   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_direct : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
@@ -263,6 +284,8 @@ begin
   debug_value_valid : assert ((debug = "NO_DEBUG") or (debug = "DEBUG"))
     report "main: debug generic must be NO_DEBUG or DEBUG"
     severity failure;
+
+  buffered_sine_rst <= sine_rst or pwm_rst;
 
   sys_clk_ibuffer : component ibuf
     port map (
@@ -307,7 +330,7 @@ begin
       locked   => mmcm_clk_lock
     );
 
-  dut_sine : entity work.sine_gen_simple
+  direct_sine : entity work.sine_gen_simple
     generic map (
       wave_length => wave_length,
       bit_width   => data_width,
@@ -322,7 +345,28 @@ begin
     port map (
       clk         => clk,
       reset       => sine_rst,
-      output_data => sine_out
+      output_valid => open,
+      output_data => direct_sine_out
+    );
+
+  buffered_sine : entity work.sine_gen_simple
+    generic map (
+      wave_length => wave_length,
+      bit_width   => data_width,
+      data_type   => input_data_type,
+      pulse_enable             => true,
+      pulse_period_cycles      => sine_pulse_period_cycles,
+      pulse_start_delay_cycles => sine_pulse_start_delay_cycles,
+      pulse_duration_cycles    => sine_pulse_duration_cycles,
+      pulse_front_cycles       => sine_pulse_front_cycles,
+      pulse_fall_cycles        => sine_pulse_fall_cycles
+    )
+    port map (
+      clk          => clk,
+      reset        => buffered_sine_rst,
+      sample_ce    => buffered_sine_sample_ce,
+      output_valid => buffered_sine_valid,
+      output_data  => buffered_sine_out
     );
 
   direct_pwm : component pwm_mch
@@ -343,7 +387,7 @@ begin
       clk        => clk,
       rst        => pwm_rst,
       enable     => enable,
-      input_wave => sine_out,
+      input_wave => direct_sine_out,
       pwm        => p_direct,
       pwm_n      => p_n_direct
     );
@@ -359,6 +403,14 @@ begin
       offset_factor   => offset_factor,
       input_data_type => INPUT_DATA_TYPE,
       buffer_depth    => BUFFER_DEPTH,
+      input_mode      => "VALID",
+      sample_period_cycles => sine_sample_period_cycles,
+      pulse_period_samples => sine_pulse_period_cycles,
+      prefill_pulses       => sine_buffer_prefill_pulses,
+      resume_pulses        => sine_buffer_resume_pulses,
+      refill_batch_pulses  => sine_buffer_refill_batch_pulses,
+      min_safe_pulses      => sine_buffer_min_safe_pulses,
+      fifo_margin_samples  => sine_buffer_margin_samples,
       ref_step        => REF_STEP,
       ref_updwn       => ref_updwn
     )
@@ -367,7 +419,9 @@ begin
       clk_pwm    => clk_pwm,
       rst        => pwm_rst,
       enable     => enable,
-      input_wave => sine_out,
+      input_wave => buffered_sine_out,
+      input_valid => buffered_sine_valid,
+      input_sample_ce => buffered_sine_sample_ce,
       pwm        => p_buf,
       pwm_n      => p_n_buf
     );
