@@ -14,6 +14,14 @@ entity pwm_mch_buf is
     output_mode     : string    := "COMPLEMENTARY";
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
+    input_mode       : string    := "DECIMATED";
+    sample_period_cycles : positive := 1;
+    pulse_period_samples : positive := 1024;
+    prefill_pulses       : positive := 2;
+    resume_pulses        : positive := 1;
+    refill_batch_pulses  : positive := 1;
+    min_safe_pulses      : natural  := 0;
+    fifo_margin_samples  : natural  := 4;
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1';
     clk_freq_hz     : integer   := 100_000_000;
@@ -25,6 +33,8 @@ entity pwm_mch_buf is
     rst        : in    std_logic;
     enable     : in    std_logic;
     input_wave : in    std_logic_vector(r - 1 downto 0);
+    input_valid : in   std_logic := '1';
+    input_sample_ce : out std_logic;
     pwm        : out   std_logic_vector(num_channels - 1 downto 0);
     pwm_n      : out   std_logic_vector(num_channels - 1 downto 0)
   );
@@ -220,6 +230,53 @@ architecture src of pwm_mch_buf is
     end if;
   end function;
 
+  function max_natural (
+    left  : natural;
+    right : natural
+  ) return natural is
+  begin
+    if left > right then
+      return left;
+    end if;
+
+    return right;
+  end function max_natural;
+
+  function saturating_subtract (
+    left  : natural;
+    right : natural
+  ) return natural is
+  begin
+    if left > right then
+      return left - right;
+    end if;
+
+    return 0;
+  end function saturating_subtract;
+
+  function natural_for_input_mode (
+    mode            : string;
+    valid_value     : natural;
+    decimated_value : natural
+  ) return natural is
+  begin
+    if mode = "VALID" then
+      return valid_value;
+    end if;
+
+    return decimated_value;
+  end function natural_for_input_mode;
+
+  function get_neutral_sample return std_logic_vector is
+    variable result : std_logic_vector(r - 1 downto 0) := (others => '0');
+  begin
+    if input_data_type = "UNSIGNED" then
+      result := std_logic_vector(to_unsigned(2 ** (r - 1), r));
+    end if;
+
+    return result;
+  end function get_neutral_sample;
+
   function get_pwm_cycle_length return positive is
   begin
     if ref_type = "SYMMETRICAL" then
@@ -256,13 +313,23 @@ architecture src of pwm_mch_buf is
 
   constant pwm_cycle_length : positive := get_pwm_cycle_length;
 
-  -- Use real arithmetic for elaboration-time scaling so the product
-  -- clk_freq_hz * pwm_cycle_length cannot overflow 32-bit integer.
-  constant decimation_factor_real : real := (real(clk_freq_hz) * real(pwm_cycle_length)) / real(clk_pwm_freq_hz);
+  constant fifo_count_width : integer := integer(ceil(log2(real(buffer_depth + 1))));
+  constant prefill_sample_count : natural := pulse_period_samples * prefill_pulses;
+  constant resume_sample_count : natural := pulse_period_samples * resume_pulses;
+  constant refill_sample_count : natural := pulse_period_samples * refill_batch_pulses;
+  constant min_safe_sample_count : natural := pulse_period_samples * min_safe_pulses;
+  constant max_write_batch_samples : natural := max_natural(prefill_sample_count, refill_sample_count);
+  constant almost_full_sample_count : natural := saturating_subtract(buffer_depth, fifo_margin_samples);
+  constant valid_buffer_required_count : natural := prefill_sample_count + refill_sample_count + fifo_margin_samples;
+  constant stream_start_sample_count : natural := natural_for_input_mode(input_mode, prefill_sample_count, 1);
+  constant stream_stop_sample_count : natural := natural_for_input_mode(input_mode, min_safe_sample_count, 0);
+  constant neutral_sample : std_logic_vector(r - 1 downto 0) := get_neutral_sample;
 
-  constant decimation_factor_raw : integer := integer(round(decimation_factor_real));
-
-  constant decimation_factor : positive := clamp_positive(integer(round(decimation_factor_real * 0.95)));
+  type writer_state_t is (
+    writer_prefill,
+    writer_idle,
+    writer_refill
+  );
 
   signal buf_input  : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal buf_output : std_logic_vector(r - 1 downto 0) := (others => '0');
@@ -270,11 +337,13 @@ architecture src of pwm_mch_buf is
   signal buf_wr_en  : std_logic                        := '0';
   signal buf_full   : std_logic                        := '0';
   signal buf_empty  : std_logic                        := '0';
+  signal buf_wr_count : std_logic_vector(fifo_count_width - 1 downto 0) := (others => '0');
+  signal buf_rd_count : std_logic_vector(fifo_count_width - 1 downto 0) := (others => '0');
 
   signal dec_wave   : std_logic_vector(r - 1 downto 0) := (others => '0');
   signal valid_wave : std_logic                        := '0';
 
-  signal duty_cycle : std_logic_vector(r - 1 downto 0) := (others => '0');
+  signal duty_cycle : std_logic_vector(r - 1 downto 0) := neutral_sample;
 
   signal rst_sync : std_logic_vector(2 downto 0) := "000";
   signal rst_pwm  : std_logic                    := '1';
@@ -282,8 +351,15 @@ architecture src of pwm_mch_buf is
   signal enable_sync : std_logic_vector(2 downto 0) := "000";
   signal enable_pwm  : std_logic                    := '0';
   signal buf_rd_valid : std_logic                   := '0';
+  signal stream_active : std_logic                  := '0';
+  signal pwm_stream_rst : std_logic                 := '1';
+  signal source_sample_ce : std_logic               := '0';
 
 begin
+
+  assert input_mode = "DECIMATED" or input_mode = "VALID"
+    report "pwm_mch_buf: input_mode must be DECIMATED or VALID"
+    severity failure;
 
   assert num_channels > 0
     report "num_channels must be >= 1"
@@ -293,22 +369,150 @@ begin
     report "buffer_depth must be >= 1"
     severity failure;
 
-  assert decimation_factor_raw > 0
-    report "decimation_factor must be >= 1. Check clock frequencies and resolution."
+  assert (input_mode = "DECIMATED") or (fifo_margin_samples < buffer_depth)
+    report "pwm_mch_buf: fifo_margin_samples must be less than buffer_depth"
     severity failure;
 
-  dec_sine : entity work.data_decimator
-    generic map (
-      data_width        => r,
-      decimation_factor => decimation_factor
-    )
-    port map (
-      clk       => clk,
-      rst       => rst,
-      data_in   => input_wave,
-      data_out  => dec_wave,
-      valid_out => valid_wave
-    );
+  assert (input_mode = "DECIMATED") or (buffer_depth >= valid_buffer_required_count)
+    report "pwm_mch_buf: buffer_depth must hold prefill_pulses plus refill_batch_pulses and margin"
+    severity failure;
+
+  assert (input_mode = "DECIMATED") or (prefill_pulses > resume_pulses)
+    report "pwm_mch_buf: prefill_pulses must be greater than resume_pulses"
+    severity failure;
+
+  input_sample_ce <= source_sample_ce;
+  pwm_stream_rst  <= rst_pwm or (not stream_active);
+
+  decimated_input_gen : if input_mode = "DECIMATED" generate
+
+    -- Use real arithmetic for elaboration-time scaling so the product
+    -- clk_freq_hz * pwm_cycle_length cannot overflow 32-bit integer.
+    constant decimation_factor_real : real := (real(clk_freq_hz) * real(pwm_cycle_length)) / real(clk_pwm_freq_hz);
+    constant decimation_factor_raw  : integer := integer(round(decimation_factor_real));
+    constant decimation_factor      : positive := clamp_positive(integer(round(decimation_factor_real * 0.95)));
+
+  begin
+
+    assert decimation_factor_raw > 0
+      report "decimation_factor must be >= 1. Check clock frequencies and resolution."
+      severity failure;
+
+    source_sample_ce <= '1';
+
+    dec_sine : entity work.data_decimator
+      generic map (
+        data_width        => r,
+        decimation_factor => decimation_factor
+      )
+      port map (
+        clk       => clk,
+        rst       => rst,
+        data_in   => input_wave,
+        data_out  => dec_wave,
+        valid_out => valid_wave
+      );
+
+    input_buffer_wr_ctrl : process (clk) is
+    begin
+
+      if rising_edge(clk) then
+        if (rst = '1') then
+          buf_wr_en <= '0';
+          buf_input <= (others => '0');
+        elsif ((buf_full = '0') and (valid_wave = '1')) then
+          buf_wr_en <= '1';
+          buf_input <= dec_wave;
+        else
+          buf_wr_en <= '0';
+        end if;
+      end if;
+
+    end process input_buffer_wr_ctrl;
+
+  end generate decimated_input_gen;
+
+  valid_input_gen : if input_mode = "VALID" generate
+
+    signal writer_state : writer_state_t := writer_prefill;
+    signal writer_sample_count : natural range 0 to max_write_batch_samples := 0;
+    signal sample_period_count : natural range 0 to sample_period_cycles - 1 := 0;
+
+  begin
+
+    input_buffer_wr_ctrl : process (clk) is
+      variable fifo_level        : natural;
+      variable next_sample_count : natural;
+      variable target_count      : natural;
+    begin
+
+      if rising_edge(clk) then
+        if (rst = '1') then
+          writer_state        <= writer_prefill;
+          writer_sample_count <= 0;
+          sample_period_count <= 0;
+          source_sample_ce    <= '0';
+          buf_wr_en           <= '0';
+          buf_input           <= neutral_sample;
+        else
+          source_sample_ce <= '0';
+          buf_wr_en        <= '0';
+          fifo_level       := to_integer(unsigned(buf_wr_count));
+          next_sample_count := writer_sample_count;
+
+          if ((input_valid = '1') and (buf_full = '0')) then
+            buf_wr_en <= '1';
+            buf_input <= input_wave;
+
+            if (next_sample_count < max_write_batch_samples) then
+              next_sample_count := next_sample_count + 1;
+            end if;
+          end if;
+
+          case writer_state is
+
+            when writer_prefill =>
+              target_count := prefill_sample_count;
+
+            when writer_refill =>
+              target_count := refill_sample_count;
+
+            when others =>
+              target_count := 0;
+
+          end case;
+
+          if (writer_state = writer_idle) then
+            writer_sample_count <= 0;
+            sample_period_count <= 0;
+
+            if ((enable = '1') and (fifo_level <= resume_sample_count)) then
+              writer_state <= writer_refill;
+            end if;
+          elsif (next_sample_count >= target_count) then
+            writer_state        <= writer_idle;
+            writer_sample_count <= 0;
+            sample_period_count <= 0;
+          else
+            writer_sample_count <= next_sample_count;
+
+            if ((enable = '1') and
+                (buf_full = '0') and
+                (fifo_level < almost_full_sample_count)) then
+              if (sample_period_count = sample_period_cycles - 1) then
+                sample_period_count <= 0;
+                source_sample_ce    <= '1';
+              else
+                sample_period_count <= sample_period_count + 1;
+              end if;
+            end if;
+          end if;
+        end if;
+      end if;
+
+    end process input_buffer_wr_ctrl;
+
+  end generate valid_input_gen;
 
   input_buffer : entity work.async_fifo
     generic map (
@@ -320,30 +524,15 @@ begin
       wr_rst   => rst,
       wr_en    => buf_wr_en,
       full     => buf_full,
+      wr_count => buf_wr_count,
       data_in  => buf_input,
       rd_clk   => clk_pwm,
       rd_rst   => rst_pwm,
       rd_en    => buf_rd_en,
       empty    => buf_empty,
+      rd_count => buf_rd_count,
       data_out => buf_output
     );
-
-  input_buffer_wr_ctrl : process (clk) is
-  begin
-
-    if rising_edge(clk) then
-      if (rst = '1') then
-        buf_wr_en <= '0';
-        buf_input <= (others => '0');
-      elsif ((buf_full = '0') and (valid_wave = '1')) then
-        buf_wr_en <= '1';
-        buf_input <= dec_wave;
-      else
-        buf_wr_en <= '0';
-      end if;
-    end if;
-
-  end process input_buffer_wr_ctrl;
 
   rst_sync_proc : process (clk_pwm) is
   begin
@@ -370,6 +559,8 @@ begin
 
     -- Count one full PWM frame before requesting next buffered sample.
     variable cnt : integer range 0 to pwm_cycle_length - 1 := 0;
+    variable fifo_level : natural := 0;
+    variable stream_next : std_logic := '0';
   begin
 
     if rising_edge(clk_pwm) then
@@ -377,19 +568,44 @@ begin
         cnt          := 0;
         buf_rd_en    <= '0';
         buf_rd_valid <= '0';
-      elsif (cnt = pwm_cycle_length - 1) then
-        cnt          := 0;
-        buf_rd_valid <= buf_rd_en;
-
-        if (buf_empty = '0') then
-          buf_rd_en <= '1';
-        else
-          buf_rd_en <= '0';
-        end if;
+        stream_active <= '0';
       else
-        buf_rd_en    <= '0';
+        fifo_level := to_integer(unsigned(buf_rd_count));
+        stream_next := stream_active;
         buf_rd_valid <= buf_rd_en;
-        cnt          := cnt + 1;
+        buf_rd_en <= '0';
+
+        if (enable_pwm = '0') then
+          stream_next := '0';
+          cnt := 0;
+        elsif (stream_active = '0') then
+          cnt := 0;
+
+          if (fifo_level >= stream_start_sample_count) then
+            stream_next := '1';
+          end if;
+        elsif (fifo_level <= stream_stop_sample_count) then
+          stream_next := '0';
+          cnt := 0;
+        end if;
+
+        if (stream_next = '1') then
+          if (cnt = pwm_cycle_length - 1) then
+            cnt := 0;
+
+            if (buf_empty = '0') then
+              buf_rd_en <= '1';
+            else
+              stream_next := '0';
+            end if;
+          else
+            cnt := cnt + 1;
+          end if;
+        else
+          buf_rd_valid <= '0';
+        end if;
+
+        stream_active <= stream_next;
       end if;
     end if;
 
@@ -399,8 +615,8 @@ begin
   begin
 
     if rising_edge(clk_pwm) then
-      if (rst_pwm = '1') then
-        duty_cycle <= (others => '0');
+      if ((rst_pwm = '1') or (stream_active = '0')) then
+        duty_cycle <= neutral_sample;
       else
         if (buf_rd_valid = '1') then
           duty_cycle <= buf_output;
@@ -437,7 +653,7 @@ begin
       )
       port map (
         clk        => clk_pwm,
-        rst        => rst_pwm,
+        rst        => pwm_stream_rst,
         enable     => enable_pwm,
         input_wave => duty_cycle,
         pwm        => pwm(i),
