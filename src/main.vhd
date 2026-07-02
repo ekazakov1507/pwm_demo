@@ -132,7 +132,6 @@ architecture src of main is
   constant wave_length          : integer   := sine_wave_length;
   constant input_data_type      : string    := "SIGNED";
   constant ref_type             : string    := "SYMMETRICAL";
-  constant output_mode          : string    := "BIPOLAR_SPLIT";
   constant scale_factor         : real      := 0.8;
   constant offset_factor        : real      := 0.0;
   constant ref_step             : integer   := 1;
@@ -174,7 +173,6 @@ architecture src of main is
       num_channels      : integer := 2;
       input_data_type   : string  := "SIGNED";
       ref_type          : string  := "SYMMETRICAL";
-      output_mode       : string  := "COMPLEMENTARY";
       ref_step          : integer := 1;
       scale_factor      : real    := 0.8;
       offset_factor     : real    := 0.1;
@@ -198,7 +196,6 @@ architecture src of main is
       input_data_type : string    := "SIGNED";
       buffer_depth    : integer   := 1024;
       ref_type        : string    := "SYMMETRICAL";
-      output_mode     : string    := "COMPLEMENTARY";
       scale_factor    : real      := 0.8;
       offset_factor   : real      := 0.1;
       input_mode       : string    := "DECIMATED";
@@ -377,7 +374,6 @@ begin
       num_channels      => num_channels,
       input_data_type   => INPUT_DATA_TYPE,
       ref_type          => REF_TYPE,
-      output_mode       => output_mode,
       scale_factor      => scale_factor,
       offset_factor     => offset_factor,
       ref_step          => REF_STEP,
@@ -398,7 +394,6 @@ begin
       d               => NUM_DEAD_TIME_CYCLES,
       num_channels    => num_channels,
       ref_type        => REF_TYPE,
-      output_mode     => output_mode,
       scale_factor    => scale_factor,
       offset_factor   => offset_factor,
       input_data_type => INPUT_DATA_TYPE,

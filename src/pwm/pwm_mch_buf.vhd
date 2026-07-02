@@ -11,7 +11,6 @@ entity pwm_mch_buf is
     input_data_type : string    := "SIGNED";
     buffer_depth    : integer   := 1024;
     ref_type        : string    := "SYMMETRICAL";
-    output_mode     : string    := "COMPLEMENTARY";
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
     input_mode       : string    := "DECIMATED";
@@ -293,7 +292,6 @@ architecture src of pwm_mch_buf is
       d                 : integer   := 2;
       input_data_type   : string    := "SIGNED";
       ref_type          : string    := "SYMMETRICAL";
-      output_mode       : string    := "COMPLEMENTARY";
       scale_factor      : real      := 0.8;
       offset_factor     : real      := 0.1;
       fp23_binary_point : integer   := 6;
@@ -642,7 +640,6 @@ begin
         input_width     => r,
         d               => d,
         ref_type        => ref_type,
-        output_mode     => output_mode,
         scale_factor    => scale_factor,
         offset_factor   => offset_factor,
         fp23_binary_point => r - 1,

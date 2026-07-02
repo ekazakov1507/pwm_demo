@@ -54,8 +54,8 @@ docs/
 
 #### PWM Generation
 - [PWM Modules](./src/pwm/README.md) - Single and multi-channel PWM with buffering; reusable core RTL lives under `src/pwm_core/rtl`
-  - `pwm_1ch.vhd` - Single channel with dead-time and `output_mode` (complementary / bipolar split)
-  - `pwm_1ch_drive_pkg.vhd` - Pre-drive leg functions
+  - `pwm_1ch.vhd` - Single channel with dead-time
+  - `pwm_1ch_drive_pkg.vhd` - Complementary pre-drive leg functions
   - `pwm_mch_buf.vhd` - Multi-channel buffered
   - `pwm_mch.vhd` - Multi-channel direct PWM branch
 

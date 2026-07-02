@@ -4,7 +4,7 @@
 
 The PWM generation system consists of:
 - **pwm_1ch.vhd**: Single-channel PWM with dead-time control
-- **pwm_1ch_drive_pkg.vhd**: Complementary vs bipolar (three-level) pre-drive logic
+- **pwm_1ch_drive_pkg.vhd**: Complementary pre-drive logic
 - **pwm_mch_buf.vhd**: Multi-channel buffered PWM with clock domain crossing
 - **pwm_mch.vhd**: Multi-channel direct PWM (non-buffered)
 
@@ -42,7 +42,7 @@ graph TB
 
         subgraph "PWM generation"
             LATCH[Latch scaled_output<br/>at counter = START]
-            DRIVE[pwm_1ch_drive_pkg<br/>COMPLEMENTARY or BIPOLAR_SPLIT]
+            DRIVE[pwm_1ch_drive_pkg<br/>complementary]
         end
 
         subgraph "Dead time"
@@ -90,7 +90,6 @@ entity pwm_1ch is
     d               : integer   := 2;             -- Num dead-time cycles
     input_data_type : string    := "SIGNED";      -- SIGNED, UNSIGNED, FP23, FP23_SIGNED
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
-    output_mode     : string    := "COMPLEMENTARY"; -- COMPLEMENTARY or BIPOLAR_SPLIT
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
     fp23_binary_point : integer := 6;
@@ -118,7 +117,6 @@ end entity pwm_1ch;
 | `d` | integer | 2 | Number of dead-time clock cycles |
 | `input_data_type` | string | "SIGNED" | Data format: "SIGNED", "UNSIGNED", "FP23", or "FP23_SIGNED" |
 | `ref_type` | string | "SYMMETRICAL" | Reference type: "SYMMETRICAL" or "ASYMMETRICAL" |
-| `output_mode` | string | "COMPLEMENTARY" | "COMPLEMENTARY" (pwm_n ≈ not pwm) or "BIPOLAR_SPLIT" (three-level; see below) |
 | `scale_factor` | real | 0.8 | Amplitude scaling factor |
 | `offset_factor` | real | 0.1 | DC offset factor |
 | `fp23_binary_point` | integer | 6 | Binary-point placement used when converting packed FP23 input to the signed PWM reference domain |
@@ -134,8 +132,8 @@ end entity pwm_1ch;
 | `rst` | in | 1 | Active-high reset |
 | `enable` | in | 1 | Enable signal |
 | `input_wave` | in | `input_width` | Input waveform value |
-| `pwm` | out | 1 | PWM high-side (or positive-half) command after dead time |
-| `pwm_n` | out | 1 | PWM low-side (or negative-half) command after dead time; meaning depends on `output_mode` |
+| `pwm` | out | 1 | PWM high-side command after dead time |
+| `pwm_n` | out | 1 | Complementary low-side command after dead time |
 
 ### Internal Architecture
 
@@ -164,8 +162,6 @@ graph TD
 On each rising edge of `clk`, when `counter` equals the period **START** value, `pwm_ref` samples `scaled_output`. The pre-drive legs `pwm_state` / `pwm_n_state` come from **`pwm_1ch_drive_pkg`**:
 
 - **`drive_complementary_*`**: same compare as classic PWM; `pwm_n_state = not pwm_state`.
-- **`drive_bipolar_signed`**: neutral at 0 — only `pwm` pulses for positive `pwm_ref`, only `pwm_n` for negative `pwm_ref`, both off at zero.
-- **`drive_bipolar_unsigned`**: neutral at **`2**(r-1)`** — same idea on offset samples vs midpoint.
 
 ```mermaid
 graph LR
@@ -255,8 +251,6 @@ Comparator (COMPLEMENTARY mode):
     pwm_n_state = not pwm_state   -- before dead_time_generator
 ```
 
-For **BIPOLAR_SPLIT**, the carrier and latch are unchanged; leg rules are described in [BIPOLAR_SPLIT](#bipolar_split-three-level) and in **`pwm_1ch_drive_pkg`**.
-
 #### Asymmetrical PWM (Sawtooth Reference)
 
 ```
@@ -273,25 +267,12 @@ Reference Counter:
    (reset)
 ```
 
-#### BIPOLAR_SPLIT (three-level)
-
-Uses the **same** reference counter and `pwm_ref` latch as complementary mode; only the compare rules in **`pwm_1ch_drive_pkg`** change.
-
-**SIGNED** (neutral = 0):
-
-- `pwm_ref > 0`: `pwm_state` follows `counter < pwm_ref`; `pwm_n_state = '0'`.
-- `pwm_ref < 0`: `pwm_n_state` follows `counter > pwm_ref`; `pwm_state = '0'`.
-- `pwm_ref = 0`: both legs off.
-
-**UNSIGNED** (neutral = `2**(r-1)`): same structure on offset samples  
-`to_integer(unsigned(x)) - 2**(r-1)` for `counter` and `pwm_ref`.
-
 ### Key Design Features
 
 1. **Cycle-aligned latching**: `scaled_output` captured at counter START each PWM frame
-2. **Drive package**: Shared combinational functions for complementary vs bipolar leg generation
+2. **Drive package**: Shared combinational functions for complementary leg generation
 3. **Dead-time insertion**: `dead_time_generator` on both legs
-4. **Flexible configuration**: Signed/unsigned, symmetrical/asymmetrical, complementary or bipolar split
+4. **Flexible configuration**: Signed/unsigned inputs and symmetrical/asymmetrical references
 
 ---
 
@@ -302,7 +283,6 @@ Pure VHDL **package** (no entity). Used only from `pwm_1ch.vhd` to keep the main
 | Function | Role |
 |----------|------|
 | `drive_complementary_signed` / `drive_complementary_unsigned` | Classic PWM: one compare, complementary legs |
-| `drive_bipolar_signed` / `drive_bipolar_unsigned` | Three-level split: mutually exclusive legs around neutral (0 or `2**(r-1)`) |
 
 Return type is **`pwm_leg_pair`** (`pwm`, `pwm_n`), i.e. the signals fed into **`dead_time_generator`**.
 
@@ -412,7 +392,6 @@ entity pwm_mch_buf is
     input_data_type : string    := "SIGNED";      -- SIGNED, UNSIGNED, FP23, FP23_SIGNED
     buffer_depth    : integer   := 1024;          -- FIFO depth
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
-    output_mode     : string    := "COMPLEMENTARY"; -- Passed to each pwm_1ch
     ref_step        : integer   := 1;             -- Counter increment
     ref_updwn       : std_logic := '1';           -- Up/down control
     -- CRITICAL: Clock frequencies for proper decimation calculation
@@ -635,7 +614,6 @@ pwm_mch_buf_inst : entity work.pwm_mch_buf
     r               => 7,
     num_channels    => 2,
     ref_type        => "SYMMETRICAL",
-    output_mode     => "COMPLEMENTARY",  -- or "BIPOLAR_SPLIT"
     clk_freq_hz     => 50_000_000,    -- Your clk frequency
     clk_pwm_freq_hz => 100_000_000    -- Your clk_pwm frequency
   )
@@ -702,7 +680,6 @@ graph TB
 | Clock domains | Single | Dual (clk + clk_pwm) |
 | Buffering | None | async_fifo |
 | Decimation | None | data_decimator |
-| `output_mode` | Yes (per-channel `pwm_1ch`) | Yes (forwarded to each `pwm_1ch`) |
 | Timing | Critical path | Relaxed via FIFO |
 | Use case | Low frequency | High frequency |
 
@@ -754,5 +731,5 @@ graph TD
 
 ### Testbenches
 
-- `tb/tb_pwm_1ch.vhd` — two instances: **COMPLEMENTARY** vs **BIPOLAR_SPLIT**, shared sine
-- `tb/tb_pwm_mch.vhd` — same for `pwm_mch` and `pwm_mch_buf` (four DUTs total)
+- `tb/tb_pwm_1ch.vhd` — complementary output activity and no-overlap checks
+- `tb/tb_pwm_mch.vhd` — direct and buffered complementary PWM checks

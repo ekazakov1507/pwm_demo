@@ -25,25 +25,19 @@ architecture tb of tb_pwm_mch is
   signal enable  : std_logic                                 := '0';
   signal data_in : std_logic_vector(data_width - 1 downto 0) := (others => '0');
 
-  -- pwm_mch @ clk: complementary vs bipolar
   signal p        : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n      : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_bi     : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_bi   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
-  -- pwm_mch_buf @ clk / clk_pwm: same pair of modes
   signal p_buf      : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_buf    : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_buf_bi   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_buf_bi : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
-  signal saw_pos_simple_pwm_hi   : boolean := false;
-  signal saw_neg_simple_pwm_n_hi : boolean := false;
-  signal saw_simple_both_on      : boolean := false;
+  signal saw_simple_pwm_hi   : boolean := false;
+  signal saw_simple_pwm_n_hi : boolean := false;
+  signal saw_simple_both_on  : boolean := false;
 
-  signal saw_pos_buf_pwm_hi   : boolean := false;
-  signal saw_neg_buf_pwm_n_hi : boolean := false;
-  signal saw_buf_both_on      : boolean := false;
+  signal saw_buf_pwm_hi   : boolean := false;
+  signal saw_buf_pwm_n_hi : boolean := false;
+  signal saw_buf_both_on  : boolean := false;
 
 begin
 
@@ -67,7 +61,6 @@ begin
       num_channels    => num_channels,
       input_data_type => input_data_type,
       ref_type        => ref_type,
-      output_mode     => "COMPLEMENTARY",
       ref_step        => ref_step,
       fp23_binary_point => data_width - 1
     )
@@ -80,34 +73,12 @@ begin
       pwm_n      => p_n
     );
 
-  simple_pwm_bipolar : entity work.pwm_mch
-    generic map (
-      r               => data_width,
-      input_width     => data_width,
-      d               => num_dead_time_cycles,
-      num_channels    => num_channels,
-      input_data_type => input_data_type,
-      ref_type        => ref_type,
-      output_mode     => "BIPOLAR_SPLIT",
-      ref_step        => ref_step,
-      fp23_binary_point => data_width - 1
-    )
-    port map (
-      clk        => clk,
-      rst        => rst,
-      enable     => enable,
-      input_wave => data_in,
-      pwm        => p_bi,
-      pwm_n      => p_n_bi
-    );
-
   adv_pwm : entity work.pwm_mch_buf
     generic map (
       r               => data_width,
       d               => num_dead_time_cycles,
       num_channels    => num_channels,
       ref_type        => ref_type,
-      output_mode     => "COMPLEMENTARY",
       input_data_type => input_data_type,
       buffer_depth    => buffer_depth,
       ref_step        => ref_step,
@@ -121,28 +92,6 @@ begin
       input_wave => data_in,
       pwm        => p_buf,
       pwm_n      => p_n_buf
-    );
-
-  adv_pwm_bipolar : entity work.pwm_mch_buf
-    generic map (
-      r               => data_width,
-      d               => num_dead_time_cycles,
-      num_channels    => num_channels,
-      ref_type        => ref_type,
-      output_mode     => "BIPOLAR_SPLIT",
-      input_data_type => input_data_type,
-      buffer_depth    => buffer_depth,
-      ref_step        => ref_step,
-      ref_updwn       => ref_updwn
-    )
-    port map (
-      clk        => clk,
-      clk_pwm    => clk_pwm,
-      rst        => rst,
-      enable     => enable,
-      input_wave => data_in,
-      pwm        => p_buf_bi,
-      pwm_n      => p_n_buf_bi
     );
 
   clk <= not clk after clk_period / 2;
@@ -160,24 +109,24 @@ begin
     enable <= '1';
     wait for 250 us;
 
-    assert saw_pos_simple_pwm_hi
-      report "pwm_mch BIPOLAR_SPLIT: expected pwm high during positive half-cycle"
+    assert saw_simple_pwm_hi
+      report "pwm_mch: expected pwm activity"
       severity failure;
-    assert saw_neg_simple_pwm_n_hi
-      report "pwm_mch BIPOLAR_SPLIT: expected pwm_n high during negative half-cycle"
+    assert saw_simple_pwm_n_hi
+      report "pwm_mch: expected pwm_n activity"
       severity failure;
     assert not saw_simple_both_on
-      report "pwm_mch BIPOLAR_SPLIT: pwm and pwm_n must not be high together"
+      report "pwm_mch: pwm and pwm_n must not be high together"
       severity failure;
 
-    assert saw_pos_buf_pwm_hi
-      report "pwm_mch_buf BIPOLAR_SPLIT: expected pwm high during positive half-cycle"
+    assert saw_buf_pwm_hi
+      report "pwm_mch_buf: expected pwm activity"
       severity failure;
-    assert saw_neg_buf_pwm_n_hi
-      report "pwm_mch_buf BIPOLAR_SPLIT: expected pwm_n high during negative half-cycle"
+    assert saw_buf_pwm_n_hi
+      report "pwm_mch_buf: expected pwm_n activity"
       severity failure;
     assert not saw_buf_both_on
-      report "pwm_mch_buf BIPOLAR_SPLIT: pwm and pwm_n must not be high together"
+      report "pwm_mch_buf: pwm and pwm_n must not be high together"
       severity failure;
 
     wait for clk_period;
@@ -185,60 +134,46 @@ begin
 
   end process stim_proc;
 
-  bipolar_monitor : process (clk) is
-    variable sample : integer;
+  complementary_monitor : process (clk) is
   begin
     if rising_edge(clk) then
       if (rst = '1') then
-        saw_pos_simple_pwm_hi   <= false;
-        saw_neg_simple_pwm_n_hi <= false;
-        saw_simple_both_on      <= false;
+        saw_simple_pwm_hi   <= false;
+        saw_simple_pwm_n_hi <= false;
+        saw_simple_both_on  <= false;
       elsif (enable = '1') then
-        sample := to_integer(signed(data_in));
-
-        if ((p_bi(0) = '1') and (p_n_bi(0) = '1')) then
-          saw_simple_both_on <= true;
+        if (p(0) = '1') then
+          saw_simple_pwm_hi <= true;
         end if;
-
-        if (sample > 0) then
-          if (p_bi(0) = '1') then
-            saw_pos_simple_pwm_hi <= true;
-          end if;
-        elsif (sample < 0) then
-          if (p_n_bi(0) = '1') then
-            saw_neg_simple_pwm_n_hi <= true;
-          end if;
+        if (p_n(0) = '1') then
+          saw_simple_pwm_n_hi <= true;
+        end if;
+        if ((p(0) = '1') and (p_n(0) = '1')) then
+          saw_simple_both_on <= true;
         end if;
       end if;
     end if;
-  end process bipolar_monitor;
+  end process complementary_monitor;
 
-  bipolar_buf_monitor : process (clk_pwm) is
-    variable sample : integer;
+  complementary_buf_monitor : process (clk_pwm) is
   begin
     if rising_edge(clk_pwm) then
       if (rst = '1') then
-        saw_pos_buf_pwm_hi   <= false;
-        saw_neg_buf_pwm_n_hi <= false;
-        saw_buf_both_on      <= false;
+        saw_buf_pwm_hi   <= false;
+        saw_buf_pwm_n_hi <= false;
+        saw_buf_both_on  <= false;
       elsif (enable = '1') then
-        sample := to_integer(signed(data_in));
-
-        if ((p_buf_bi(0) = '1') and (p_n_buf_bi(0) = '1')) then
-          saw_buf_both_on <= true;
+        if (p_buf(0) = '1') then
+          saw_buf_pwm_hi <= true;
         end if;
-
-        if (sample > 0) then
-          if (p_buf_bi(0) = '1') then
-            saw_pos_buf_pwm_hi <= true;
-          end if;
-        elsif (sample < 0) then
-          if (p_n_buf_bi(0) = '1') then
-            saw_neg_buf_pwm_n_hi <= true;
-          end if;
+        if (p_n_buf(0) = '1') then
+          saw_buf_pwm_n_hi <= true;
+        end if;
+        if ((p_buf(0) = '1') and (p_n_buf(0) = '1')) then
+          saw_buf_both_on <= true;
         end if;
       end if;
     end if;
-  end process bipolar_buf_monitor;
+  end process complementary_buf_monitor;
 
 end architecture tb;

@@ -228,7 +228,7 @@ main.vhd (Top-Level)
 │           ├── Scaler (Amplitude scaling)
 │           │   ├── scaler_signed
 │           │   └── scaler_unsigned
-│           ├── pwm_1ch_drive_pkg (complementary or bipolar split legs)
+│           ├── pwm_1ch_drive_pkg (complementary leg generation)
 │           └── dead_time_generator (dead-time insertion)
 │               ├── pwm_state / pwm_n_state → pwm / pwm_n
 │

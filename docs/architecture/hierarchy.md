@@ -290,7 +290,6 @@ entity pwm_mch_buf is
     input_data_type : string    := "SIGNED";
     buffer_depth    : integer   := 1024;
     ref_type        : string    := "SYMMETRICAL";
-    output_mode     : string    := "COMPLEMENTARY";
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1';
     clk_freq_hz     : integer   := 100_000_000;
@@ -318,7 +317,6 @@ entity pwm_1ch is
     d               : integer   := 2;
     input_data_type : string    := "SIGNED";
     ref_type        : string    := "SYMMETRICAL";
-    output_mode     : string    := "COMPLEMENTARY";
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
     fp23_binary_point : integer   := 6;
@@ -347,7 +345,7 @@ src/
 ├── pwm_core/rtl/
 │   ├── pwm/
 │   │   ├── pwm_1ch.vhd                   # Single-channel PWM
-│   │   ├── pwm_1ch_drive_pkg.vhd         # Complementary / bipolar drive functions
+│   │   ├── pwm_1ch_drive_pkg.vhd         # Complementary drive functions
 │   │   └── pwm_mch.vhd                   # Multi-channel direct PWM
 │   ├── counters/
 │   │   ├── up_counter_signed.vhd
