@@ -95,6 +95,13 @@ This project has been developed and tested on the following Xilinx Zynq-7000 dev
 - **[MYiR Z-turn Board V2](https://www.myirtech.com/list.asp?id=708)** - Zynq-7020
 - **Antminer S9** - Custom ASIC miner board (repurposed)
 
+### Board Controls
+
+| Board | Reset input | Resolution/frequency step input |
+|-------|-------------|---------------------------------|
+| Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` |
+| Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` |
+
 ## Requirements
 
 ### Software
@@ -239,7 +246,7 @@ The system implements **symmetrical (center-aligned) PWM** where:
 - Module signal adapts to reference signal characteristics
 - Integer-only counter increments for simplicity
 - Uses buffered PWM branches for 4, 5, 6, 7, and 8-bit resolution
-- Uses the legacy `sys_pwm_mode` input as a resolution-step button
+- Uses the legacy `sys_pwm_mode` input as a resolution/frequency-step button
 - Blanks outputs and resets the sine/FIFO/PWM path during runtime resolution changes
 - Enables sine soft-start ramp after reset
 - Uses symmetrical PWM with triangle reference

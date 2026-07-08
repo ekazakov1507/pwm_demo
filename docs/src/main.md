@@ -2,9 +2,9 @@
 
 ## Overview
 
-The top-level entity `main` builds the Z7-Lite oriented PWM demo path. It derives the internal clocks, generates a 16-bit signed pulse/sine source, truncates that source into fixed PWM resolutions, and selects one buffered PWM/FIFO branch at runtime.
+The top-level entity `main` builds the board-level PWM demo path used by the Z7-Lite and Zybo builds. It derives the internal clocks, generates a 16-bit signed pulse/sine source, truncates that source into fixed PWM resolutions, and selects one buffered PWM/FIFO branch at runtime.
 
-The legacy input name `sys_pwm_mode` is kept so existing constraints and scripts still match the top-level port. In the current design it is a resolution-step button, not a direct/buffered mode selector.
+The legacy input name `sys_pwm_mode` is kept so existing constraints and scripts still match the top-level port. In the current design it is a resolution/frequency-step button, not a direct/buffered mode selector.
 
 ## Block Diagram
 
@@ -26,7 +26,7 @@ graph TB
     SINE --> T8[MSBs 15:8] --> PWM8
 
     SYS_RST[sys_rst] --> CTRL
-    STEP[sys_pwm_mode<br/>resolution step] --> CTRL
+    STEP[sys_pwm_mode<br/>resolution/frequency step] --> CTRL
     MMCM -->|locked| CTRL
     CTRL -->|sine_rst| SINE
     CTRL -->|pwm_rst + resolution_sel| MUX[resolution output mux]

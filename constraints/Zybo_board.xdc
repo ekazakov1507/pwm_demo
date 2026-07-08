@@ -10,18 +10,19 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 
 
 ##Switches
-set_property -dict { PACKAGE_PIN G15   IOSTANDARD LVCMOS33 } [get_ports { sys_rst }]; #IO_L19N_T3_VREF_35 Sch=SW0
-set_property -dict { PACKAGE_PIN P15   IOSTANDARD LVCMOS33 } [get_ports { sys_pwm_mode }];  #IO_L24P_T3_34 Sch=SW1
+#set_property -dict { PACKAGE_PIN G15   IOSTANDARD LVCMOS33 } [get_ports { sw[0] }]; #IO_L19N_T3_VREF_35 Sch=SW0
+#set_property -dict { PACKAGE_PIN P15   IOSTANDARD LVCMOS33 } [get_ports { sw[1] }]; #IO_L24P_T3_34 Sch=SW1
 #set_property -dict { PACKAGE_PIN W13   IOSTANDARD LVCMOS33 } [get_ports { sw[2] }]; #IO_L4N_T0_34 Sch=SW2
 #set_property -dict { PACKAGE_PIN T16   IOSTANDARD LVCMOS33 } [get_ports { sw[3] }]; #IO_L9P_T1_DQS_34 Sch=SW3
-set_false_path -from [get_ports {sys_rst sys_pwm_mode}]
 
 
 ##Buttons
-#set_property -dict {PACKAGE_PIN R18 IOSTANDARD LVCMOS33} [get_ports sys_resolution_button]
-#set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS33 } [get_ports { btn[1] }]; #IO_L24N_T3_34 Sch=BTN1
+set_property -dict {PACKAGE_PIN R18 IOSTANDARD LVCMOS33} [get_ports sys_rst]; #IO_L20N_T3_34 Sch=BTN0
+# Legacy port name: this button now steps PWM resolution/frequency.
+set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS33 } [get_ports { sys_pwm_mode }]; #IO_L24N_T3_34 Sch=BTN1
 #set_property -dict { PACKAGE_PIN V16   IOSTANDARD LVCMOS33 } [get_ports { btn[2] }]; #IO_L18P_T2_34 Sch=BTN2
 #set_property -dict { PACKAGE_PIN Y16   IOSTANDARD LVCMOS33 } [get_ports { btn[3] }]; #IO_L7P_T1_34 Sch=BTN3
+set_false_path -from [get_ports {sys_rst sys_pwm_mode}]
 
 
 ##LEDs

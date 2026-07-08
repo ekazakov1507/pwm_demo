@@ -88,4 +88,4 @@ A debounced rising edge on `sys_pwm_mode` blanks the outputs, holds the sine sou
 
 ## Debug
 
-The current top-level does not instantiate VIO or ILA. The `debug` generic remains accepted for compatibility with older build commands, but normal Z7-Lite builds are hardware-button controlled only.
+The current top-level does not instantiate VIO or ILA. The `debug` generic remains accepted for compatibility with older build commands, but normal Z7-Lite and Zybo builds are hardware-button controlled only.

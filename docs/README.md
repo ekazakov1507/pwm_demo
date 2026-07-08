@@ -171,6 +171,13 @@ docs/
 | MYiR Z-turn Board V2 | Z7020 | ✅ Supported |
 | Antminer S9 | Z7010 | ✅ Supported |
 
+### Runtime Control Pins
+
+| Board | Reset input | Resolution/frequency step input |
+|-------|-------------|---------------------------------|
+| Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` |
+| Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` |
+
 ### Constraint Files
 
 The Microphase Z7-Lite SD boot wrapper targets the XC7Z020 board variant used by this workspace.

@@ -251,7 +251,7 @@ entity main is
   port (
     sys_clk      : in    std_logic;
     sys_rst      : in    std_logic;
-    sys_pwm_mode : in    std_logic;  -- legacy name, resolution-step button
+    sys_pwm_mode : in    std_logic;  -- legacy name, resolution/frequency-step button
     sys_pwm      : out   std_logic_vector(num_channels - 1 downto 0);
     sys_pwm_n    : out   std_logic_vector(num_channels - 1 downto 0)
   );
