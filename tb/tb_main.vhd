@@ -17,7 +17,7 @@ architecture tb of tb_main is
   constant sine_pulse_duration_cycles    : positive := 56;
   constant sine_pulse_front_cycles       : natural  := 8;
   constant sine_pulse_fall_cycles        : natural  := 8;
-  constant sine_sample_period_cycles     : positive := 1;
+  constant sine_input_data_decimation_factor : positive := 1;
   constant sine_buffer_prefill_pulses    : positive := 2;
   constant sine_buffer_resume_pulses     : positive := 1;
   constant sine_buffer_refill_batch_pulses : positive := 1;
@@ -58,7 +58,7 @@ begin
       sine_pulse_duration_cycles    => sine_pulse_duration_cycles,
       sine_pulse_front_cycles       => sine_pulse_front_cycles,
       sine_pulse_fall_cycles        => sine_pulse_fall_cycles,
-      sine_sample_period_cycles     => sine_sample_period_cycles,
+      sine_input_data_decimation_factor => sine_input_data_decimation_factor,
       sine_buffer_prefill_pulses    => sine_buffer_prefill_pulses,
       sine_buffer_resume_pulses     => sine_buffer_resume_pulses,
       sine_buffer_refill_batch_pulses => sine_buffer_refill_batch_pulses,

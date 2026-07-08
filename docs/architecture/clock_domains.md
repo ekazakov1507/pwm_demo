@@ -136,15 +136,14 @@ graph LR
 
 ### Data Rate Matching
 
-```
-Sine Generator Rate:  50 MHz (1 sample/clock)
-Decimation Factor:    61 in the current top-level buffered branch ratio
-FIFO Write Rate:      50 MHz / 61 ≈ 819.7 kHz
+```text
+Buffered source request rate: 50 MHz / 64 = 781.25 kHz
+Manual input decimation:      64 in the current top-level buffered branch
 
-PWM Cycle Rate:       100 MHz / 128 = 781.25 kHz (r=6, symmetrical)
-FIFO Read Rate:       781.25 kHz (once per PWM frame)
+PWM cycle rate:               100 MHz / 128 = 781.25 kHz (r=6, symmetrical)
+FIFO read rate:               781.25 kHz (once per PWM frame)
 
-Result: Write rate > Read rate ✓
+Result: source requests and PWM frame reads are intentionally matched.
 ```
 
 ### Synchronization Strategy

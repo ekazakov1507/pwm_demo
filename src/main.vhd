@@ -107,7 +107,7 @@ entity main is
     sine_pulse_duration_cycles    : positive := 2048;
     sine_pulse_front_cycles       : natural  := 256;
     sine_pulse_fall_cycles        : natural  := 256;
-    sine_sample_period_cycles     : positive := 20;
+    sine_input_data_decimation_factor : positive := 64;
     sine_buffer_prefill_pulses    : positive := 2;
     sine_buffer_resume_pulses     : positive := 1;
     sine_buffer_refill_batch_pulses : positive := 1;
@@ -199,7 +199,7 @@ architecture src of main is
       scale_factor    : real      := 0.8;
       offset_factor   : real      := 0.1;
       input_mode       : string    := "DECIMATED";
-      sample_period_cycles : positive := 1;
+      input_data_decimation_factor : positive := 64;
       pulse_period_samples : positive := 1024;
       prefill_pulses       : positive := 2;
       resume_pulses        : positive := 1;
@@ -399,7 +399,7 @@ begin
       input_data_type => INPUT_DATA_TYPE,
       buffer_depth    => BUFFER_DEPTH,
       input_mode      => "VALID",
-      sample_period_cycles => sine_sample_period_cycles,
+      input_data_decimation_factor => sine_input_data_decimation_factor,
       pulse_period_samples => sine_pulse_period_cycles,
       prefill_pulses       => sine_buffer_prefill_pulses,
       resume_pulses        => sine_buffer_resume_pulses,

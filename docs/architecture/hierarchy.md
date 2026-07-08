@@ -247,7 +247,8 @@ entity main is
     num_channels                 : integer := 4;
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
-    sine_ramp_length             : positive := 2048;
+    sine_wave_length             : positive := 2048;
+    sine_input_data_decimation_factor : positive := 64;
     reset_release_cycles         : positive := 5
   );
   port (

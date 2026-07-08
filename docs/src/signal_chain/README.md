@@ -233,7 +233,7 @@ stateDiagram-v2
 
 With `ramp_enable = true`, `ramp_count` increments once per `clk` until the effective ramp length is reached. Signed output multiplies each sample by `ramp_count / ramp_length`, so the waveform starts at zero amplitude. Unsigned output preserves the midpoint and scales only the AC component, so the first active unsigned sample starts near midscale rather than rail zero.
 
-In the current top-level build, `main.vhd` enables the ramp and passes `sine_ramp_length` with a default of 2048 cycles.
+The current top-level build uses the pulse-envelope generics instead of the soft-start ramp, but the ramp remains available for standalone generator tests and alternate integrations.
 
 ### Usage Example
 

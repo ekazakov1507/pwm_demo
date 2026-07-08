@@ -392,11 +392,17 @@ entity pwm_mch_buf is
     input_data_type : string    := "SIGNED";      -- SIGNED, UNSIGNED, FP23, FP23_SIGNED
     buffer_depth    : integer   := 1024;          -- FIFO depth
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
+    input_mode      : string    := "DECIMATED";   -- DECIMATED or VALID
+    input_data_decimation_factor : positive := 64; -- VALID-mode source strobe divider
+    pulse_period_samples : positive := 1024;      -- VALID-mode pulse-frame length
+    prefill_pulses       : positive := 2;         -- Pulse frames buffered before output starts
+    resume_pulses        : positive := 1;         -- FIFO level that requests refill
+    refill_batch_pulses  : positive := 1;         -- Pulse frames written per refill
+    fifo_margin_samples  : natural  := 4;         -- Writer full-margin
     ref_step        : integer   := 1;             -- Counter increment
     ref_updwn       : std_logic := '1';           -- Up/down control
-    -- CRITICAL: Clock frequencies for proper decimation calculation
-    clk_freq_hz     : integer   := 100_000_000;   -- Input clock frequency (clk domain)
-    clk_pwm_freq_hz : integer   := 200_000_000    -- PWM clock frequency (clk_pwm domain)
+    clk_freq_hz     : integer   := 100_000_000;   -- DECIMATED-mode input clock frequency
+    clk_pwm_freq_hz : integer   := 200_000_000    -- DECIMATED-mode PWM clock frequency
   );
   port (
     clk        : in    std_logic;
@@ -404,6 +410,8 @@ entity pwm_mch_buf is
     rst        : in    std_logic;
     enable     : in    std_logic;
     input_wave : in    std_logic_vector(r - 1 downto 0);
+    input_valid : in   std_logic := '1';
+    input_sample_ce : out std_logic;
     pwm        : out   std_logic_vector(num_channels - 1 downto 0);
     pwm_n      : out   std_logic_vector(num_channels - 1 downto 0)
   );
@@ -549,80 +557,31 @@ graph TB
     style PWMN fill:#ffe1e1
 ```
 
-### Decimation Factor
+### Input Data Decimation
 
-**CRITICAL: The decimation factor must be calculated based on actual clock frequencies to prevent FIFO overflow/underflow.**
+`pwm_mch_buf` supports two write-side pacing modes:
 
-#### Formula
+- `DECIMATED`: accepts a free-running `input_wave`, computes a `data_decimator` factor from `clk_freq_hz`, `clk_pwm_freq_hz`, and PWM frame length, then applies the existing 5% write-rate margin.
+- `VALID`: requests samples from the upstream source with `input_sample_ce`, accepts them when `input_valid = '1'`, and uses `input_data_decimation_factor` as the manual source strobe divider.
 
-```
-For SYMMETRICAL mode:
-    pwm_cycle_length = 2^(r+1)
-    decimation_factor_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
-    decimation_factor = round(decimation_factor_real * 0.95)
+For the current top-level pulse-frame path, `input_mode` is `VALID`. Choose the manual factor from the PWM frame cadence:
 
-For ASYMMETRICAL mode:
-    pwm_cycle_length = 2^r
-    decimation_factor_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
-    decimation_factor = round(decimation_factor_real * 0.95)
+```text
+input_data_decimation_factor = round(clk_freq_hz * pwm_frame_cycles / clk_pwm_freq_hz)
 ```
 
-#### Examples
+Use `pwm_frame_cycles = 2 ** (r + 1)` for `SYMMETRICAL` PWM and `2 ** r` for `ASYMMETRICAL` PWM. With the current top-level clocks and resolution:
 
-**Example 1: Equal clocks (clk = clk_pwm = 100MHz), SYMMETRICAL, r=7**
-```
-pwm_cycle_length = 2^8 = 256
-decimation_factor_real = (100e6 * 256) / 100e6 = 256
-decimation_factor = round(256 * 0.95) = 243
-→ Write every 243 clk cycles, read every 256 clk_pwm cycles
-```
-
-**Example 2: Faster input clock (clk=200MHz, clk_pwm=100MHz), SYMMETRICAL, r=7**
-```
-pwm_cycle_length = 2^8 = 256
-decimation_factor_real = (200e6 * 256) / 100e6 = 512
-decimation_factor = round(512 * 0.95) = 486
-→ Write every 486 clk cycles, read every 256 clk_pwm cycles
+```text
+clk_freq_hz = 50 MHz
+clk_pwm_freq_hz = 100 MHz
+r = 6
+ref_type = SYMMETRICAL
+pwm_frame_cycles = 2 ** 7 = 128
+input_data_decimation_factor = round(50e6 * 128 / 100e6) = 64
 ```
 
-**Current top-level ratio (clk=50MHz, clk_pwm=100MHz), SYMMETRICAL, r=6**
-```
-pwm_cycle_length = 2^7 = 128
-decimation_factor_real = (50e6 * 128) / 100e6 = 64
-decimation_factor = round(64 * 0.95) = 61
-```
-
-#### Safety Margin
-
-The implementation applies a **5% safety margin** to ensure write rate > read rate:
-```vhdl
-decimation_factor = round(decimation_factor_real * 0.95)
-```
-
-This prevents FIFO underflow due to:
-- Clock drift
-- Phase differences
-- Jitter
-
-#### Configuration
-
-You **MUST** set the clock frequency generics to match your hardware:
-
-```vhdl
-pwm_mch_buf_inst : entity work.pwm_mch_buf
-  generic map (
-    r               => 7,
-    num_channels    => 2,
-    ref_type        => "SYMMETRICAL",
-    clk_freq_hz     => 50_000_000,    -- Your clk frequency
-    clk_pwm_freq_hz => 100_000_000    -- Your clk_pwm frequency
-  )
-  port map (
-    ...
-  );
-```
-
-⚠️ **PREVIOUS BUG**: Old implementation used `decimation_factor = pwm_cycle_length / 2`, which completely ignored clock frequencies and would cause FIFO overflow/underflow in most configurations.
+`pulse_period_samples`, `prefill_pulses`, and refill thresholds remain sample counts. Changing `input_data_decimation_factor` changes the pulse duration in seconds unless the pulse sample counts are adjusted too.
 
 ---
 

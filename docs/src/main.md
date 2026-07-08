@@ -86,7 +86,9 @@ entity main is
     num_channels                 : integer := 4;           -- Number of PWM channels
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;  -- Mode handoff blanking delay
-    sine_ramp_length             : positive := 2048;       -- Sine soft-start length
+    sine_wave_length             : positive := 2048;       -- Sine LUT length
+    sine_pulse_period_cycles      : positive := 4096;       -- Pulse frame samples
+    sine_input_data_decimation_factor : positive := 64;     -- Buffered source strobe divider
     reset_release_cycles         : positive := 5           -- Minimum reset assertion
   );
   port (
@@ -106,7 +108,9 @@ end entity main;
 | `num_channels` | integer | 4 | Number of PWM output channels (complementary pairs) |
 | `debug` | string | "NO_DEBUG" | Optional "DEBUG" build mode that instantiates generated VIO/ILA IP for reset/mode force, override, and output capture |
 | `pwm_mode_switch_delay_cycles` | natural | 25,000,000 | Number of `clk` cycles to keep PWM blanked before committing a runtime `sys_pwm_mode` change |
-| `sine_ramp_length` | positive | 2048 | Number of `clk` cycles used by `sine_gen_simple` to ramp to full amplitude |
+| `sine_wave_length` | positive | 2048 | Sine lookup table length in samples |
+| `sine_pulse_period_cycles` | positive | 4096 | Pulse frame length in input samples |
+| `sine_input_data_decimation_factor` | positive | 64 | Manual `VALID`-mode divider for buffered source sample requests |
 | `reset_release_cycles` | positive | 5 | Minimum synchronized reset assertion length for sine and PWM reset release |
 
 ## Ports
@@ -410,7 +414,7 @@ set_false_path -to [get_ports {sys_pwm[*] sys_pwm_n[*]}]
 |-----------|-------|
 | Resolution | 6 bits (64 levels) |
 | PWM Frequency | ~781.25 kHz (symmetrical, buffered branch) |
-| Modulation | ~24.4 kHz sine LUT rate with current constraints |
+| Buffered source request rate | ~781.25 kHz with `sine_input_data_decimation_factor = 64` |
 | Dead Time | 4 × clk_pwm cycles (~40 ns) |
 
 ## See Also

@@ -247,8 +247,9 @@ main.vhd (Top-Level)
 | Number of Channels | 4 | Configurable (default) |
 | Dead Time | 4 cycles | PWM to PWM_N delay |
 | Sine Table Length | 2048 | Samples per cycle |
-| Sine Ramp Length | 2048 | Default soft-start length in `clk` cycles |
-| Buffer Depth | 1024 | FIFO depth for CDC |
+| Pulse Frame Length | 4096 samples | Buffered pulse-frame period |
+| Input Data Decimation | 64 | Manual buffered source request divider |
+| Buffer Depth | 16384 | FIFO depth for CDC |
 
 ## Clock Domain Crossing
 
@@ -341,7 +342,7 @@ pwm_n output: ┌───────────────────┐
 - **clk period**: 20 ns (50 MHz) in current board builds
 - **clk_pwm period**: 10 ns (100 MHz) in current board builds
 - **PWM frequency**: ~781.25 kHz for 6-bit symmetrical mode
-- **Modulation frequency**: ~24.4 kHz sine LUT rate with `wave_length = 2048`
+- **Buffered source request rate**: 781.25 kHz with `sine_input_data_decimation_factor = 64`
 
 ### Resource Utilization
 

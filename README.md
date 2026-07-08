@@ -186,17 +186,29 @@ The top-level module (`main.vhd`) accepts the following generics:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `num_channels` | 4 | Number of PWM output channels |
-| `data_width` | 6 | PWM resolution in bits |
-| `num_dead_time_cycles` | 4 | Dead-time duration in clock cycles |
-| `buffer_depth` | 1024 | Depth of input data buffer |
-| `wave_length` | 2048 | Sine wave table length |
-| `ref_type` | "SYMMETRICAL" | Reference signal type |
-| `ref_step` | 1 | Reference counter increment |
-| `ref_updwn` | '1' | Up/down counting mode |
 | `debug` | "NO_DEBUG" | Optional `"DEBUG"` build mode that instantiates generated VIO/ILA IP |
 | `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime direct/buffered mode change |
-| `sine_ramp_length` | 2048 | Sine soft-start ramp length in `clk` cycles |
+| `sine_wave_length` | 2048 | Sine lookup table length in samples |
+| `sine_pulse_period_cycles` | 4096 | Pulse frame length in input samples |
+| `sine_pulse_start_delay_cycles` | 1024 | Leading neutral/zero samples before each pulse |
+| `sine_pulse_duration_cycles` | 2048 | Active pulse duration in input samples |
+| `sine_pulse_front_cycles` | 256 | Pulse rising envelope length in input samples |
+| `sine_pulse_fall_cycles` | 256 | Pulse falling envelope length in input samples |
+| `sine_input_data_decimation_factor` | 64 | Manual buffered-path source strobe divider |
+| `sine_buffer_prefill_pulses` | 2 | Pulse frames written before buffered output starts |
+| `sine_buffer_resume_pulses` | 1 | FIFO level that triggers a refill batch |
+| `sine_buffer_refill_batch_pulses` | 1 | Pulse frames written per refill batch |
+| `sine_buffer_min_safe_pulses` | 0 | FIFO level that stops buffered output |
+| `sine_buffer_margin_samples` | 8 | FIFO full-margin used by the writer |
 | `reset_release_cycles` | 5 | Minimum synchronized reset assertion length for sine/PWM reset release |
+
+For the buffered `VALID` path, choose `sine_input_data_decimation_factor` as:
+
+```text
+input_data_decimation_factor = round(clk_freq_hz * pwm_frame_cycles / clk_pwm_freq_hz)
+```
+
+Use `pwm_frame_cycles = 2 ** (r + 1)` for symmetrical PWM and `2 ** r` for asymmetrical PWM. With the current 50 MHz `clk`, 100 MHz `clk_pwm`, 6-bit symmetrical PWM, the matching factor is `64`.
 
 ## Algorithm Description
 

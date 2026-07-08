@@ -14,7 +14,7 @@ entity pwm_mch_buf is
     scale_factor    : real      := 0.8;
     offset_factor   : real      := 0.1;
     input_mode       : string    := "DECIMATED";
-    sample_period_cycles : positive := 1;
+    input_data_decimation_factor : positive := 64;
     pulse_period_samples : positive := 1024;
     prefill_pulses       : positive := 2;
     resume_pulses        : positive := 1;
@@ -434,7 +434,7 @@ begin
 
     signal writer_state : writer_state_t := writer_prefill;
     signal writer_sample_count : natural range 0 to max_write_batch_samples := 0;
-    signal sample_period_count : natural range 0 to sample_period_cycles - 1 := 0;
+    signal input_data_decimation_count : natural range 0 to input_data_decimation_factor - 1 := 0;
 
   begin
 
@@ -448,7 +448,7 @@ begin
         if (rst = '1') then
           writer_state        <= writer_prefill;
           writer_sample_count <= 0;
-          sample_period_count <= 0;
+          input_data_decimation_count <= 0;
           source_sample_ce    <= '0';
           buf_wr_en           <= '0';
           buf_input           <= neutral_sample;
@@ -482,7 +482,7 @@ begin
 
           if (writer_state = writer_idle) then
             writer_sample_count <= 0;
-            sample_period_count <= 0;
+            input_data_decimation_count <= 0;
 
             if ((enable = '1') and (fifo_level <= resume_sample_count)) then
               writer_state <= writer_refill;
@@ -490,18 +490,18 @@ begin
           elsif (next_sample_count >= target_count) then
             writer_state        <= writer_idle;
             writer_sample_count <= 0;
-            sample_period_count <= 0;
+            input_data_decimation_count <= 0;
           else
             writer_sample_count <= next_sample_count;
 
             if ((enable = '1') and
                 (buf_full = '0') and
                 (fifo_level < almost_full_sample_count)) then
-              if (sample_period_count = sample_period_cycles - 1) then
-                sample_period_count <= 0;
+              if (input_data_decimation_count = input_data_decimation_factor - 1) then
+                input_data_decimation_count <= 0;
                 source_sample_ce    <= '1';
               else
-                sample_period_count <= sample_period_count + 1;
+                input_data_decimation_count <= input_data_decimation_count + 1;
               end if;
             end if;
           end if;
