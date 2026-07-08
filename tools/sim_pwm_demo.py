@@ -84,7 +84,7 @@ def main():
 
     # Default runtimes for each testbench
     default_runtimes = {
-        "tb_main": "20 us",
+        "tb_main": "700 us",
         "tb_pwm_1ch": "110 us",
         "tb_pwm_mch": "260 us",
         "tb_async_fifo": "20 us",

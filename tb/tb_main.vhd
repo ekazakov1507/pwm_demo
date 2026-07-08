@@ -11,13 +11,13 @@ architecture tb of tb_main is
 
   constant num_channels                 : integer := 4;
   constant pwm_mode_switch_delay_cycles : natural := 16;
-  constant sine_wave_length             : positive := 64;
-  constant sine_pulse_period_cycles      : positive := 64;
+  constant button_debounce_cycles       : positive := 2;
+  constant sine_wave_length             : positive := 32;
+  constant sine_pulse_period_cycles      : positive := 8;
   constant sine_pulse_start_delay_cycles : natural  := 0;
-  constant sine_pulse_duration_cycles    : positive := 56;
-  constant sine_pulse_front_cycles       : natural  := 8;
-  constant sine_pulse_fall_cycles        : natural  := 8;
-  constant sine_input_data_decimation_factor : positive := 1;
+  constant sine_pulse_duration_cycles    : positive := 8;
+  constant sine_pulse_front_cycles       : natural  := 0;
+  constant sine_pulse_fall_cycles        : natural  := 0;
   constant sine_buffer_prefill_pulses    : positive := 2;
   constant sine_buffer_resume_pulses     : positive := 1;
   constant sine_buffer_refill_batch_pulses : positive := 1;
@@ -33,18 +33,21 @@ architecture tb of tb_main is
   signal sys_pwm   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal sys_pwm_n : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
-  signal test_phase         : integer range 0 to 3 := 0;
-  signal saw_mode0_activity : boolean := false;
-  signal saw_mode1_activity : boolean := false;
-  signal saw_switch_blank   : boolean := false;
+  signal test_phase           : integer range 0 to 6 := 0;
+  signal saw_default_activity : boolean := false;
+  signal saw_res7_activity    : boolean := false;
+  signal saw_res8_activity    : boolean := false;
+  signal saw_res4_activity    : boolean := false;
+  signal saw_res5_activity    : boolean := false;
+  signal saw_res6_activity    : boolean := false;
 
   signal ctrl_clk              : std_logic := '0';
   signal ctrl_mmcm_lock        : std_logic := '0';
   signal ctrl_rst_request      : std_logic := '0';
-  signal ctrl_pwm_mode_request : std_logic := '0';
+  signal ctrl_resolution_step  : std_logic := '0';
   signal ctrl_sine_rst         : std_logic := '1';
   signal ctrl_pwm_rst          : std_logic := '1';
-  signal ctrl_pwm_mode_sel     : std_logic := '0';
+  signal ctrl_resolution_sel   : std_logic_vector(2 downto 0) := "010";
 
 begin
 
@@ -52,13 +55,13 @@ begin
     generic map (
       num_channels                 => num_channels,
       pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
+      button_debounce_cycles       => button_debounce_cycles,
       sine_wave_length             => sine_wave_length,
       sine_pulse_period_cycles      => sine_pulse_period_cycles,
       sine_pulse_start_delay_cycles => sine_pulse_start_delay_cycles,
       sine_pulse_duration_cycles    => sine_pulse_duration_cycles,
       sine_pulse_front_cycles       => sine_pulse_front_cycles,
       sine_pulse_fall_cycles        => sine_pulse_fall_cycles,
-      sine_input_data_decimation_factor => sine_input_data_decimation_factor,
       sine_buffer_prefill_pulses    => sine_buffer_prefill_pulses,
       sine_buffer_resume_pulses     => sine_buffer_resume_pulses,
       sine_buffer_refill_batch_pulses => sine_buffer_refill_batch_pulses,
@@ -77,22 +80,34 @@ begin
   reset_ctrl_check : entity work.main_reset_ctrl
     generic map (
       pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
-      reset_release_cycles         => reset_release_cycles
+      reset_release_cycles         => reset_release_cycles,
+      button_debounce_cycles       => button_debounce_cycles,
+      min_pwm_resolution_bits      => 4,
+      max_pwm_resolution_bits      => 8,
+      default_pwm_resolution_bits  => 6
     )
     port map (
       clk              => ctrl_clk,
       mmcm_clk_lock    => ctrl_mmcm_lock,
       rst_request      => ctrl_rst_request,
-      pwm_mode_request => ctrl_pwm_mode_request,
+      resolution_step  => ctrl_resolution_step,
       sine_rst         => ctrl_sine_rst,
       pwm_rst          => ctrl_pwm_rst,
-      pwm_mode_sel     => ctrl_pwm_mode_sel
+      resolution_sel   => ctrl_resolution_sel
     );
 
   sys_clk <= not sys_clk after clk_period / 2;
   ctrl_clk <= not ctrl_clk after clk_period / 2;
 
   stim_proc : process is
+
+    procedure press_resolution_button is
+    begin
+      sys_pwm_mode <= '1';
+      wait for 2 us;
+      sys_pwm_mode <= '0';
+    end procedure press_resolution_button;
+
   begin
 
     wait for 1 us;
@@ -107,27 +122,69 @@ begin
     sys_pwm_mode <= '0';
     sys_rst      <= '0';
     test_phase   <= 1;
-    wait for 5 us;
-    assert saw_mode0_activity
-      report "main: expected direct pwm_mch activity in mode 0"
+    wait for 80 us;
+    assert saw_default_activity
+      report "main: expected buffered PWM activity in default 6-bit resolution"
       severity failure;
 
-    sys_pwm_mode <= '1';
-    test_phase   <= 2;
-    wait for 200 ns;
-    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
-      report "main: expected outputs blanked during delayed runtime mode switch"
-      severity failure;
-
+    test_phase <= 0;
+    press_resolution_button;
     wait for 1 us;
-    assert saw_switch_blank
-      report "main: expected a blanking interval after runtime mode switch"
+    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
+      report "main: expected blanking while switching from 6-bit to 7-bit resolution"
+      severity failure;
+    test_phase <= 2;
+    wait for 80 us;
+    assert saw_res7_activity
+      report "main: expected buffered PWM activity after switching to 7-bit resolution"
       severity failure;
 
+    test_phase <= 0;
+    press_resolution_button;
+    wait for 1 us;
+    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
+      report "main: expected blanking while switching from 7-bit to 8-bit resolution"
+      severity failure;
     test_phase <= 3;
-    wait for 10 us;
-    assert saw_mode1_activity
-      report "main: expected buffered pwm_mch_buf activity in mode 1"
+    wait for 100 us;
+    assert saw_res8_activity
+      report "main: expected buffered PWM activity after switching to 8-bit resolution"
+      severity failure;
+
+    test_phase <= 0;
+    press_resolution_button;
+    wait for 1 us;
+    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
+      report "main: expected blanking while wrapping from 8-bit to 4-bit resolution"
+      severity failure;
+    test_phase <= 4;
+    wait for 80 us;
+    assert saw_res4_activity
+      report "main: expected buffered PWM activity after switching to 4-bit resolution"
+      severity failure;
+
+    test_phase <= 0;
+    press_resolution_button;
+    wait for 1 us;
+    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
+      report "main: expected blanking while switching from 4-bit to 5-bit resolution"
+      severity failure;
+    test_phase <= 5;
+    wait for 80 us;
+    assert saw_res5_activity
+      report "main: expected buffered PWM activity after switching to 5-bit resolution"
+      severity failure;
+
+    test_phase <= 0;
+    press_resolution_button;
+    wait for 1 us;
+    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
+      report "main: expected blanking while switching from 5-bit to 6-bit resolution"
+      severity failure;
+    test_phase <= 6;
+    wait for 80 us;
+    assert saw_res6_activity
+      report "main: expected buffered PWM activity after switching back to 6-bit resolution"
       severity failure;
 
     sys_rst    <= '1';
@@ -144,7 +201,20 @@ begin
   end process stim_proc;
 
   reset_ctrl_stim_proc : process is
+
+    procedure press_ctrl_step is
+    begin
+      ctrl_resolution_step <= '1';
+      wait for clk_period * 8;
+      assert ((ctrl_sine_rst = '1') and (ctrl_pwm_rst = '1'))
+        report "main_reset_ctrl: resolution switch must reset sine generator and PWM"
+        severity failure;
+      ctrl_resolution_step <= '0';
+      wait for clk_period * (pwm_mode_switch_delay_cycles + reset_release_cycles + 8);
+    end procedure press_ctrl_step;
+
     variable held_cycles : natural := 0;
+
   begin
 
     wait for clk_period * 4;
@@ -167,33 +237,41 @@ begin
     assert held_cycles >= reset_release_cycles
       report "main_reset_ctrl: initial reset release was shorter than minimum"
       severity failure;
+    assert ctrl_resolution_sel = "010"
+      report "main_reset_ctrl: reset must select default 6-bit resolution"
+      severity failure;
 
-    ctrl_pwm_mode_request <= '1';
-    wait until ctrl_pwm_rst = '1';
+    press_ctrl_step;
     wait for 1 ns;
-    assert ctrl_sine_rst = '0'
-      report "main_reset_ctrl: PWM mode switch must not reset sine generator"
+    assert ((ctrl_sine_rst = '0') and (ctrl_pwm_rst = '0'))
+      report "main_reset_ctrl: resolution switch reset did not release"
+      severity failure;
+    assert ctrl_resolution_sel = "011"
+      report "main_reset_ctrl: first step must select 7-bit resolution"
       severity failure;
 
-    held_cycles := 0;
-
-    while (ctrl_pwm_rst = '1') loop
-      wait until rising_edge(ctrl_clk);
-      wait for 1 ns;
-      held_cycles := held_cycles + 1;
-      assert ctrl_sine_rst = '0'
-        report "main_reset_ctrl: sine reset asserted during PWM mode switch blanking"
-        severity failure;
-    end loop;
-
-    assert held_cycles >= reset_release_cycles
-      report "main_reset_ctrl: PWM mode switch blanking was shorter than minimum"
+    press_ctrl_step;
+    wait for 1 ns;
+    assert ctrl_resolution_sel = "100"
+      report "main_reset_ctrl: second step must select 8-bit resolution"
       severity failure;
-    assert ctrl_sine_rst = '0'
-      report "main_reset_ctrl: sine reset must stay inactive after PWM mode switch"
+
+    press_ctrl_step;
+    wait for 1 ns;
+    assert ctrl_resolution_sel = "000"
+      report "main_reset_ctrl: third step must wrap to 4-bit resolution"
       severity failure;
-    assert ctrl_pwm_mode_sel = '1'
-      report "main_reset_ctrl: PWM mode switch must commit selected mode"
+
+    press_ctrl_step;
+    wait for 1 ns;
+    assert ctrl_resolution_sel = "001"
+      report "main_reset_ctrl: fourth step must select 5-bit resolution"
+      severity failure;
+
+    press_ctrl_step;
+    wait for 1 ns;
+    assert ctrl_resolution_sel = "010"
+      report "main_reset_ctrl: fifth step must return to 6-bit resolution"
       severity failure;
 
     ctrl_rst_request <= '1';
@@ -218,6 +296,9 @@ begin
     assert held_cycles >= reset_release_cycles
       report "main_reset_ctrl: reset button release was shorter than minimum"
       severity failure;
+    assert ctrl_resolution_sel = "010"
+      report "main_reset_ctrl: reset button must restore default 6-bit resolution"
+      severity failure;
 
     wait;
 
@@ -226,18 +307,31 @@ begin
   activity_monitor : process (sys_pwm, sys_pwm_n, test_phase) is
   begin
 
-    if ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero)) then
-      if (test_phase = 2) then
-        saw_switch_blank <= true;
-      end if;
-    else
+    if not ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero)) then
       if (test_phase = 1) then
-        saw_mode0_activity <= true;
+        saw_default_activity <= true;
+      elsif (test_phase = 2) then
+        saw_res7_activity <= true;
       elsif (test_phase = 3) then
-        saw_mode1_activity <= true;
+        saw_res8_activity <= true;
+      elsif (test_phase = 4) then
+        saw_res4_activity <= true;
+      elsif (test_phase = 5) then
+        saw_res5_activity <= true;
+      elsif (test_phase = 6) then
+        saw_res6_activity <= true;
       end if;
     end if;
 
   end process activity_monitor;
+
+  complementary_monitor : process (sys_pwm, sys_pwm_n) is
+  begin
+    for i in 0 to num_channels - 1 loop
+      assert not ((sys_pwm(i) = '1') and (sys_pwm_n(i) = '1'))
+        report "main: pwm and pwm_n must not be high together"
+        severity failure;
+    end loop;
+  end process complementary_monitor;
 
 end architecture tb;

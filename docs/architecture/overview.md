@@ -38,7 +38,7 @@ graph TB
     end
 
     subgraph "Output Selection"
-        MODE_SEL[Direct / Buffered<br/>mode select]
+        MODE_SEL[Runtime resolution<br/>output mux]
     end
 
     subgraph "Output Buffers"
@@ -233,7 +233,7 @@ main.vhd (Top-Level)
 │               ├── pwm_state / pwm_n_state → pwm / pwm_n
 │
 └── Output Selection
-    └── main_reset_ctrl-controlled direct/buffered mux with reset blanking
+    └── main_reset_ctrl-controlled resolution mux with reset blanking
 ```
 
 ## Key Design Parameters
@@ -243,7 +243,7 @@ main.vhd (Top-Level)
 | Input Clock | 100 MHz | Current board XDC constraint |
 | System Clock (clk) | 50 MHz | Sine generation and direct PWM branch |
 | PWM Clock (clk_pwm) | 100 MHz | Buffered PWM reference counter and outputs |
-| PWM Resolution | 6 bits | 64 discrete levels |
+| PWM Resolution | 4 to 8 bits | Runtime selected; reset default is 6-bit |
 | Number of Channels | 4 | Configurable (default) |
 | Dead Time | 4 cycles | PWM to PWM_N delay |
 | Sine Table Length | 2048 | Samples per cycle |
@@ -341,8 +341,8 @@ pwm_n output: ┌───────────────────┐
 
 - **clk period**: 20 ns (50 MHz) in current board builds
 - **clk_pwm period**: 10 ns (100 MHz) in current board builds
-- **PWM frequency**: ~781.25 kHz for 6-bit symmetrical mode
-- **Buffered source request rate**: 781.25 kHz with `sine_input_data_decimation_factor = 64`
+- **PWM frequency**: ~3.125 MHz to ~195.3125 kHz for 4-8 bit symmetrical modes
+- **Buffered source request rate**: matched per selected resolution branch
 
 ### Resource Utilization
 

@@ -11,20 +11,20 @@ This project implements a high-frequency PWM modulation system with the followin
 - **Dead-time insertion** to prevent shoot-through in power electronics applications
 - **Buffered architecture** using asynchronous FIFOs for reliable clock domain crossing
 - **MMCM clock generation** for board-clock-derived `clk` and `clk_pwm` domains
-- **Runtime direct/buffered PWM mode select** with blanked output handoff
+- **Runtime PWM resolution/frequency stepping** from 4 to 8 bits with blanked output handoff
 - **Sine-wave soft-start ramp** after reset to avoid an immediate full-amplitude step
-- **Configurable parameters** including data width, dead-time cycles, and reference signal type
-- **Optional VIO/ILA debug build** for reset/mode force and override control plus PWM output capture
+- **16-bit source samples truncated into the selected PWM/FIFO resolution**
+- **Configurable parameters** including pulse timing, dead-time cycles, and reference signal type
 
 ## Technical Specifications
 
-### Current Configuration (v3)
-- **PWM Frequency:** ~781.25 kHz in the current board builds (`clk_pwm` / 128)
+### Current Configuration (v4)
+- **PWM Frequency:** button-selectable from ~3.125 MHz to ~195.3125 kHz in the current board builds
 - **Modulation:** Sine LUT source; current board constraints yield ~24.4 kHz for `clk` / 2048
-- **Resolution:** 6-bit PWM (configurable)
+- **Resolution:** runtime-selected 4, 5, 6, 7, or 8-bit PWM; reset default is 6-bit
 - **Clock Frequency:** 50 MHz `clk` and 100 MHz `clk_pwm`, derived from the 100 MHz board input constraints
 - **Dead Time:** 4 `clk_pwm` cycles (~40 ns with the current constraints)
-- **Buffer Depth:** 1024 samples
+- **Buffer Depth:** 16384 samples per selected buffered branch
 - **Wave Table Length:** 2048 points
 - **Sine Soft Start:** 2048 `clk` cycles by default
 
@@ -34,9 +34,10 @@ System Clock (100 MHz, constrained by board XDC)
     ↓
 [IBUF] → [BUFG] → [MMCM]
                      ↓
-              clk (50 MHz) ──→ [Sine Generator] ──→ [Direct PWM]
-                            └──→ [Buffered PWM / FIFO] ──→ [Mode Select] ──→ [OBUF] → PWM Outputs
-              clk_pwm (100 MHz) ──→ [Buffered PWM Reference Counter]
+              clk (50 MHz) ──→ [16-bit Sine Generator]
+                            └──→ [Truncate to 4/5/6/7/8 bits]
+                            └──→ [Selected Buffered PWM / FIFO] ──→ [OBUF] → PWM Outputs
+              clk_pwm (100 MHz) ──→ [Buffered PWM Reference Counters]
 ```
 
 ## Project Structure
@@ -186,15 +187,15 @@ The top-level module (`main.vhd`) accepts the following generics:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `num_channels` | 4 | Number of PWM output channels |
-| `debug` | "NO_DEBUG" | Optional `"DEBUG"` build mode that instantiates generated VIO/ILA IP |
-| `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime direct/buffered mode change |
+| `debug` | "NO_DEBUG" | Accepted for build compatibility; the current top-level does not instantiate VIO/ILA |
+| `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime resolution change |
+| `button_debounce_cycles` | 1,000,000 | Debounce interval for the resolution-step board input in the `clk` domain |
 | `sine_wave_length` | 2048 | Sine lookup table length in samples |
 | `sine_pulse_period_cycles` | 4096 | Pulse frame length in input samples |
 | `sine_pulse_start_delay_cycles` | 1024 | Leading neutral/zero samples before each pulse |
 | `sine_pulse_duration_cycles` | 2048 | Active pulse duration in input samples |
 | `sine_pulse_front_cycles` | 256 | Pulse rising envelope length in input samples |
 | `sine_pulse_fall_cycles` | 256 | Pulse falling envelope length in input samples |
-| `sine_input_data_decimation_factor` | 64 | Manual buffered-path source strobe divider |
 | `sine_buffer_prefill_pulses` | 2 | Pulse frames written before buffered output starts |
 | `sine_buffer_resume_pulses` | 1 | FIFO level that triggers a refill batch |
 | `sine_buffer_refill_batch_pulses` | 1 | Pulse frames written per refill batch |
@@ -202,13 +203,15 @@ The top-level module (`main.vhd`) accepts the following generics:
 | `sine_buffer_margin_samples` | 8 | FIFO full-margin used by the writer |
 | `reset_release_cycles` | 5 | Minimum synchronized reset assertion length for sine/PWM reset release |
 
-For the buffered `VALID` path, choose `sine_input_data_decimation_factor` as:
+The top-level instantiates fixed buffered PWM branches for 4 through 8 bits. The selected branch chooses the source request divider so one truncated source sample is written for each PWM frame:
 
-```text
-input_data_decimation_factor = round(clk_freq_hz * pwm_frame_cycles / clk_pwm_freq_hz)
-```
-
-Use `pwm_frame_cycles = 2 ** (r + 1)` for symmetrical PWM and `2 ** r` for asymmetrical PWM. With the current 50 MHz `clk`, 100 MHz `clk_pwm`, 6-bit symmetrical PWM, the matching factor is `64`.
+| Resolution | PWM frame cycles | PWM frequency | Source request divider |
+|------------|------------------|---------------|------------------------|
+| 4-bit | 32 | 3.125 MHz | 16 |
+| 5-bit | 64 | 1.5625 MHz | 32 |
+| 6-bit | 128 | 781.25 kHz | 64 |
+| 7-bit | 256 | 390.625 kHz | 128 |
+| 8-bit | 512 | 195.3125 kHz | 256 |
 
 ## Algorithm Description
 
@@ -232,13 +235,18 @@ The system implements **symmetrical (center-aligned) PWM** where:
 
 ## Algorithm Versions
 
-### Version 3 (Current) - Reference-Aligned Modulation
+### Version 4 (Current) - Runtime Resolution/Frequency Step
 - Module signal adapts to reference signal characteristics
 - Integer-only counter increments for simplicity
-- Uses direct and buffered PWM branches selected by `sys_pwm_mode`
-- Blanks outputs during runtime mode handoff and during PWM reset
+- Uses buffered PWM branches for 4, 5, 6, 7, and 8-bit resolution
+- Uses the legacy `sys_pwm_mode` input as a resolution-step button
+- Blanks outputs and resets the sine/FIFO/PWM path during runtime resolution changes
 - Enables sine soft-start ramp after reset
 - Uses symmetrical PWM with triangle reference
+
+### Version 3 (Legacy) - Reference-Aligned Modulation
+- Used direct and buffered PWM branches selected by `sys_pwm_mode`
+- Blanked outputs during runtime mode handoff and during PWM reset
 
 ### Version 2 (Legacy) - Module-Aligned Reference
 - Reference signal adapts to module signal

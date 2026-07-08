@@ -11,7 +11,7 @@ Comprehensive design documentation for the FPGA-based PWM generator implemented 
 ```
 docs/
 ├── README.md                  ← You are here
-├── vio_ila_debug_guide.md     # VIO/ILA debug build, controls, and probes
+├── vio_ila_debug_guide.md     # Legacy debug guide for older builds
 ├── architecture/              # System-level architecture
 │   ├── overview.md            # Top-level system architecture
 │   ├── hierarchy.md           # Module hierarchy tree
@@ -41,7 +41,6 @@ docs/
 ### Getting Started
 
 - [Console Build Guide](./console_build_guide.md) - PowerShell/Vivado batch synthesis, simulation, bitstream, and SD boot flows
-- [VIO/ILA Debug Guide](./vio_ila_debug_guide.md) - Debug bitstreams, VIO controls, ILA probes, and trigger workflows
 - [Architecture Overview](./architecture/overview.md) - Start here for system-level understanding
 - [Module Hierarchy](./architecture/hierarchy.md) - Complete module tree and dependencies
 - [Clock Domains](./architecture/clock_domains.md) - Clock architecture and CDC
@@ -100,11 +99,11 @@ docs/
 │                    clk (50 MHz)                           clk_pwm (100 MHz)
 │                        │                                       │  │
 │              ┌─────────┴─────────┐                  ┌──────────┴─────────┐
-│              │  Sine Generator   │                  │ Buffered PWM       │
-│              │  + soft start     │────── CDC ──────→│ Controller         │
+│              │  16-bit Sine      │                  │ Selected Buffered  │
+│              │  Generator        │────── CDC ──────→│ PWM Branch         │
 │              └─────────┬─────────┘     (FIFO)       └──────────┬─────────┘
 │                        │                                       │          │
-│                        └────────→ Direct PWM ───────→ [Mode Select]       │
+│                        └────────→ 4/5/6/7/8-bit truncation + mux          │
 │                                                                │          │
 │                                                        ┌───────┴───────┐  │
 │                                                        │  OBUF × 4    │  │
@@ -122,9 +121,9 @@ docs/
 | **Input Clock** | 100 MHz | Current board XDC constraint |
 | **System Clock** | 50 MHz | `clkout1`, MMCM ratio |
 | **PWM Clock** | 100 MHz | `clkout2`, MMCM ratio |
-| **PWM Resolution** | 6 bits | 64 discrete levels |
+| **PWM Resolution** | 4 to 8 bits | Runtime selected by board button; reset default is 6-bit |
 | **PWM Channels** | 4 | Complementary pairs |
-| **PWM Frequency** | ~781.25 kHz | Symmetrical mode, `clk_pwm / 128` |
+| **PWM Frequency** | ~3.125 MHz to ~195.3125 kHz | Symmetrical mode, fixed `clk_pwm` |
 | **Modulation** | ~24.4 kHz | Sine LUT rate, `clk / 2048` |
 | **Dead Time** | 4 cycles | ~40 ns at 100 MHz `clk_pwm` |
 
@@ -137,7 +136,7 @@ docs/
 - ✅ Complementary outputs with dead-time
 - ✅ Multi-channel support (configurable)
 - ✅ Buffered architecture for high frequency
-- ✅ Runtime direct/buffered PWM mode select with blanked handoff
+- ✅ Runtime PWM resolution/frequency step with blanked handoff
 - ✅ Pipeline stages for timing closure
 
 ### Clock Domain Crossing
@@ -157,7 +156,7 @@ docs/
 - ✅ Signed/unsigned data types
 - ✅ Symmetrical/asymmetrical PWM modes
 - ✅ Configurable resolution and dead-time
-- ✅ Configurable reset release and PWM mode switch delay
+- ✅ Configurable reset release and resolution switch delay
 
 ---
 
@@ -327,7 +326,6 @@ When adding new modules, please:
 - [Testbenches](../tb/) - Simulation testbenches
 - [Constraints](../constraints/) - Board-specific constraints
 - [Microphase Z7-Lite SD Boot](./z7_lite_sd_boot.md) - BOOT.bin generation and SD-card setup
-- [VIO/ILA Debug Guide](./vio_ila_debug_guide.md) - Debug build and Hardware Manager workflow
 
 ---
 

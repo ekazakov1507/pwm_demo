@@ -22,12 +22,9 @@ pwm_demo (Project Root)
 │       │       ├── generate_sine_wave() [function]
 │       │       └── optional soft-start ramp
 │       │
-│       ├── Direct PWM Generation (clk domain)
-│       │   └── pwm_mch.vhd
-│       │       └── pwm_1ch.vhd × N (channels)
-│       │
-│       ├── Buffered PWM Generation (clk/clk_pwm domains)
-│       │   └── pwm_mch_buf.vhd
+│       ├── Runtime Resolution PWM Generation (clk/clk_pwm domains)
+│       │   ├── 16-bit source MSB truncation for 4/5/6/7/8-bit modes
+│       │   └── pwm_mch_buf.vhd × 5
 │       │       ├── data_decimator.vhd
 │       │       ├── async_fifo.vhd
 │       │       │   ├── bin2gray() [function]
@@ -41,7 +38,7 @@ pwm_demo (Project Root)
 │       │           └── dead_time_generator.vhd
 │       │
 │       └── Output Selection
-│           └── direct/buffered mux blanked by pwm_rst
+│           └── resolution mux blanked by pwm_rst
 │
 ├── Reusable PWM Core (`src/pwm_core/rtl`)
 │   ├── PWM Modules
@@ -248,13 +245,13 @@ entity main is
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
     sine_wave_length             : positive := 2048;
-    sine_input_data_decimation_factor : positive := 64;
+    button_debounce_cycles       : positive := 1_000_000;
     reset_release_cycles         : positive := 5
   );
   port (
     sys_clk      : in    std_logic;
     sys_rst      : in    std_logic;
-    sys_pwm_mode : in    std_logic;
+    sys_pwm_mode : in    std_logic;  -- legacy name, resolution-step button
     sys_pwm      : out   std_logic_vector(num_channels - 1 downto 0);
     sys_pwm_n    : out   std_logic_vector(num_channels - 1 downto 0)
   );

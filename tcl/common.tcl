@@ -104,25 +104,37 @@ proc infer_pwm_demo_build_tag {repo_root generic_overrides} {
   }
 
   set data_width [get_pwm_demo_vhdl_value $main_source {constant\s+data_width\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
+  set source_data_width [get_pwm_demo_vhdl_value $main_source {constant\s+source_data_width\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
+  set min_pwm_resolution_bits [get_pwm_demo_vhdl_value $main_source {constant\s+min_pwm_resolution_bits\s*:\s*integer\s*:=\s*([0-9_]+)} ""]
+  set max_pwm_resolution_bits [get_pwm_demo_vhdl_value $main_source {constant\s+max_pwm_resolution_bits\s*:\s*integer\s*:=\s*([0-9_]+)} ""]
   set dead_time [get_pwm_demo_vhdl_value $main_source {constant\s+num_dead_time_cycles\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
   set buffer_depth [get_pwm_demo_vhdl_value $main_source {constant\s+buffer_depth\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
-  set wave_length [get_pwm_demo_vhdl_value $main_source {constant\s+wave_length\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
+  set default_wave_length [get_pwm_demo_vhdl_value $main_source {sine_wave_length\s*:\s*positive\s*:=\s*([0-9_]+)} 0]
+  set wave_length [get_pwm_demo_vhdl_value $main_source {constant\s+wave_length\s*:\s*integer\s*:=\s*([0-9_]+)} $default_wave_length]
   set input_data_type [sanitize_pwm_demo_token [get_pwm_demo_vhdl_value $main_source {constant\s+input_data_type\s*:\s*string\s*:=\s*"([^"]+)"} default]]
   set ref_type [sanitize_pwm_demo_token [get_pwm_demo_vhdl_value $main_source {constant\s+ref_type\s*:\s*string\s*:=\s*"([^"]+)"} default]]
   set ref_step [get_pwm_demo_vhdl_value $main_source {constant\s+ref_step\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
   set ref_updwn [get_pwm_demo_vhdl_value $main_source {constant\s+ref_updwn\s*:\s*std_logic\s*:=\s*'([01])'} 0]
   set debug_value [sanitize_pwm_demo_token [get_pwm_demo_generic_override $generic_overrides debug "NO_DEBUG"]]
 
-  set tag_parts [list \
-    "nc${num_channels}" \
-    "dw${data_width}" \
-    "dt${dead_time}" \
-    "buf${buffer_depth}" \
-    "wl${wave_length}" \
-    $input_data_type \
-    $ref_type \
-    "rs${ref_step}" \
-    "ru${ref_updwn}" \
+  if {$min_pwm_resolution_bits ne "" && $max_pwm_resolution_bits ne ""} {
+    set width_tags [list "srcdw${source_data_width}" "rw${min_pwm_resolution_bits}-${max_pwm_resolution_bits}"]
+  } else {
+    set width_tags [list "dw${data_width}"]
+  }
+
+  set tag_parts [concat \
+    [list "nc${num_channels}"] \
+    $width_tags \
+    [list \
+      "dt${dead_time}" \
+      "buf${buffer_depth}" \
+      "wl${wave_length}" \
+      $input_data_type \
+      $ref_type \
+      "rs${ref_step}" \
+      "ru${ref_updwn}" \
+    ] \
   ]
 
   if {$debug_value eq "debug"} {

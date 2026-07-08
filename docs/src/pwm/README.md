@@ -589,7 +589,7 @@ input_data_decimation_factor = round(50e6 * 128 / 100e6) = 64
 
 ### Overview
 
-Simplified version without buffering. All channels share the same clock domain. The current top-level `main.vhd` instantiates this as the direct branch selected when `sys_pwm_mode = '0'`.
+Simplified version without buffering. All channels share the same clock domain. The current Z7-Lite top-level uses the buffered runtime-resolution path; this direct module remains available as reusable core RTL and for legacy/testbench coverage.
 
 ### Block Diagram
 

@@ -1,5 +1,7 @@
 # VIO/ILA Debug Guide
 
+> Legacy note: the current Z7-Lite button-controlled top-level does not instantiate VIO or ILA. This guide is retained only for older debug builds based on the previous direct/buffered mode-control design.
+
 This guide covers the optional debug build for `src/main.vhd`. The debug build adds Xilinx VIO and ILA IP around the top-level reset, PWM mode, and selected PWM output signals.
 
 Default builds use `debug = "NO_DEBUG"` and do not instantiate or require the debug IP.
