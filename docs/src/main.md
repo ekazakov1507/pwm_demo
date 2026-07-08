@@ -92,4 +92,4 @@ Reset selects 6-bit mode. Each valid press of `sys_pwm_mode` cycles `6 -> 7 -> 8
 - `sine_gen_simple` produces a 16-bit signed sample.
 - The selected branch stores the signed MSBs only: 4-bit mode uses bits `15 downto 12`, 8-bit mode uses bits `15 downto 8`.
 - Truncation happens before the FIFO, so the FIFO width, read cadence, PWM counter width, and source request divider stay aligned for the selected resolution.
-- The `debug` generic is accepted for build compatibility, but the current top-level does not instantiate VIO or ILA.
+- The `debug` generic defaults to `NO_DEBUG`; `DEBUG` instantiates VIO/ILA for reset and resolution-step debug.

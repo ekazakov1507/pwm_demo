@@ -194,7 +194,7 @@ The top-level module (`main.vhd`) accepts the following generics:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `num_channels` | 4 | Number of PWM output channels |
-| `debug` | "NO_DEBUG" | Accepted for build compatibility; the current top-level does not instantiate VIO/ILA |
+| `debug` | "NO_DEBUG" | Use `"DEBUG"` to instantiate VIO/ILA for reset and resolution-step debug |
 | `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime resolution change |
 | `button_debounce_cycles` | 1,000,000 | Debounce interval for the resolution-step board input in the `clk` domain |
 | `sine_wave_length` | 2048 | Sine lookup table length in samples |

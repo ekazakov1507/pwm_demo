@@ -208,6 +208,10 @@ architecture src of main is
   constant decimation_factor_7 : positive := 128;
   constant decimation_factor_8 : positive := 256;
 
+  constant debug_force_bit          : natural := 0;
+  constant debug_override_en_bit    : natural := 1;
+  constant debug_override_value_bit : natural := 2;
+
   component pwm_mch_buf is
     generic (
       r               : integer   := 7;
@@ -244,6 +248,38 @@ architecture src of main is
     );
   end component pwm_mch_buf;
 
+  component vio_pwm_debug is
+    port (
+      clk        : in    std_logic;
+      probe_out0 : out   std_logic_vector(2 downto 0);
+      probe_out1 : out   std_logic_vector(2 downto 0)
+    );
+  end component vio_pwm_debug;
+
+  component ila_pwm_debug is
+    port (
+      clk    : in    std_logic;
+      probe0 : in    std_logic_vector(7 downto 0);
+      probe1 : in    std_logic_vector(7 downto 0);
+      probe2 : in    std_logic_vector(3 downto 0);
+      probe3 : in    std_logic_vector(3 downto 0)
+    );
+  end component ila_pwm_debug;
+
+  function lower_debug_bits (
+    value : std_logic_vector
+  ) return std_logic_vector is
+    variable result : std_logic_vector(3 downto 0) := (others => '0');
+  begin
+    for i in result'range loop
+      if ((i >= value'low) and (i <= value'high)) then
+        result(i) := value(i);
+      end if;
+    end loop;
+
+    return result;
+  end function lower_debug_bits;
+
   signal obuf_clk  : std_logic := '0';
   signal gobuf_clk : std_logic := '0';
 
@@ -256,6 +292,7 @@ architecture src of main is
   signal pwm_rst        : std_logic := '1';
   signal resolution_sel : std_logic_vector(2 downto 0) := resolution_sel_6;
   signal rst_request    : std_logic := '0';
+  signal resolution_step_request : std_logic := '0';
   signal enable         : std_logic := '1';
 
   signal source_sine_out   : std_logic_vector(source_data_width - 1 downto 0) := (others => '0');
@@ -302,6 +339,13 @@ architecture src of main is
   signal p_selected   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_selected : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
+  signal vio_rst_ctrl             : std_logic_vector(2 downto 0) := (others => '0');
+  signal vio_resolution_step_ctrl : std_logic_vector(2 downto 0) := (others => '0');
+  signal debug_probe_rst_ctrl     : std_logic_vector(7 downto 0) := (others => '0');
+  signal debug_probe_resolution_ctrl : std_logic_vector(7 downto 0) := (others => '0');
+  signal debug_probe_p_selected   : std_logic_vector(3 downto 0) := (others => '0');
+  signal debug_probe_p_n_selected : std_logic_vector(3 downto 0) := (others => '0');
+
 begin
 
   debug_value_valid : assert ((debug = "NO_DEBUG") or (debug = "DEBUG"))
@@ -314,7 +358,59 @@ begin
   source_sample_7 <= source_sine_out(source_data_width - 1 downto source_data_width - 7);
   source_sample_8 <= source_sine_out(source_data_width - 1 downto source_data_width - 8);
 
-  rst_request <= sys_rst;
+  no_debug_gen : if debug = "NO_DEBUG" generate
+
+    rst_request             <= sys_rst;
+    resolution_step_request <= sys_pwm_mode;
+
+  end generate no_debug_gen;
+
+  debug_gen : if debug = "DEBUG" generate
+
+    rst_request <= vio_rst_ctrl(debug_override_value_bit) when
+                   (vio_rst_ctrl(debug_override_en_bit) = '1') else
+                   (sys_rst or vio_rst_ctrl(debug_force_bit));
+
+    resolution_step_request <= vio_resolution_step_ctrl(debug_override_value_bit) when
+                               (vio_resolution_step_ctrl(debug_override_en_bit) = '1') else
+                               (sys_pwm_mode or vio_resolution_step_ctrl(debug_force_bit));
+
+    debug_probe_rst_ctrl <= sys_rst &
+                            vio_rst_ctrl(debug_override_value_bit) &
+                            vio_rst_ctrl(debug_override_en_bit) &
+                            vio_rst_ctrl(debug_force_bit) &
+                            rst_request &
+                            mmcm_clk_lock &
+                            sine_rst &
+                            pwm_rst;
+
+    debug_probe_resolution_ctrl <= sys_pwm_mode &
+                                   vio_resolution_step_ctrl(debug_override_value_bit) &
+                                   vio_resolution_step_ctrl(debug_override_en_bit) &
+                                   vio_resolution_step_ctrl(debug_force_bit) &
+                                   resolution_step_request &
+                                   resolution_sel;
+
+    debug_probe_p_selected   <= lower_debug_bits(p_selected);
+    debug_probe_p_n_selected <= lower_debug_bits(p_n_selected);
+
+    debug_vio : component vio_pwm_debug
+      port map (
+        clk        => clk,
+        probe_out0 => vio_rst_ctrl,
+        probe_out1 => vio_resolution_step_ctrl
+      );
+
+    debug_ila : component ila_pwm_debug
+      port map (
+        clk    => clk,
+        probe0 => debug_probe_rst_ctrl,
+        probe1 => debug_probe_resolution_ctrl,
+        probe2 => debug_probe_p_selected,
+        probe3 => debug_probe_p_n_selected
+      );
+
+  end generate debug_gen;
 
   sys_clk_ibuffer : component ibuf
     port map (
@@ -593,7 +689,7 @@ begin
       clk              => clk,
       mmcm_clk_lock    => mmcm_clk_lock,
       rst_request      => rst_request,
-      resolution_step  => sys_pwm_mode,
+      resolution_step  => resolution_step_request,
       sine_rst         => sine_rst,
       pwm_rst          => pwm_rst,
       resolution_sel   => resolution_sel

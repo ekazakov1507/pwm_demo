@@ -1,8 +1,6 @@
 # VIO/ILA Debug Guide
 
-> Legacy note: the current button-controlled top-level does not instantiate VIO or ILA. This guide is retained only for older debug builds based on the previous direct/buffered mode-control design.
-
-This guide covers the optional debug build for `src/main.vhd`. The debug build adds Xilinx VIO and ILA IP around the top-level reset, PWM mode, and selected PWM output signals.
+This guide covers the optional debug build for `src/main.vhd`. The debug build adds Xilinx VIO and ILA IP around reset, the resolution/frequency step input, the selected runtime resolution, and the selected PWM outputs.
 
 Default builds use `debug = "NO_DEBUG"` and do not instantiate or require the debug IP.
 
@@ -35,14 +33,7 @@ vio_pwm_debug
 ila_pwm_debug
 ```
 
-These names are local IP instance/module names. They do not appear as separate IP Catalog products. In Vivado IP Catalog, the base products are still:
-
-```text
-Virtual Input/Output
-Integrated Logic Analyzer
-```
-
-When `debug=DEBUG`, `tcl\common.tcl` creates or reconfigures those XCI files, runs `generate_target all`, and runs `synth_ip -force` so stale ignored IP DCPs do not keep old probe widths.
+When `debug=DEBUG`, `tcl\common.tcl` creates or reconfigures those XCI files, disables out-of-context synth checkpoints, and runs `generate_target all`. The debug IP is then synthesized with the top-level design, so stale ignored IP DCPs cannot keep old probe widths.
 
 ## VIO Controls
 
@@ -51,7 +42,7 @@ The VIO runs in the internal `clk` domain and has two 3-bit output probes.
 | VIO output | Signal | Width | Meaning |
 |------------|--------|-------|---------|
 | `probe_out0` | `vio_rst_ctrl` | 3 | Reset control bus. |
-| `probe_out1` | `vio_pwm_mode_ctrl` | 3 | PWM mode control bus. |
+| `probe_out1` | `vio_resolution_step_ctrl` | 3 | Resolution/frequency step control bus. |
 
 Both control buses use the same bit layout:
 
@@ -64,12 +55,12 @@ Both control buses use the same bit layout:
 The effective controls are:
 
 ```vhdl
-rst_request <= vio_rst_ctrl(vio_override_value_bit) when (vio_rst_ctrl(vio_override_en_bit) = '1') else
-               sys_rst or vio_rst_ctrl(vio_force_bit);
+rst_request <= vio_rst_ctrl(2) when (vio_rst_ctrl(1) = '1') else
+               sys_rst or vio_rst_ctrl(0);
 
-pwm_mode_request <= vio_pwm_mode_ctrl(vio_override_value_bit) when
-                    (vio_pwm_mode_ctrl(vio_override_en_bit) = '1') else
-                    sys_pwm_mode or vio_pwm_mode_ctrl(vio_force_bit);
+resolution_step_request <= vio_resolution_step_ctrl(2) when
+                           (vio_resolution_step_ctrl(1) = '1') else
+                           sys_pwm_mode or vio_resolution_step_ctrl(0);
 ```
 
 Use force mode when the physical input is working normally and you only need to drive the control high from VIO. Use override mode when the physical input is fixed high or you need direct VIO control of the effective signal.
@@ -92,27 +83,33 @@ vio_rst_ctrl[2] = 0  -> force effective reset low
 vio_rst_ctrl[2] = 1  -> force effective reset high
 ```
 
-Trigger ILA on the raw VIO bits in `debug_probe_rst_ctrl` or on the effective request bit. If `sys_rst` is already high, toggling only `vio_rst_ctrl[0]` does not change `rst_request`; trigger on the raw force bit itself or use override mode.
+## Resolution Step Debug Workflow
 
-## PWM Mode Debug Workflow
-
-If physical PWM mode is low and you only want to force buffered mode from VIO:
+Reset selects 6-bit mode. Each valid press of the effective resolution-step signal cycles:
 
 ```text
-vio_pwm_mode_ctrl[1] = 0
-vio_pwm_mode_ctrl[0] = 1  -> request buffered mode
-vio_pwm_mode_ctrl[0] = 0  -> release VIO force
+6 -> 7 -> 8 -> 4 -> 5 -> 6
 ```
 
-If the physical PWM mode input is fixed high and you need to select direct mode:
+To emulate one button press from VIO when the physical button is low:
 
 ```text
-vio_pwm_mode_ctrl[1] = 1
-vio_pwm_mode_ctrl[2] = 0  -> force direct mode
-vio_pwm_mode_ctrl[2] = 1  -> force buffered mode
+vio_resolution_step_ctrl[1] = 0
+vio_resolution_step_ctrl[0] = 1  -> press
+vio_resolution_step_ctrl[0] = 0  -> release before the next press
 ```
 
-Changing the synchronized PWM mode also intentionally causes a reset pulse so the selected PWM branch switches cleanly.
+The press must remain high long enough for `button_debounce_cycles`. Human-speed VIO clicks are normally much longer than that. After the debounced rising edge, the top-level blanks the outputs, holds the sine and PWM/FIFO branches in reset for `pwm_mode_switch_delay_cycles`, commits the next `resolution_sel`, then releases reset.
+
+If the physical step input is stuck high and you need direct control:
+
+```text
+vio_resolution_step_ctrl[1] = 1
+vio_resolution_step_ctrl[2] = 0  -> force effective step low
+vio_resolution_step_ctrl[2] = 1  -> force effective step high
+```
+
+Return `vio_resolution_step_ctrl[2]` low before generating the next rising edge.
 
 ## ILA Probe Map
 
@@ -120,8 +117,8 @@ The ILA runs in the internal `clk` domain and has four grouped probes.
 
 | ILA probe | Signal | Width | Notes |
 |-----------|--------|-------|-------|
-| `probe0` | `debug_probe_rst_ctrl` | 6 | Physical, VIO, effective, and synchronized reset controls. |
-| `probe1` | `debug_probe_pwm_mode_ctrl` | 6 | Physical, VIO, effective, and synchronized PWM mode controls. |
+| `probe0` | `debug_probe_rst_ctrl` | 8 | Physical, VIO, effective reset, MMCM lock, and internal resets. |
+| `probe1` | `debug_probe_resolution_ctrl` | 8 | Physical, VIO, effective step, and selected resolution. |
 | `probe2` | `debug_probe_p_selected` | 4 | Lower selected PWM outputs, zero-padded if needed. |
 | `probe3` | `debug_probe_p_n_selected` | 4 | Lower selected PWM_N outputs, zero-padded if needed. |
 
@@ -129,33 +126,36 @@ The ILA runs in the internal `clk` domain and has four grouped probes.
 
 | Bit | Signal |
 |-----|--------|
-| `[5]` | `sys_rst` |
-| `[4]` | `vio_rst_ctrl[2]` override value |
-| `[3]` | `vio_rst_ctrl[1]` override enable |
-| `[2]` | `vio_rst_ctrl[0]` force |
-| `[1]` | `rst_request` |
-| `[0]` | `rst` |
+| `[7]` | `sys_rst` |
+| `[6]` | `vio_rst_ctrl[2]` override value |
+| `[5]` | `vio_rst_ctrl[1]` override enable |
+| `[4]` | `vio_rst_ctrl[0]` force |
+| `[3]` | `rst_request` |
+| `[2]` | `mmcm_clk_lock` |
+| `[1]` | `sine_rst` |
+| `[0]` | `pwm_rst` |
 
-`debug_probe_pwm_mode_ctrl` bit layout:
+`debug_probe_resolution_ctrl` bit layout:
 
 | Bit | Signal |
 |-----|--------|
-| `[5]` | `sys_pwm_mode` |
-| `[4]` | `vio_pwm_mode_ctrl[2]` override value |
-| `[3]` | `vio_pwm_mode_ctrl[1]` override enable |
-| `[2]` | `vio_pwm_mode_ctrl[0]` force |
-| `[1]` | `pwm_mode_request` |
-| `[0]` | `pwm_mode_sel` |
+| `[7]` | `sys_pwm_mode` physical step input |
+| `[6]` | `vio_resolution_step_ctrl[2]` override value |
+| `[5]` | `vio_resolution_step_ctrl[1]` override enable |
+| `[4]` | `vio_resolution_step_ctrl[0]` force |
+| `[3]` | `resolution_step_request` |
+| `[2:0]` | `resolution_sel` (`000`=4-bit, `001`=5-bit, `010`=6-bit, `011`=7-bit, `100`=8-bit) |
 
 Useful triggers:
 
 | Case | Trigger |
 |------|---------|
-| Watch VIO reset click even when physical reset is high | edge on `debug_probe_rst_ctrl[4]`, `[3]`, or `[2]` |
-| Watch effective reset request | edge on `debug_probe_rst_ctrl[1]` |
-| Watch internal reset release | falling edge on `debug_probe_rst_ctrl[0]` |
-| Watch VIO PWM mode click | edge on `debug_probe_pwm_mode_ctrl[4]`, `[3]`, or `[2]` |
-| Watch selected mode change | edge on `debug_probe_pwm_mode_ctrl[0]` |
+| Watch VIO reset click even when physical reset is high | edge on `debug_probe_rst_ctrl[6]`, `[5]`, or `[4]` |
+| Watch effective reset request | edge on `debug_probe_rst_ctrl[3]` |
+| Watch PWM reset release | falling edge on `debug_probe_rst_ctrl[0]` |
+| Watch VIO step click | edge on `debug_probe_resolution_ctrl[6]`, `[5]`, or `[4]` |
+| Watch effective step request | edge on `debug_probe_resolution_ctrl[3]` |
+| Watch selected resolution change | value/change trigger on `debug_probe_resolution_ctrl[2:0]` |
 | Watch PWM output activity | value/change trigger on `debug_probe_p_selected` or `debug_probe_p_n_selected` |
 
 ## Programming With Bit And LTX
@@ -188,8 +188,10 @@ set ltx_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/zybo-zynq-zybo-de
 
 ## Troubleshooting
 
-The expected VIO shape is two 3-bit outputs. The expected ILA shape is four probes with widths 6, 6, 4, and 4. If Hardware Manager shows six one-bit VIO outputs, 14 ILA probes, or the older two-output/eight-probe shape, the hardware was built from stale debug IP. Re-run the debug build. The Tcl flow uses `synth_ip -force`, so it should regenerate the ignored IP DCPs.
+The expected VIO shape is two 3-bit outputs. The expected ILA shape is four probes with widths 8, 8, 4, and 4. If Hardware Manager shows the older 6, 6, 4, 4 ILA shape, the hardware was built from stale debug IP. Re-run the debug build; the Tcl flow regenerates the XCI targets and synthesizes the debug IP with the top-level design.
 
-If the ILA does not trigger when clicking `vio_rst_ctrl[0]`, check whether `sys_rst` is already high. In that case, `rst_request` remains high because force mode is OR-based. Trigger on `debug_probe_rst_ctrl[2]` or use reset override mode.
+If the ILA does not trigger when clicking `vio_rst_ctrl[0]`, check whether `sys_rst` is already high. In that case, `rst_request` remains high because force mode is OR-based. Trigger on `debug_probe_rst_ctrl[4]` or use reset override mode.
 
-If PWM outputs are all zero, check `rst` and `rst_request` first. `p_selected` and `p_n_selected` are intentionally held at idle while internal reset is asserted.
+If a VIO step click does not change `resolution_sel`, make sure the effective step input was released low before pressing again and that reset is not active. Watch `debug_probe_resolution_ctrl[3]` for the effective step and `debug_probe_rst_ctrl[0]` for PWM reset release.
+
+If PWM outputs are all zero, check `pwm_rst`, `rst_request`, and the selected resolution first. `p_selected` and `p_n_selected` are intentionally held at idle while internal PWM reset is asserted.

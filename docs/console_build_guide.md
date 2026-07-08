@@ -66,7 +66,7 @@ The normal `z7-lite` config name is inferred from constants in `src\main.vhd`. Y
 & $Vivado -mode batch -source tcl\build_z7-lite.tcl -tclargs quick_test "num_channels=2"
 ```
 
-The current board top-level is hardware-button controlled and does not instantiate VIO or ILA. The legacy `debug` generic remains accepted by `src\main.vhd` for command compatibility, but normal builds should use `debug=NO_DEBUG`.
+The current board top-level is hardware-button controlled in normal builds. Use `debug=DEBUG` only when you need the optional VIO/ILA wrapper for reset and resolution-step debug.
 
 For Zybo, `constraints\Zybo_board.xdc` maps `BTN0` to reset and `BTN1` to the PWM resolution/frequency step input. For Z7-Lite, `constraints\Z7_LITE.xdc` maps the same top-level inputs to board button pins `P16` and `T12`.
 

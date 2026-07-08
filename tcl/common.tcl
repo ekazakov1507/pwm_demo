@@ -169,9 +169,8 @@ proc ensure_pwm_demo_debug_ip_core {debug_ip_dir module_name ip_name config} {
     error "Could not locate XCI for $module_name"
   }
 
-  catch {set_property generate_synth_checkpoint true $xci_objects}
+  catch {set_property generate_synth_checkpoint false $xci_objects}
   generate_target all $xci_objects
-  synth_ip -force $ip_core
 
   return [lindex $xci_objects 0]
 }
@@ -201,8 +200,8 @@ proc ensure_pwm_demo_debug_ip {repo_root part} {
     [list \
       CONFIG.C_NUM_OF_PROBES {4} \
       CONFIG.C_DATA_DEPTH {1024} \
-      CONFIG.C_PROBE0_WIDTH {6} \
-      CONFIG.C_PROBE1_WIDTH {6} \
+      CONFIG.C_PROBE0_WIDTH {8} \
+      CONFIG.C_PROBE1_WIDTH {8} \
       CONFIG.C_PROBE2_WIDTH {4} \
       CONFIG.C_PROBE3_WIDTH {4} \
     ]]
