@@ -12,6 +12,10 @@ architecture tb of tb_main is
   constant num_channels                 : integer := 4;
   constant pwm_mode_switch_delay_cycles : natural := 16;
   constant button_debounce_cycles       : positive := 2;
+  constant resolution_led_on_cycles     : positive := 2;
+  constant resolution_led_off_cycles    : positive := 2;
+  constant resolution_led_pause_cycles  : positive := 12;
+  constant led_gap_timeout              : time := clk_period * 12;
   constant sine_wave_length             : positive := 32;
   constant sine_pulse_period_cycles      : positive := 8;
   constant sine_pulse_start_delay_cycles : natural  := 0;
@@ -29,6 +33,7 @@ architecture tb of tb_main is
   signal sys_clk      : std_logic := '0';
   signal sys_rst      : std_logic := '0';
   signal sys_pwm_mode : std_logic := '0';
+  signal sys_led      : std_logic := '0';
 
   signal sys_pwm   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal sys_pwm_n : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
@@ -56,6 +61,9 @@ begin
       num_channels                 => num_channels,
       pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
       button_debounce_cycles       => button_debounce_cycles,
+      resolution_led_on_cycles     => resolution_led_on_cycles,
+      resolution_led_off_cycles    => resolution_led_off_cycles,
+      resolution_led_pause_cycles  => resolution_led_pause_cycles,
       sine_wave_length             => sine_wave_length,
       sine_pulse_period_cycles      => sine_pulse_period_cycles,
       sine_pulse_start_delay_cycles => sine_pulse_start_delay_cycles,
@@ -73,6 +81,7 @@ begin
       sys_clk      => sys_clk,
       sys_rst      => sys_rst,
       sys_pwm_mode => sys_pwm_mode,
+      sys_led      => sys_led,
       sys_pwm      => sys_pwm,
       sys_pwm_n    => sys_pwm_n
     );
@@ -101,6 +110,46 @@ begin
 
   stim_proc : process is
 
+    procedure wait_for_led_pause is
+    begin
+      loop
+        if (sys_led = '0') then
+          wait until sys_led = '1' for led_gap_timeout;
+
+          if (sys_led = '0') then
+            exit;
+          end if;
+        else
+          wait until sys_led = '0';
+        end if;
+      end loop;
+    end procedure wait_for_led_pause;
+
+    procedure expect_led_pattern (
+      expected_blinks : natural
+    ) is
+      variable blink_count : natural := 0;
+    begin
+      wait_for_led_pause;
+      wait until sys_led = '1';
+
+      loop
+        blink_count := blink_count + 1;
+        wait until sys_led = '0';
+        wait until sys_led = '1' for led_gap_timeout;
+
+        if (sys_led = '0') then
+          exit;
+        end if;
+      end loop;
+
+      assert blink_count = expected_blinks
+        report "main: expected sys_led to blink " &
+               integer'image(integer(expected_blinks)) & " times, got " &
+               integer'image(integer(blink_count))
+        severity failure;
+    end procedure expect_led_pattern;
+
     procedure press_resolution_button is
     begin
       sys_pwm_mode <= '1';
@@ -118,6 +167,9 @@ begin
     assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
       report "main: expected outputs blanked while sys_rst is asserted"
       severity failure;
+    assert sys_led = '0'
+      report "main: expected sys_led off while sys_rst is asserted"
+      severity failure;
 
     sys_pwm_mode <= '0';
     sys_rst      <= '0';
@@ -126,6 +178,7 @@ begin
     assert saw_default_activity
       report "main: expected buffered PWM activity in default 6-bit resolution"
       severity failure;
+    expect_led_pattern(6);
 
     test_phase <= 0;
     press_resolution_button;
@@ -138,6 +191,7 @@ begin
     assert saw_res7_activity
       report "main: expected buffered PWM activity after switching to 7-bit resolution"
       severity failure;
+    expect_led_pattern(7);
 
     test_phase <= 0;
     press_resolution_button;
@@ -150,6 +204,7 @@ begin
     assert saw_res8_activity
       report "main: expected buffered PWM activity after switching to 8-bit resolution"
       severity failure;
+    expect_led_pattern(8);
 
     test_phase <= 0;
     press_resolution_button;
@@ -162,6 +217,7 @@ begin
     assert saw_res4_activity
       report "main: expected buffered PWM activity after switching to 4-bit resolution"
       severity failure;
+    expect_led_pattern(4);
 
     test_phase <= 0;
     press_resolution_button;
@@ -174,6 +230,7 @@ begin
     assert saw_res5_activity
       report "main: expected buffered PWM activity after switching to 5-bit resolution"
       severity failure;
+    expect_led_pattern(5);
 
     test_phase <= 0;
     press_resolution_button;
@@ -186,6 +243,7 @@ begin
     assert saw_res6_activity
       report "main: expected buffered PWM activity after switching back to 6-bit resolution"
       severity failure;
+    expect_led_pattern(6);
 
     sys_rst    <= '1';
     test_phase <= 0;
@@ -193,8 +251,12 @@ begin
     assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
       report "main: reset button must blank outputs"
       severity failure;
+    assert sys_led = '0'
+      report "main: reset button must blank sys_led"
+      severity failure;
 
     sys_rst <= '0';
+    expect_led_pattern(6);
 
     wait;
 

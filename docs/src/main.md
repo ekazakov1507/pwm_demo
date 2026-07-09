@@ -48,6 +48,9 @@ entity main is
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
     button_debounce_cycles       : positive := 1_000_000;
+    resolution_led_on_cycles     : positive := 5_000_000;
+    resolution_led_off_cycles    : positive := 5_000_000;
+    resolution_led_pause_cycles  : positive := 25_000_000;
     sine_wave_length             : positive := 2048;
     sine_pulse_period_cycles      : positive := 4096;
     sine_pulse_start_delay_cycles : natural  := 1024;
@@ -60,6 +63,7 @@ entity main is
     sys_clk      : in    std_logic;
     sys_rst      : in    std_logic;
     sys_pwm_mode : in    std_logic;
+    sys_led      : out   std_logic;
     sys_pwm      : out   std_logic_vector(num_channels - 1 downto 0);
     sys_pwm_n    : out   std_logic_vector(num_channels - 1 downto 0)
   );
@@ -79,6 +83,8 @@ The top-level keeps `clk_pwm` fixed and changes PWM speed by switching between f
 | 8-bit | `100` | 512 | 195.3125 kHz | 256 |
 
 Reset selects 6-bit mode. Each valid press of `sys_pwm_mode` cycles `6 -> 7 -> 8 -> 4 -> 5 -> 6`.
+
+`sys_led` reports the active resolution as a repeated blink count: 4 blinks for 4-bit mode through 8 blinks for 8-bit mode, followed by a pause. The LED is held off during reset and runtime resolution handoff.
 
 ## Reset and Button Behavior
 

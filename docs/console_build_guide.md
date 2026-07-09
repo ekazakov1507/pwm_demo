@@ -68,7 +68,7 @@ The normal `z7-lite` config name is inferred from constants in `src\main.vhd`. Y
 
 The current board top-level is hardware-button controlled in normal builds. Use `debug=DEBUG` only when you need the optional VIO/ILA wrapper for reset and resolution-step debug.
 
-For Zybo, `constraints\Zybo_board.xdc` maps `BTN0` to reset and `BTN1` to the PWM resolution/frequency step input. For Z7-Lite, `constraints\Z7_LITE.xdc` maps the same top-level inputs to board button pins `P16` and `T12`.
+For Zybo, `constraints\Zybo_board.xdc` maps `BTN0` to reset, `BTN1` to the PWM resolution/frequency step input, and `LED0` to `sys_led`. For Z7-Lite, `constraints\Z7_LITE.xdc` maps the same top-level inputs to board button pins `P16` and `T12`, and maps `sys_led` to pin `P15`.
 
 ## `pwm_demo` Checks
 

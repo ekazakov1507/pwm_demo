@@ -157,6 +157,9 @@ entity main is
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
     button_debounce_cycles       : positive := 1_000_000;
+    resolution_led_on_cycles     : positive := 5_000_000;
+    resolution_led_off_cycles    : positive := 5_000_000;
+    resolution_led_pause_cycles  : positive := 25_000_000;
     sine_wave_length             : positive := 2048;
     sine_pulse_period_cycles      : positive := 4096;
     sine_pulse_start_delay_cycles : natural  := 1024;
@@ -174,6 +177,7 @@ entity main is
     sys_clk      : in    std_logic;
     sys_rst      : in    std_logic;
     sys_pwm_mode : in    std_logic;
+    sys_led      : out   std_logic;
     sys_pwm      : out   std_logic_vector(num_channels - 1 downto 0);
     sys_pwm_n    : out   std_logic_vector(num_channels - 1 downto 0)
   );
@@ -202,15 +206,56 @@ architecture src of main is
   constant resolution_sel_7 : std_logic_vector(2 downto 0) := "011";
   constant resolution_sel_8 : std_logic_vector(2 downto 0) := "100";
 
+  function max_positive (
+    left  : positive;
+    right : positive
+  ) return positive is
+  begin
+    if (left > right) then
+      return left;
+    end if;
+
+    return right;
+  end function max_positive;
+
+  function resolution_blink_count (
+    value : std_logic_vector(2 downto 0)
+  ) return natural is
+  begin
+    case value is
+      when resolution_sel_4 =>
+        return 4;
+      when resolution_sel_5 =>
+        return 5;
+      when resolution_sel_6 =>
+        return 6;
+      when resolution_sel_7 =>
+        return 7;
+      when resolution_sel_8 =>
+        return 8;
+      when others =>
+        return 0;
+    end case;
+  end function resolution_blink_count;
+
   constant decimation_factor_4 : positive := 16;
   constant decimation_factor_5 : positive := 32;
   constant decimation_factor_6 : positive := 64;
   constant decimation_factor_7 : positive := 128;
   constant decimation_factor_8 : positive := 256;
+  constant resolution_led_counter_limit : positive :=
+    max_positive(max_positive(resolution_led_on_cycles, resolution_led_off_cycles),
+                 resolution_led_pause_cycles);
 
   constant debug_force_bit          : natural := 0;
   constant debug_override_en_bit    : natural := 1;
   constant debug_override_value_bit : natural := 2;
+
+  type resolution_led_state_t is (
+    resolution_led_on_state,
+    resolution_led_off_state,
+    resolution_led_pause_state
+  );
 
   component pwm_mch_buf is
     generic (
@@ -294,6 +339,10 @@ architecture src of main is
   signal rst_request    : std_logic := '0';
   signal resolution_step_request : std_logic := '0';
   signal enable         : std_logic := '1';
+  signal resolution_led : std_logic := '0';
+  signal resolution_led_state : resolution_led_state_t := resolution_led_pause_state;
+  signal resolution_led_timer : natural range 0 to resolution_led_counter_limit := 0;
+  signal resolution_led_remaining : natural range 0 to max_pwm_resolution_bits := 0;
 
   signal source_sine_out   : std_logic_vector(source_data_width - 1 downto 0) := (others => '0');
   signal source_sine_valid : std_logic := '0';
@@ -411,6 +460,64 @@ begin
       );
 
   end generate debug_gen;
+
+  resolution_led_blinker : process (clk) is
+    variable selected_blinks : natural range 0 to max_pwm_resolution_bits;
+  begin
+
+    if rising_edge(clk) then
+      selected_blinks := resolution_blink_count(resolution_sel);
+
+      if ((sine_rst = '1') or (pwm_rst = '1') or (selected_blinks = 0)) then
+        resolution_led <= '0';
+        resolution_led_state <= resolution_led_pause_state;
+        resolution_led_timer <= 0;
+        resolution_led_remaining <= 0;
+      else
+        case resolution_led_state is
+          when resolution_led_pause_state =>
+            resolution_led <= '0';
+
+            if (resolution_led_timer > 0) then
+              resolution_led_timer <= resolution_led_timer - 1;
+            else
+              resolution_led <= '1';
+              resolution_led_state <= resolution_led_on_state;
+              resolution_led_timer <= resolution_led_on_cycles - 1;
+              resolution_led_remaining <= selected_blinks;
+            end if;
+
+          when resolution_led_on_state =>
+            resolution_led <= '1';
+
+            if (resolution_led_timer > 0) then
+              resolution_led_timer <= resolution_led_timer - 1;
+            else
+              resolution_led <= '0';
+              resolution_led_state <= resolution_led_off_state;
+              resolution_led_timer <= resolution_led_off_cycles - 1;
+            end if;
+
+          when resolution_led_off_state =>
+            resolution_led <= '0';
+
+            if (resolution_led_timer > 0) then
+              resolution_led_timer <= resolution_led_timer - 1;
+            elsif (resolution_led_remaining <= 1) then
+              resolution_led_state <= resolution_led_pause_state;
+              resolution_led_timer <= resolution_led_pause_cycles - 1;
+              resolution_led_remaining <= 0;
+            else
+              resolution_led <= '1';
+              resolution_led_state <= resolution_led_on_state;
+              resolution_led_timer <= resolution_led_on_cycles - 1;
+              resolution_led_remaining <= resolution_led_remaining - 1;
+            end if;
+        end case;
+      end if;
+    end if;
+
+  end process resolution_led_blinker;
 
   sys_clk_ibuffer : component ibuf
     port map (
@@ -710,5 +817,11 @@ begin
       );
 
   end generate pwm_obufs;
+
+  resolution_led_obuf : component obuf
+    port map (
+      i => resolution_led,
+      o => sys_led
+    );
 
 end architecture src;

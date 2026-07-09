@@ -244,14 +244,18 @@ entity main is
     num_channels                 : integer := 4;
     debug                        : string  := "NO_DEBUG";
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
-    sine_wave_length             : positive := 2048;
     button_debounce_cycles       : positive := 1_000_000;
+    resolution_led_on_cycles     : positive := 5_000_000;
+    resolution_led_off_cycles    : positive := 5_000_000;
+    resolution_led_pause_cycles  : positive := 25_000_000;
+    sine_wave_length             : positive := 2048;
     reset_release_cycles         : positive := 5
   );
   port (
     sys_clk      : in    std_logic;
     sys_rst      : in    std_logic;
     sys_pwm_mode : in    std_logic;  -- legacy name, resolution/frequency-step button
+    sys_led      : out   std_logic;
     sys_pwm      : out   std_logic_vector(num_channels - 1 downto 0);
     sys_pwm_n    : out   std_logic_vector(num_channels - 1 downto 0)
   );

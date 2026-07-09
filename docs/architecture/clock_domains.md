@@ -86,6 +86,8 @@ set_false_path -to [get_ports {
 
 A debounced rising edge on `sys_pwm_mode` blanks the outputs, holds the sine source and PWM/FIFO branches in reset, waits `pwm_mode_switch_delay_cycles`, commits the next resolution, and then releases reset after `reset_release_cycles`. Inactive branches remain reset so stale FIFO data is not reused.
 
+`sys_led` is generated in the `clk` domain. It is off during reset and resolution handoff, then repeatedly blinks the active resolution count from 4 through 8 before pausing.
+
 ## Debug
 
 Normal Z7-Lite and Zybo builds are hardware-button controlled. With `debug=DEBUG`, VIO can force or override reset and the resolution-step input, and ILA observes the effective controls, selected resolution, and PWM outputs.

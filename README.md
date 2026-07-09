@@ -97,10 +97,10 @@ This project has been developed and tested on the following Xilinx Zynq-7000 dev
 
 ### Board Controls
 
-| Board | Reset input | Resolution/frequency step input |
-|-------|-------------|---------------------------------|
-| Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` |
-| Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` |
+| Board | Reset input | Resolution/frequency step input | Resolution LED |
+|-------|-------------|---------------------------------|----------------|
+| Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` | `LED0` / `sys_led` |
+| Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` | `sys_led`, pin `P15` |
 
 ## Requirements
 
@@ -197,6 +197,9 @@ The top-level module (`main.vhd`) accepts the following generics:
 | `debug` | "NO_DEBUG" | Use `"DEBUG"` to instantiate VIO/ILA for reset and resolution-step debug |
 | `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime resolution change |
 | `button_debounce_cycles` | 1,000,000 | Debounce interval for the resolution-step board input in the `clk` domain |
+| `resolution_led_on_cycles` | 5,000,000 | LED on interval for each resolution-count blink |
+| `resolution_led_off_cycles` | 5,000,000 | LED off interval between resolution-count blinks |
+| `resolution_led_pause_cycles` | 25,000,000 | LED pause interval after one complete blink-count group |
 | `sine_wave_length` | 2048 | Sine lookup table length in samples |
 | `sine_pulse_period_cycles` | 4096 | Pulse frame length in input samples |
 | `sine_pulse_start_delay_cycles` | 1024 | Leading neutral/zero samples before each pulse |
@@ -247,6 +250,7 @@ The system implements **symmetrical (center-aligned) PWM** where:
 - Integer-only counter increments for simplicity
 - Uses buffered PWM branches for 4, 5, 6, 7, and 8-bit resolution
 - Uses the legacy `sys_pwm_mode` input as a resolution/frequency-step button
+- Blinks `sys_led` 4, 5, 6, 7, or 8 times to show the active PWM resolution
 - Blanks outputs and resets the sine/FIFO/PWM path during runtime resolution changes
 - Enables sine soft-start ramp after reset
 - Uses symmetrical PWM with triangle reference

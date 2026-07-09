@@ -173,10 +173,10 @@ docs/
 
 ### Runtime Control Pins
 
-| Board | Reset input | Resolution/frequency step input |
-|-------|-------------|---------------------------------|
-| Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` |
-| Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` |
+| Board | Reset input | Resolution/frequency step input | Resolution LED |
+|-------|-------------|---------------------------------|----------------|
+| Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` | `LED0` / `sys_led` |
+| Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` | `sys_led`, pin `P15` |
 
 ### Constraint Files
 
