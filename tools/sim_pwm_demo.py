@@ -84,7 +84,7 @@ def main():
 
     # Default runtimes for each testbench
     default_runtimes = {
-        "tb_main": "700 us",
+        "tb_main": "1100 us",
         "tb_pwm_1ch": "110 us",
         "tb_pwm_mch": "260 us",
         "tb_async_fifo": "20 us",
@@ -114,6 +114,7 @@ def main():
         "src/buffers/async_fifo.vhd",
         "src/signal_chain/data_decimator.vhd",
         "src/signal_chain/sine_gen_simple.vhd",
+        "src/utils/pwm_clk_post_scaler.vhd",
         "src/pwm/pwm_mch_buf.vhd",
         "src/main.vhd",
         f"tb/{testbench}.vhd"

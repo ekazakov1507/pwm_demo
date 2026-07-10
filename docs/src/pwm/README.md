@@ -402,11 +402,13 @@ entity pwm_mch_buf is
     ref_step        : integer   := 1;             -- Counter increment
     ref_updwn       : std_logic := '1';           -- Up/down control
     clk_freq_hz     : integer   := 100_000_000;   -- DECIMATED-mode input clock frequency
-    clk_pwm_freq_hz : integer   := 200_000_000    -- DECIMATED-mode PWM clock frequency
+    clk_pwm_freq_hz : integer   := 200_000_000;   -- DECIMATED-mode PWM clock frequency
+    use_post_scaler : boolean   := false           -- Enable /2,/4,/8,/16 tick scaler
   );
   port (
     clk        : in    std_logic;
     clk_pwm    : in    std_logic;
+    pwm_div_sel : in   std_logic_vector(1 downto 0) := (others => '0');
     rst        : in    std_logic;
     enable     : in    std_logic;
     input_wave : in    std_logic_vector(r - 1 downto 0);
@@ -437,12 +439,13 @@ sequenceDiagram
     WR->>FIFO: Write when valid & !full
     Note over FIFO: Gray code pointers<br/>cross clock domains
 
-    PWM->>RD: Read at cycle end
+    PWM->>PWM: Generate pwm_tick_ce<br/>when post-scaler enabled
+    PWM->>RD: Read at frame end<br/>on pwm_tick_ce
     RD->>FIFO: rd_en pulse
     FIFO->>RD: buf_output
 
     RD->>CH: duty_cycle (captured)
-    CH->>CH: Generate PWM
+    CH->>CH: Generate PWM<br/>on pwm_tick_ce
     CH->>PWM: pwm[i], pwm_n[i]
 ```
 
@@ -509,11 +512,12 @@ else
 end if;
 
 -- Read at end of each PWM frame when FIFO has data.
+-- With use_post_scaler=true, the frame counter advances on pwm_tick_ce.
 if (rst_pwm = '1') then
     cnt := 0;
     buf_rd_en <= '0';
     buf_rd_valid <= '0';
-elsif (cnt = cycle_length - 1) then
+elsif (pwm_tick_ce = '1' and cnt = cycle_length - 1) then
     cnt := 0;
     buf_rd_valid <= buf_rd_en;
 
@@ -525,7 +529,9 @@ elsif (cnt = cycle_length - 1) then
 else
     buf_rd_en <= '0';
     buf_rd_valid <= buf_rd_en;
-    cnt := cnt + 1;
+    if (pwm_tick_ce = '1') then
+        cnt := cnt + 1;
+    end if;
 end if;
 ```
 
@@ -564,21 +570,10 @@ graph TB
 - `DECIMATED`: accepts a free-running `input_wave`, computes a `data_decimator` factor from `clk_freq_hz`, `clk_pwm_freq_hz`, and PWM frame length, then applies the existing 5% write-rate margin.
 - `VALID`: requests samples from the upstream source with `input_sample_ce`, accepts them when `input_valid = '1'`, and uses `input_data_decimation_factor` as the manual source strobe divider.
 
-For the current top-level pulse-frame path, `input_mode` is `VALID`. Choose the manual factor from the PWM frame cadence:
+For the current top-level pulse-frame path, `input_mode` is `VALID`. The default top-level uses raw `clk_pwm = 200 MHz`, a first selectable post-divider of `/2`, and `pwm_resolution_bits = 8`, so the manual factor is 256.
 
 ```text
-input_data_decimation_factor = round(clk_freq_hz * pwm_frame_cycles / clk_pwm_freq_hz)
-```
-
-Use `pwm_frame_cycles = 2 ** (r + 1)` for `SYMMETRICAL` PWM and `2 ** r` for `ASYMMETRICAL` PWM. With the current top-level clocks and resolution:
-
-```text
-clk_freq_hz = 50 MHz
-clk_pwm_freq_hz = 100 MHz
-r = 6
-ref_type = SYMMETRICAL
-pwm_frame_cycles = 2 ** 7 = 128
-input_data_decimation_factor = round(50e6 * 128 / 100e6) = 64
+input_data_decimation_factor = 2 ** pwm_resolution_bits
 ```
 
 `pulse_period_samples`, `prefill_pulses`, and refill thresholds remain sample counts. Changing `input_data_decimation_factor` changes the pulse duration in seconds unless the pulse sample counts are adjusted too.
@@ -589,7 +584,7 @@ input_data_decimation_factor = round(50e6 * 128 / 100e6) = 64
 
 ### Overview
 
-Simplified version without buffering. All channels share the same clock domain. The current top-level uses the buffered runtime-resolution path; this direct module remains available as reusable core RTL and for legacy/testbench coverage.
+Simplified version without buffering. All channels share the same clock domain. The current top-level uses the buffered fixed-resolution path; this direct module remains available as reusable core RTL and for legacy/testbench coverage.
 
 ### Block Diagram
 

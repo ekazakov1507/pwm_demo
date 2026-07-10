@@ -18,7 +18,7 @@ create_clock -period 10.000 -name sys_clk_pin -waveform {0.000 5.000} -add [get_
 
 ##Buttons
 set_property -dict {PACKAGE_PIN R18 IOSTANDARD LVCMOS33} [get_ports sys_rst]; #IO_L20N_T3_34 Sch=BTN0
-# Legacy port name: this button now steps PWM resolution/frequency.
+# Legacy port name: this button now steps the buffered PWM frequency divider.
 set_property -dict { PACKAGE_PIN P16   IOSTANDARD LVCMOS33 } [get_ports { sys_pwm_mode }]; #IO_L24N_T3_34 Sch=BTN1
 #set_property -dict { PACKAGE_PIN V16   IOSTANDARD LVCMOS33 } [get_ports { btn[2] }]; #IO_L18P_T2_34 Sch=BTN2
 #set_property -dict { PACKAGE_PIN Y16   IOSTANDARD LVCMOS33 } [get_ports { btn[3] }]; #IO_L7P_T1_34 Sch=BTN3

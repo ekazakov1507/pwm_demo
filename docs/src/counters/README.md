@@ -401,8 +401,8 @@ constant counter_step_reg : signed(r-1 downto 0) := to_signed(step, r);
 
 | Counter Type | Current Build Margin |
 |--------------|----------------------|
-| up_counter | Above the 100 MHz PWM branch clock |
-| updown_counter | Above the 100 MHz PWM branch clock |
+| up_counter | Above the buffered branch effective tick rate |
+| updown_counter | Above the buffered branch effective tick rate |
 
 ---
 

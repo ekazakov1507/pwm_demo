@@ -11,7 +11,7 @@ Comprehensive design documentation for the FPGA-based PWM generator implemented 
 ```
 docs/
 ├── README.md                  ← You are here
-├── vio_ila_debug_guide.md     # Legacy debug guide for older builds
+├── vio_ila_debug_guide.md     # VIO/ILA debug guide
 ├── architecture/              # System-level architecture
 │   ├── overview.md            # Top-level system architecture
 │   ├── hierarchy.md           # Module hierarchy tree
@@ -80,6 +80,7 @@ docs/
 - [Utils](./src/utils/README.md) - Supporting modules
   - `dead_time_generator.vhd` - PWM leg dead time (used by `pwm_1ch`)
   - `edge_delay.vhd` - Programmable delay (general-purpose)
+  - `pwm_clk_post_scaler.vhd` - Buffered PWM `/2`, `/4`, `/8`, `/16` tick generator
   - `range_divider_pkg.vhd` - Channel phase distribution
 
 ---
@@ -96,14 +97,15 @@ docs/
 │                                            │                      │
 │                        ┌───────────────────┴───────────────────┐  │
 │                        │                                       │  │
-│                    clk (50 MHz)                           clk_pwm (100 MHz)
+│                    clk (50 MHz)                       raw clk_pwm (200 MHz)
 │                        │                                       │  │
 │              ┌─────────┴─────────┐                  ┌──────────┴─────────┐
-│              │  16-bit Sine      │                  │ Selected Buffered  │
+│              │  16-bit Sine      │                  │ Buffered PWM       │
 │              │  Generator        │────── CDC ──────→│ PWM Branch         │
 │              └─────────┬─────────┘     (FIFO)       └──────────┬─────────┘
 │                        │                                       │          │
-│                        └────────→ 4/5/6/7/8-bit truncation + mux          │
+│                        └────────→ fixed MSB truncation                    │
+│                                        + /2,/4,/8,/16 tick                │
 │                                                                │          │
 │                                                        ┌───────┴───────┐  │
 │                                                        │  OBUF × 4    │  │
@@ -120,12 +122,12 @@ docs/
 |-----------|-------|-------|
 | **Input Clock** | 100 MHz | Current board XDC constraint |
 | **System Clock** | 50 MHz | `clkout1`, MMCM ratio |
-| **PWM Clock** | 100 MHz | `clkout2`, MMCM ratio |
-| **PWM Resolution** | 4 to 8 bits | Runtime selected by board button; reset default is 6-bit |
+| **PWM Clock** | 200 MHz raw | `clkout2`, MMCM ratio |
+| **PWM Resolution** | Build-time fixed, default 8-bit | `pwm_resolution_bits` generic |
 | **PWM Channels** | 4 | Complementary pairs |
-| **PWM Frequency** | ~3.125 MHz to ~195.3125 kHz | Symmetrical mode, fixed `clk_pwm` |
+| **PWM Frequency** | ~195.3125 kHz to ~24.414 kHz | Default 8-bit, `/2` to `/16` post-divider |
 | **Modulation** | ~24.4 kHz | Sine LUT rate, `clk / 2048` |
-| **Dead Time** | 4 cycles | ~40 ns at 100 MHz `clk_pwm` |
+| **Dead Time** | 4 effective PWM ticks | ~40 ns in default `/2` mode |
 
 ---
 
@@ -136,7 +138,7 @@ docs/
 - ✅ Complementary outputs with dead-time
 - ✅ Multi-channel support (configurable)
 - ✅ Buffered architecture for high frequency
-- ✅ Runtime PWM resolution/frequency step with blanked handoff
+- ✅ Runtime buffered PWM frequency step with blanked handoff
 - ✅ Pipeline stages for timing closure
 
 ### Clock Domain Crossing
@@ -155,8 +157,8 @@ docs/
 - ✅ Generic-based parameters
 - ✅ Signed/unsigned data types
 - ✅ Symmetrical/asymmetrical PWM modes
-- ✅ Configurable resolution and dead-time
-- ✅ Configurable reset release and resolution switch delay
+- ✅ Configurable build-time resolution and dead-time
+- ✅ Configurable reset release and divider switch delay
 
 ---
 
@@ -284,7 +286,7 @@ Verify understanding by running testbenches in `tb/`.
 ### Clock Domains
 
 - `clk`: System clock (50 MHz in the current board builds)
-- `clk_pwm`: PWM clock (100 MHz in the current board builds)
+- `clk_pwm`: Raw PWM clock (200 MHz in the current board builds); buffered PWM advances on `/2`, `/4`, `/8`, or `/16` tick enables
 - Prefix signals with domain for clarity
 
 ---

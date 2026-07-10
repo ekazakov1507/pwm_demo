@@ -428,7 +428,7 @@ For SYMMETRICAL PWM:
     decimation_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
     decimation = round(decimation_real * 0.95)
     
-    Current top-level ratio (r=6, clk:clk_pwm = 50:100 MHz):
+    Standalone DECIMATED-mode example (r=6, clk:clk_pwm = 50:100 MHz):
     decimation_real = (50 MHz * 128) / 100 MHz = 64
     decimation = round(64 * 0.95) = 61
     
@@ -437,10 +437,12 @@ For ASYMMETRICAL PWM:
     decimation_real = (clk_freq_hz * pwm_cycle_length) / clk_pwm_freq_hz
     decimation = round(decimation_real * 0.95)
     
-    Same clock ratio, r=6:
+    Same standalone clock ratio, r=6:
     decimation_real = (50 MHz * 64) / 100 MHz = 32
     decimation = round(32 * 0.95) = 30
 ```
+
+The current board top-level uses `pwm_mch_buf` in `VALID` mode with a raw 200 MHz `clk_pwm` and a `/2`, `/4`, `/8`, or `/16` post-scaled tick. In that path, the top-level drives `input_data_decimation_factor` directly instead of using `data_decimator`.
 
 ---
 

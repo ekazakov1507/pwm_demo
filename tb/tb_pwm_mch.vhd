@@ -128,6 +128,7 @@ begin
     port map (
       clk        => clk,
       clk_pwm    => clk_pwm,
+      pwm_div_sel => "00",
       rst        => rst,
       enable     => enable,
       input_wave => data_in,
@@ -176,6 +177,7 @@ begin
     port map (
       clk        => clk,
       clk_pwm    => clk_pwm,
+      pwm_div_sel => "00",
       rst        => rst,
       enable     => enable,
       input_wave => valid_sine_out,

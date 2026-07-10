@@ -61,6 +61,7 @@ begin
       clk        => clk,
       rst        => rst,
       enable     => enable,
+      tick_ce    => '1',
       input_wave => data_in,
       pwm        => p_comp,
       pwm_n      => p_n_comp

@@ -5,7 +5,40 @@
 The utility modules provide supporting functionality for the PWM system:
 
 - **edge_delay.vhd**: Programmable delay element for dead-time insertion
+- **pwm_clk_post_scaler.vhd**: Clock-enable post-scaler for buffered PWM frequency modes
 - **range_divider_pkg.vhd**: Package for dividing value ranges across PWM channels
+
+---
+
+## pwm_clk_post_scaler.vhd - Buffered PWM Tick Post-Scaler
+
+### Description
+
+Generates a one-cycle `tick_ce` pulse from the raw `clk_pwm` domain. The top-level buffered PWM path uses this enable as the effective PWM clock tick instead of creating a fabric-divided clock.
+
+### Entity Declaration
+
+```vhdl
+entity pwm_clk_post_scaler is
+  port (
+    clk     : in    std_logic;
+    rst     : in    std_logic;
+    div_sel : in    std_logic_vector(1 downto 0);
+    tick_ce : out   std_logic
+  );
+end entity pwm_clk_post_scaler;
+```
+
+### Divider Encoding
+
+| `div_sel` | Divider |
+|-----------|---------|
+| `"00"` | `/2` |
+| `"01"` | `/4` |
+| `"10"` | `/8` |
+| `"11"` | `/16` |
+
+`tick_ce` is asserted for one raw `clk_pwm` cycle every selected divider cycles. In `main.vhd`, changing `div_sel` is done while the buffered PWM path is held in reset.
 
 ---
 

@@ -7,25 +7,21 @@ entity main_reset_ctrl is
     pwm_mode_switch_delay_cycles : natural  := 25_000_000;
     reset_release_cycles         : positive := 5;
     button_debounce_cycles       : positive := 1_000_000;
-    min_pwm_resolution_bits      : positive := 4;
-    max_pwm_resolution_bits      : positive := 8;
-    default_pwm_resolution_bits  : positive := 6
+    pwm_divider_mode_count       : positive := 4;
+    default_pwm_divider_index    : natural  := 0
   );
   port (
     clk              : in    std_logic;
     mmcm_clk_lock    : in    std_logic;
     rst_request      : in    std_logic;
-    resolution_step  : in    std_logic;
+    pwm_divider_step : in    std_logic;
     sine_rst         : out   std_logic;
     pwm_rst          : out   std_logic;
-    resolution_sel   : out   std_logic_vector(2 downto 0)
+    pwm_div_sel      : out   std_logic_vector(1 downto 0)
   );
 end entity main_reset_ctrl;
 
 architecture src of main_reset_ctrl is
-
-  constant resolution_mode_count : positive := max_pwm_resolution_bits - min_pwm_resolution_bits + 1;
-  constant default_resolution_index : natural := default_pwm_resolution_bits - min_pwm_resolution_bits;
 
   signal mmcm_lock_sync       : std_logic_vector(1 downto 0) := "00";
   signal sys_rst_sync         : std_logic_vector(1 downto 0) := "11";
@@ -35,21 +31,21 @@ architecture src of main_reset_ctrl is
 
   signal sine_reset_count     : natural range 0 to reset_release_cycles := reset_release_cycles;
   signal pwm_reset_count      : natural range 0 to reset_release_cycles := reset_release_cycles;
-  signal resolution_sel_reg   : natural range 0 to resolution_mode_count - 1 := default_resolution_index;
-  signal pending_resolution_sel : natural range 0 to resolution_mode_count - 1 := default_resolution_index;
-  signal resolution_delay_active : std_logic := '0';
-  signal resolution_delay_count : natural range 0 to pwm_mode_switch_delay_cycles := 0;
+  signal pwm_div_sel_reg      : natural range 0 to pwm_divider_mode_count - 1 := default_pwm_divider_index;
+  signal pending_pwm_div_sel  : natural range 0 to pwm_divider_mode_count - 1 := default_pwm_divider_index;
+  signal divider_delay_active : std_logic := '0';
+  signal divider_delay_count  : natural range 0 to pwm_mode_switch_delay_cycles := 0;
 
-  function next_resolution_index (
+  function next_divider_index (
     current_index : natural
   ) return natural is
   begin
-    if (current_index = resolution_mode_count - 1) then
+    if (current_index = pwm_divider_mode_count - 1) then
       return 0;
     end if;
 
     return current_index + 1;
-  end function next_resolution_index;
+  end function next_divider_index;
 
 begin
 
@@ -61,33 +57,29 @@ begin
     report "main_reset_ctrl: reset_release_cycles must be at least 5"
     severity failure;
 
-  resolution_range_valid : assert (max_pwm_resolution_bits >= min_pwm_resolution_bits)
-    report "main_reset_ctrl: max_pwm_resolution_bits must be >= min_pwm_resolution_bits"
+  pwm_divider_mode_count_valid : assert ((pwm_divider_mode_count > 0) and
+                                         (pwm_divider_mode_count <= 4))
+    report "main_reset_ctrl: pwm divider selector supports 1 to 4 runtime modes"
     severity failure;
 
-  resolution_mode_count_valid : assert (resolution_mode_count <= 8)
-    report "main_reset_ctrl: resolution selector only supports up to 8 runtime modes"
+  default_pwm_divider_valid : assert (default_pwm_divider_index < pwm_divider_mode_count)
+    report "main_reset_ctrl: default_pwm_divider_index must be inside the runtime range"
     severity failure;
 
-  default_resolution_valid : assert ((default_pwm_resolution_bits >= min_pwm_resolution_bits) and
-                                     (default_pwm_resolution_bits <= max_pwm_resolution_bits))
-    report "main_reset_ctrl: default_pwm_resolution_bits must be inside the runtime range"
-    severity failure;
-
-  sine_rst       <= '1' when (sine_reset_count > 0) else '0';
-  pwm_rst        <= '1' when (pwm_reset_count > 0) else '0';
-  resolution_sel <= std_logic_vector(to_unsigned(resolution_sel_reg, resolution_sel'length));
+  sine_rst    <= '1' when (sine_reset_count > 0) else '0';
+  pwm_rst     <= '1' when (pwm_reset_count > 0) else '0';
+  pwm_div_sel <= std_logic_vector(to_unsigned(pwm_div_sel_reg, pwm_div_sel'length));
 
   rst_gen : process (clk) is
     variable step_event : boolean;
-    variable next_sel   : natural range 0 to resolution_mode_count - 1;
+    variable next_sel   : natural range 0 to pwm_divider_mode_count - 1;
   begin
 
     if rising_edge(clk) then
       step_event := false;
       mmcm_lock_sync <= mmcm_lock_sync(0) & mmcm_clk_lock;
       sys_rst_sync   <= sys_rst_sync(0) & rst_request;
-      step_sync      <= step_sync(1 downto 0) & resolution_step;
+      step_sync      <= step_sync(1 downto 0) & pwm_divider_step;
 
       if (step_sync(2) = step_stable) then
         step_debounce_count <= 0;
@@ -114,29 +106,29 @@ begin
           (sys_rst_sync(1) = '1')) then
         sine_reset_count <= reset_release_cycles;
         pwm_reset_count <= reset_release_cycles;
-        resolution_sel_reg <= default_resolution_index;
-        pending_resolution_sel <= default_resolution_index;
-        resolution_delay_active <= '0';
-        resolution_delay_count <= 0;
+        pwm_div_sel_reg <= default_pwm_divider_index;
+        pending_pwm_div_sel <= default_pwm_divider_index;
+        divider_delay_active <= '0';
+        divider_delay_count <= 0;
         step_stable <= '0';
         step_debounce_count <= 0;
-      elsif (resolution_delay_active = '1') then
+      elsif (divider_delay_active = '1') then
         sine_reset_count <= reset_release_cycles;
         pwm_reset_count <= reset_release_cycles;
 
-        if (resolution_delay_count = 0) then
-          resolution_sel_reg <= pending_resolution_sel;
-          resolution_delay_active <= '0';
+        if (divider_delay_count = 0) then
+          pwm_div_sel_reg <= pending_pwm_div_sel;
+          divider_delay_active <= '0';
         else
-          resolution_delay_count <= resolution_delay_count - 1;
+          divider_delay_count <= divider_delay_count - 1;
         end if;
       elsif (step_event) then
-        next_sel := next_resolution_index(resolution_sel_reg);
+        next_sel := next_divider_index(pwm_div_sel_reg);
         sine_reset_count <= reset_release_cycles;
         pwm_reset_count <= reset_release_cycles;
-        pending_resolution_sel <= next_sel;
-        resolution_delay_active <= '1';
-        resolution_delay_count <= pwm_mode_switch_delay_cycles - 1;
+        pending_pwm_div_sel <= next_sel;
+        divider_delay_active <= '1';
+        divider_delay_count <= pwm_mode_switch_delay_cycles - 1;
       end if;
     end if;
 
@@ -155,6 +147,7 @@ entity main is
   generic (
     num_channels                 : integer := 4;
     debug                        : string  := "NO_DEBUG";
+    pwm_resolution_bits          : positive := 8;
     pwm_mode_switch_delay_cycles : natural := 25_000_000;
     button_debounce_cycles       : positive := 1_000_000;
     resolution_led_on_cycles     : positive := 5_000_000;
@@ -185,26 +178,27 @@ end entity main;
 
 architecture src of main is
 
-  constant source_data_width           : integer   := 16;
-  constant min_pwm_resolution_bits     : integer   := 4;
-  constant max_pwm_resolution_bits     : integer   := 8;
-  constant default_pwm_resolution_bits : integer   := 6;
-  constant num_dead_time_cycles        : integer   := 4;
-  constant buffer_depth                : integer   := 16384;
-  constant wave_length                 : integer   := sine_wave_length;
-  constant input_data_type             : string    := "SIGNED";
-  constant ref_type                    : string    := "SYMMETRICAL";
-  constant scale_factor                : real      := 0.8;
-  constant offset_factor               : real      := 0.0;
-  constant ref_step                    : integer   := 1;
-  constant ref_updwn                   : std_logic := '1';
-  constant pwm_idle                    : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  constant source_data_width              : integer   := 16;
+  constant num_dead_time_cycles           : integer   := 4;
+  constant buffer_depth                   : integer   := 16384;
+  constant wave_length                    : integer   := sine_wave_length;
+  constant input_data_type                : string    := "SIGNED";
+  constant ref_type                       : string    := "SYMMETRICAL";
+  constant scale_factor                   : real      := 0.8;
+  constant offset_factor                  : real      := 0.0;
+  constant ref_step                       : integer   := 1;
+  constant ref_updwn                      : std_logic := '1';
+  constant clk_freq_hz                    : integer   := 50_000_000;
+  constant clk_pwm_freq_hz                : integer   := 200_000_000;
+  constant input_data_decimation_factor   : positive  := 2 ** pwm_resolution_bits;
+  constant pwm_idle                       : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
-  constant resolution_sel_4 : std_logic_vector(2 downto 0) := "000";
-  constant resolution_sel_5 : std_logic_vector(2 downto 0) := "001";
-  constant resolution_sel_6 : std_logic_vector(2 downto 0) := "010";
-  constant resolution_sel_7 : std_logic_vector(2 downto 0) := "011";
-  constant resolution_sel_8 : std_logic_vector(2 downto 0) := "100";
+  constant pwm_div_sel_2  : std_logic_vector(1 downto 0) := "00";
+  constant pwm_div_sel_4  : std_logic_vector(1 downto 0) := "01";
+  constant pwm_div_sel_8  : std_logic_vector(1 downto 0) := "10";
+  constant pwm_div_sel_16 : std_logic_vector(1 downto 0) := "11";
+  constant pwm_divider_mode_count    : positive := 4;
+  constant default_pwm_divider_index : natural := 0;
 
   function max_positive (
     left  : positive;
@@ -218,32 +212,25 @@ architecture src of main is
     return right;
   end function max_positive;
 
-  function resolution_blink_count (
-    value : std_logic_vector(2 downto 0)
+  function divider_blink_count (
+    value : std_logic_vector(1 downto 0)
   ) return natural is
   begin
     case value is
-      when resolution_sel_4 =>
+      when pwm_div_sel_2 =>
+        return 1;
+      when pwm_div_sel_4 =>
+        return 2;
+      when pwm_div_sel_8 =>
+        return 3;
+      when pwm_div_sel_16 =>
         return 4;
-      when resolution_sel_5 =>
-        return 5;
-      when resolution_sel_6 =>
-        return 6;
-      when resolution_sel_7 =>
-        return 7;
-      when resolution_sel_8 =>
-        return 8;
       when others =>
         return 0;
     end case;
-  end function resolution_blink_count;
+  end function divider_blink_count;
 
-  constant decimation_factor_4 : positive := 16;
-  constant decimation_factor_5 : positive := 32;
-  constant decimation_factor_6 : positive := 64;
-  constant decimation_factor_7 : positive := 128;
-  constant decimation_factor_8 : positive := 256;
-  constant resolution_led_counter_limit : positive :=
+  constant led_counter_limit : positive :=
     max_positive(max_positive(resolution_led_on_cycles, resolution_led_off_cycles),
                  resolution_led_pause_cycles);
 
@@ -251,10 +238,10 @@ architecture src of main is
   constant debug_override_en_bit    : natural := 1;
   constant debug_override_value_bit : natural := 2;
 
-  type resolution_led_state_t is (
-    resolution_led_on_state,
-    resolution_led_off_state,
-    resolution_led_pause_state
+  type led_state_t is (
+    led_on_state,
+    led_off_state,
+    led_pause_state
   );
 
   component pwm_mch_buf is
@@ -278,11 +265,13 @@ architecture src of main is
       ref_step        : integer   := 1;
       ref_updwn       : std_logic := '1';
       clk_freq_hz     : integer   := 100_000_000;
-      clk_pwm_freq_hz : integer   := 200_000_000
+      clk_pwm_freq_hz : integer   := 200_000_000;
+      use_post_scaler : boolean   := false
     );
     port (
       clk        : in    std_logic;
       clk_pwm    : in    std_logic;
+      pwm_div_sel : in   std_logic_vector(1 downto 0) := (others => '0');
       rst        : in    std_logic;
       enable     : in    std_logic;
       input_wave : in    std_logic_vector(r - 1 downto 0);
@@ -335,63 +324,29 @@ architecture src of main is
   signal clk_pwm        : std_logic := '0';
   signal sine_rst       : std_logic := '1';
   signal pwm_rst        : std_logic := '1';
-  signal resolution_sel : std_logic_vector(2 downto 0) := resolution_sel_6;
+  signal pwm_div_sel    : std_logic_vector(1 downto 0) := pwm_div_sel_2;
   signal rst_request    : std_logic := '0';
-  signal resolution_step_request : std_logic := '0';
+  signal pwm_divider_step_request : std_logic := '0';
   signal enable         : std_logic := '1';
-  signal resolution_led : std_logic := '0';
-  signal resolution_led_state : resolution_led_state_t := resolution_led_pause_state;
-  signal resolution_led_timer : natural range 0 to resolution_led_counter_limit := 0;
-  signal resolution_led_remaining : natural range 0 to max_pwm_resolution_bits := 0;
+  signal mode_led       : std_logic := '0';
+  signal mode_led_state : led_state_t := led_pause_state;
+  signal mode_led_timer : natural range 0 to led_counter_limit := 0;
+  signal mode_led_remaining : natural range 0 to pwm_divider_mode_count := 0;
 
   signal source_sine_out   : std_logic_vector(source_data_width - 1 downto 0) := (others => '0');
   signal source_sine_valid : std_logic := '0';
   signal source_sine_sample_ce : std_logic := '0';
+  signal source_sample : std_logic_vector(pwm_resolution_bits - 1 downto 0) := (others => '0');
 
-  signal source_sample_4 : std_logic_vector(3 downto 0) := (others => '0');
-  signal source_sample_5 : std_logic_vector(4 downto 0) := (others => '0');
-  signal source_sample_6 : std_logic_vector(5 downto 0) := (others => '0');
-  signal source_sample_7 : std_logic_vector(6 downto 0) := (others => '0');
-  signal source_sample_8 : std_logic_vector(7 downto 0) := (others => '0');
-
-  signal rst_pwm_4 : std_logic := '1';
-  signal rst_pwm_5 : std_logic := '1';
-  signal rst_pwm_6 : std_logic := '1';
-  signal rst_pwm_7 : std_logic := '1';
-  signal rst_pwm_8 : std_logic := '1';
-
-  signal enable_pwm_4 : std_logic := '0';
-  signal enable_pwm_5 : std_logic := '0';
-  signal enable_pwm_6 : std_logic := '0';
-  signal enable_pwm_7 : std_logic := '0';
-  signal enable_pwm_8 : std_logic := '0';
-
-  signal sample_ce_4 : std_logic := '0';
-  signal sample_ce_5 : std_logic := '0';
-  signal sample_ce_6 : std_logic := '0';
-  signal sample_ce_7 : std_logic := '0';
-  signal sample_ce_8 : std_logic := '0';
-
-  signal p_buf_4   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_buf_5   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_buf_6   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_buf_7   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_buf_8   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_buf_4 : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_buf_5 : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_buf_6 : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_buf_7 : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_buf_8 : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-
-  signal p_mux        : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
-  signal p_n_mux      : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_buf        : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
+  signal p_n_buf      : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_selected   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal p_n_selected : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
   signal vio_rst_ctrl             : std_logic_vector(2 downto 0) := (others => '0');
-  signal vio_resolution_step_ctrl : std_logic_vector(2 downto 0) := (others => '0');
+  signal vio_frequency_step_ctrl  : std_logic_vector(2 downto 0) := (others => '0');
   signal debug_probe_rst_ctrl     : std_logic_vector(7 downto 0) := (others => '0');
-  signal debug_probe_resolution_ctrl : std_logic_vector(7 downto 0) := (others => '0');
+  signal debug_probe_frequency_ctrl : std_logic_vector(7 downto 0) := (others => '0');
   signal debug_probe_p_selected   : std_logic_vector(3 downto 0) := (others => '0');
   signal debug_probe_p_n_selected : std_logic_vector(3 downto 0) := (others => '0');
 
@@ -401,16 +356,17 @@ begin
     report "main: debug generic must be NO_DEBUG or DEBUG"
     severity failure;
 
-  source_sample_4 <= source_sine_out(source_data_width - 1 downto source_data_width - 4);
-  source_sample_5 <= source_sine_out(source_data_width - 1 downto source_data_width - 5);
-  source_sample_6 <= source_sine_out(source_data_width - 1 downto source_data_width - 6);
-  source_sample_7 <= source_sine_out(source_data_width - 1 downto source_data_width - 7);
-  source_sample_8 <= source_sine_out(source_data_width - 1 downto source_data_width - 8);
+  pwm_resolution_valid : assert ((pwm_resolution_bits >= 2) and
+                                 (pwm_resolution_bits <= source_data_width))
+    report "main: pwm_resolution_bits must be in range 2..16"
+    severity failure;
+
+  source_sample <= source_sine_out(source_data_width - 1 downto source_data_width - pwm_resolution_bits);
 
   no_debug_gen : if debug = "NO_DEBUG" generate
 
-    rst_request             <= sys_rst;
-    resolution_step_request <= sys_pwm_mode;
+    rst_request              <= sys_rst;
+    pwm_divider_step_request <= sys_pwm_mode;
 
   end generate no_debug_gen;
 
@@ -420,9 +376,9 @@ begin
                    (vio_rst_ctrl(debug_override_en_bit) = '1') else
                    (sys_rst or vio_rst_ctrl(debug_force_bit));
 
-    resolution_step_request <= vio_resolution_step_ctrl(debug_override_value_bit) when
-                               (vio_resolution_step_ctrl(debug_override_en_bit) = '1') else
-                               (sys_pwm_mode or vio_resolution_step_ctrl(debug_force_bit));
+    pwm_divider_step_request <= vio_frequency_step_ctrl(debug_override_value_bit) when
+                                (vio_frequency_step_ctrl(debug_override_en_bit) = '1') else
+                                (sys_pwm_mode or vio_frequency_step_ctrl(debug_force_bit));
 
     debug_probe_rst_ctrl <= sys_rst &
                             vio_rst_ctrl(debug_override_value_bit) &
@@ -433,12 +389,13 @@ begin
                             sine_rst &
                             pwm_rst;
 
-    debug_probe_resolution_ctrl <= sys_pwm_mode &
-                                   vio_resolution_step_ctrl(debug_override_value_bit) &
-                                   vio_resolution_step_ctrl(debug_override_en_bit) &
-                                   vio_resolution_step_ctrl(debug_force_bit) &
-                                   resolution_step_request &
-                                   resolution_sel;
+    debug_probe_frequency_ctrl <= sys_pwm_mode &
+                                  vio_frequency_step_ctrl(debug_override_value_bit) &
+                                  vio_frequency_step_ctrl(debug_override_en_bit) &
+                                  vio_frequency_step_ctrl(debug_force_bit) &
+                                  pwm_divider_step_request &
+                                  '0' &
+                                  pwm_div_sel;
 
     debug_probe_p_selected   <= lower_debug_bits(p_selected);
     debug_probe_p_n_selected <= lower_debug_bits(p_n_selected);
@@ -447,77 +404,77 @@ begin
       port map (
         clk        => clk,
         probe_out0 => vio_rst_ctrl,
-        probe_out1 => vio_resolution_step_ctrl
+        probe_out1 => vio_frequency_step_ctrl
       );
 
     debug_ila : component ila_pwm_debug
       port map (
         clk    => clk,
         probe0 => debug_probe_rst_ctrl,
-        probe1 => debug_probe_resolution_ctrl,
+        probe1 => debug_probe_frequency_ctrl,
         probe2 => debug_probe_p_selected,
         probe3 => debug_probe_p_n_selected
       );
 
   end generate debug_gen;
 
-  resolution_led_blinker : process (clk) is
-    variable selected_blinks : natural range 0 to max_pwm_resolution_bits;
+  mode_led_blinker : process (clk) is
+    variable selected_blinks : natural range 0 to pwm_divider_mode_count;
   begin
 
     if rising_edge(clk) then
-      selected_blinks := resolution_blink_count(resolution_sel);
+      selected_blinks := divider_blink_count(pwm_div_sel);
 
       if ((sine_rst = '1') or (pwm_rst = '1') or (selected_blinks = 0)) then
-        resolution_led <= '0';
-        resolution_led_state <= resolution_led_pause_state;
-        resolution_led_timer <= 0;
-        resolution_led_remaining <= 0;
+        mode_led <= '0';
+        mode_led_state <= led_pause_state;
+        mode_led_timer <= 0;
+        mode_led_remaining <= 0;
       else
-        case resolution_led_state is
-          when resolution_led_pause_state =>
-            resolution_led <= '0';
+        case mode_led_state is
+          when led_pause_state =>
+            mode_led <= '0';
 
-            if (resolution_led_timer > 0) then
-              resolution_led_timer <= resolution_led_timer - 1;
+            if (mode_led_timer > 0) then
+              mode_led_timer <= mode_led_timer - 1;
             else
-              resolution_led <= '1';
-              resolution_led_state <= resolution_led_on_state;
-              resolution_led_timer <= resolution_led_on_cycles - 1;
-              resolution_led_remaining <= selected_blinks;
+              mode_led <= '1';
+              mode_led_state <= led_on_state;
+              mode_led_timer <= resolution_led_on_cycles - 1;
+              mode_led_remaining <= selected_blinks;
             end if;
 
-          when resolution_led_on_state =>
-            resolution_led <= '1';
+          when led_on_state =>
+            mode_led <= '1';
 
-            if (resolution_led_timer > 0) then
-              resolution_led_timer <= resolution_led_timer - 1;
+            if (mode_led_timer > 0) then
+              mode_led_timer <= mode_led_timer - 1;
             else
-              resolution_led <= '0';
-              resolution_led_state <= resolution_led_off_state;
-              resolution_led_timer <= resolution_led_off_cycles - 1;
+              mode_led <= '0';
+              mode_led_state <= led_off_state;
+              mode_led_timer <= resolution_led_off_cycles - 1;
             end if;
 
-          when resolution_led_off_state =>
-            resolution_led <= '0';
+          when led_off_state =>
+            mode_led <= '0';
 
-            if (resolution_led_timer > 0) then
-              resolution_led_timer <= resolution_led_timer - 1;
-            elsif (resolution_led_remaining <= 1) then
-              resolution_led_state <= resolution_led_pause_state;
-              resolution_led_timer <= resolution_led_pause_cycles - 1;
-              resolution_led_remaining <= 0;
+            if (mode_led_timer > 0) then
+              mode_led_timer <= mode_led_timer - 1;
+            elsif (mode_led_remaining <= 1) then
+              mode_led_state <= led_pause_state;
+              mode_led_timer <= resolution_led_pause_cycles - 1;
+              mode_led_remaining <= 0;
             else
-              resolution_led <= '1';
-              resolution_led_state <= resolution_led_on_state;
-              resolution_led_timer <= resolution_led_on_cycles - 1;
-              resolution_led_remaining <= resolution_led_remaining - 1;
+              mode_led <= '1';
+              mode_led_state <= led_on_state;
+              mode_led_timer <= resolution_led_on_cycles - 1;
+              mode_led_remaining <= mode_led_remaining - 1;
             end if;
         end case;
       end if;
     end if;
 
-  end process resolution_led_blinker;
+  end process mode_led_blinker;
 
   sys_clk_ibuffer : component ibuf
     port map (
@@ -534,12 +491,12 @@ begin
   mmcm_adv : component mmcme2_adv
     generic map (
       clkfbout_mult_f => 8.0,
-      clkin1_period   => 8.0,
-      clkin2_period   => 8.0,
+      clkin1_period   => 10.0,
+      clkin2_period   => 10.0,
       clkout1_phase   => 0.0,
       clkout1_divide  => 16,
       clkout2_phase   => 0.0,
-      clkout2_divide  => 8
+      clkout2_divide  => 4
     )
     port map (
       clkinsel => '1',
@@ -582,28 +539,9 @@ begin
       output_data  => source_sine_out
     );
 
-  rst_pwm_4 <= pwm_rst when (resolution_sel = resolution_sel_4) else '1';
-  rst_pwm_5 <= pwm_rst when (resolution_sel = resolution_sel_5) else '1';
-  rst_pwm_6 <= pwm_rst when (resolution_sel = resolution_sel_6) else '1';
-  rst_pwm_7 <= pwm_rst when (resolution_sel = resolution_sel_7) else '1';
-  rst_pwm_8 <= pwm_rst when (resolution_sel = resolution_sel_8) else '1';
-
-  enable_pwm_4 <= enable when (resolution_sel = resolution_sel_4) else '0';
-  enable_pwm_5 <= enable when (resolution_sel = resolution_sel_5) else '0';
-  enable_pwm_6 <= enable when (resolution_sel = resolution_sel_6) else '0';
-  enable_pwm_7 <= enable when (resolution_sel = resolution_sel_7) else '0';
-  enable_pwm_8 <= enable when (resolution_sel = resolution_sel_8) else '0';
-
-  source_sine_sample_ce <= sample_ce_4 when (resolution_sel = resolution_sel_4) else
-                           sample_ce_5 when (resolution_sel = resolution_sel_5) else
-                           sample_ce_6 when (resolution_sel = resolution_sel_6) else
-                           sample_ce_7 when (resolution_sel = resolution_sel_7) else
-                           sample_ce_8 when (resolution_sel = resolution_sel_8) else
-                           '0';
-
-  buffered_pwm_4 : component pwm_mch_buf
+  buffered_pwm : component pwm_mch_buf
     generic map (
-      r               => 4,
+      r               => pwm_resolution_bits,
       d               => num_dead_time_cycles,
       num_channels    => num_channels,
       ref_type        => ref_type,
@@ -612,7 +550,7 @@ begin
       input_data_type => input_data_type,
       buffer_depth    => buffer_depth,
       input_mode      => "VALID",
-      input_data_decimation_factor => decimation_factor_4,
+      input_data_decimation_factor => input_data_decimation_factor,
       pulse_period_samples => sine_pulse_period_cycles,
       prefill_pulses       => sine_buffer_prefill_pulses,
       resume_pulses        => sine_buffer_resume_pulses,
@@ -620,186 +558,43 @@ begin
       min_safe_pulses      => sine_buffer_min_safe_pulses,
       fifo_margin_samples  => sine_buffer_margin_samples,
       ref_step        => ref_step,
-      ref_updwn       => ref_updwn
+      ref_updwn       => ref_updwn,
+      clk_freq_hz     => clk_freq_hz,
+      clk_pwm_freq_hz => clk_pwm_freq_hz,
+      use_post_scaler => true
     )
     port map (
       clk        => clk,
       clk_pwm    => clk_pwm,
-      rst        => rst_pwm_4,
-      enable     => enable_pwm_4,
-      input_wave => source_sample_4,
+      pwm_div_sel => pwm_div_sel,
+      rst        => pwm_rst,
+      enable     => enable,
+      input_wave => source_sample,
       input_valid => source_sine_valid,
-      input_sample_ce => sample_ce_4,
-      pwm        => p_buf_4,
-      pwm_n      => p_n_buf_4
+      input_sample_ce => source_sine_sample_ce,
+      pwm        => p_buf,
+      pwm_n      => p_n_buf
     );
 
-  buffered_pwm_5 : component pwm_mch_buf
-    generic map (
-      r               => 5,
-      d               => num_dead_time_cycles,
-      num_channels    => num_channels,
-      ref_type        => ref_type,
-      scale_factor    => scale_factor,
-      offset_factor   => offset_factor,
-      input_data_type => input_data_type,
-      buffer_depth    => buffer_depth,
-      input_mode      => "VALID",
-      input_data_decimation_factor => decimation_factor_5,
-      pulse_period_samples => sine_pulse_period_cycles,
-      prefill_pulses       => sine_buffer_prefill_pulses,
-      resume_pulses        => sine_buffer_resume_pulses,
-      refill_batch_pulses  => sine_buffer_refill_batch_pulses,
-      min_safe_pulses      => sine_buffer_min_safe_pulses,
-      fifo_margin_samples  => sine_buffer_margin_samples,
-      ref_step        => ref_step,
-      ref_updwn       => ref_updwn
-    )
-    port map (
-      clk        => clk,
-      clk_pwm    => clk_pwm,
-      rst        => rst_pwm_5,
-      enable     => enable_pwm_5,
-      input_wave => source_sample_5,
-      input_valid => source_sine_valid,
-      input_sample_ce => sample_ce_5,
-      pwm        => p_buf_5,
-      pwm_n      => p_n_buf_5
-    );
-
-  buffered_pwm_6 : component pwm_mch_buf
-    generic map (
-      r               => 6,
-      d               => num_dead_time_cycles,
-      num_channels    => num_channels,
-      ref_type        => ref_type,
-      scale_factor    => scale_factor,
-      offset_factor   => offset_factor,
-      input_data_type => input_data_type,
-      buffer_depth    => buffer_depth,
-      input_mode      => "VALID",
-      input_data_decimation_factor => decimation_factor_6,
-      pulse_period_samples => sine_pulse_period_cycles,
-      prefill_pulses       => sine_buffer_prefill_pulses,
-      resume_pulses        => sine_buffer_resume_pulses,
-      refill_batch_pulses  => sine_buffer_refill_batch_pulses,
-      min_safe_pulses      => sine_buffer_min_safe_pulses,
-      fifo_margin_samples  => sine_buffer_margin_samples,
-      ref_step        => ref_step,
-      ref_updwn       => ref_updwn
-    )
-    port map (
-      clk        => clk,
-      clk_pwm    => clk_pwm,
-      rst        => rst_pwm_6,
-      enable     => enable_pwm_6,
-      input_wave => source_sample_6,
-      input_valid => source_sine_valid,
-      input_sample_ce => sample_ce_6,
-      pwm        => p_buf_6,
-      pwm_n      => p_n_buf_6
-    );
-
-  buffered_pwm_7 : component pwm_mch_buf
-    generic map (
-      r               => 7,
-      d               => num_dead_time_cycles,
-      num_channels    => num_channels,
-      ref_type        => ref_type,
-      scale_factor    => scale_factor,
-      offset_factor   => offset_factor,
-      input_data_type => input_data_type,
-      buffer_depth    => buffer_depth,
-      input_mode      => "VALID",
-      input_data_decimation_factor => decimation_factor_7,
-      pulse_period_samples => sine_pulse_period_cycles,
-      prefill_pulses       => sine_buffer_prefill_pulses,
-      resume_pulses        => sine_buffer_resume_pulses,
-      refill_batch_pulses  => sine_buffer_refill_batch_pulses,
-      min_safe_pulses      => sine_buffer_min_safe_pulses,
-      fifo_margin_samples  => sine_buffer_margin_samples,
-      ref_step        => ref_step,
-      ref_updwn       => ref_updwn
-    )
-    port map (
-      clk        => clk,
-      clk_pwm    => clk_pwm,
-      rst        => rst_pwm_7,
-      enable     => enable_pwm_7,
-      input_wave => source_sample_7,
-      input_valid => source_sine_valid,
-      input_sample_ce => sample_ce_7,
-      pwm        => p_buf_7,
-      pwm_n      => p_n_buf_7
-    );
-
-  buffered_pwm_8 : component pwm_mch_buf
-    generic map (
-      r               => 8,
-      d               => num_dead_time_cycles,
-      num_channels    => num_channels,
-      ref_type        => ref_type,
-      scale_factor    => scale_factor,
-      offset_factor   => offset_factor,
-      input_data_type => input_data_type,
-      buffer_depth    => buffer_depth,
-      input_mode      => "VALID",
-      input_data_decimation_factor => decimation_factor_8,
-      pulse_period_samples => sine_pulse_period_cycles,
-      prefill_pulses       => sine_buffer_prefill_pulses,
-      resume_pulses        => sine_buffer_resume_pulses,
-      refill_batch_pulses  => sine_buffer_refill_batch_pulses,
-      min_safe_pulses      => sine_buffer_min_safe_pulses,
-      fifo_margin_samples  => sine_buffer_margin_samples,
-      ref_step        => ref_step,
-      ref_updwn       => ref_updwn
-    )
-    port map (
-      clk        => clk,
-      clk_pwm    => clk_pwm,
-      rst        => rst_pwm_8,
-      enable     => enable_pwm_8,
-      input_wave => source_sample_8,
-      input_valid => source_sine_valid,
-      input_sample_ce => sample_ce_8,
-      pwm        => p_buf_8,
-      pwm_n      => p_n_buf_8
-    );
-
-  p_mux <= p_buf_4 when (resolution_sel = resolution_sel_4) else
-           p_buf_5 when (resolution_sel = resolution_sel_5) else
-           p_buf_6 when (resolution_sel = resolution_sel_6) else
-           p_buf_7 when (resolution_sel = resolution_sel_7) else
-           p_buf_8 when (resolution_sel = resolution_sel_8) else
-           pwm_idle;
-
-  p_n_mux <= p_n_buf_4 when (resolution_sel = resolution_sel_4) else
-             p_n_buf_5 when (resolution_sel = resolution_sel_5) else
-             p_n_buf_6 when (resolution_sel = resolution_sel_6) else
-             p_n_buf_7 when (resolution_sel = resolution_sel_7) else
-             p_n_buf_8 when (resolution_sel = resolution_sel_8) else
-             pwm_idle;
-
-  p_selected   <= pwm_idle when (pwm_rst = '1') else p_mux;
-  p_n_selected <= pwm_idle when (pwm_rst = '1') else p_n_mux;
+  p_selected   <= pwm_idle when (pwm_rst = '1') else p_buf;
+  p_n_selected <= pwm_idle when (pwm_rst = '1') else p_n_buf;
 
   reset_ctrl : entity work.main_reset_ctrl
     generic map (
       pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
       reset_release_cycles         => reset_release_cycles,
       button_debounce_cycles       => button_debounce_cycles,
-      min_pwm_resolution_bits      => min_pwm_resolution_bits,
-      max_pwm_resolution_bits      => max_pwm_resolution_bits,
-      default_pwm_resolution_bits  => default_pwm_resolution_bits
+      pwm_divider_mode_count       => pwm_divider_mode_count,
+      default_pwm_divider_index    => default_pwm_divider_index
     )
     port map (
       clk              => clk,
       mmcm_clk_lock    => mmcm_clk_lock,
       rst_request      => rst_request,
-      resolution_step  => resolution_step_request,
+      pwm_divider_step => pwm_divider_step_request,
       sine_rst         => sine_rst,
       pwm_rst          => pwm_rst,
-      resolution_sel   => resolution_sel
+      pwm_div_sel      => pwm_div_sel
     );
 
   pwm_obufs : for i in 0 to num_channels - 1 generate
@@ -818,9 +613,9 @@ begin
 
   end generate pwm_obufs;
 
-  resolution_led_obuf : component obuf
+  mode_led_obuf : component obuf
     port map (
-      i => resolution_led,
+      i => mode_led,
       o => sys_led
     );
 

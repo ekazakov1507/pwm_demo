@@ -11,20 +11,20 @@ This project implements a high-frequency PWM modulation system with the followin
 - **Dead-time insertion** to prevent shoot-through in power electronics applications
 - **Buffered architecture** using asynchronous FIFOs for reliable clock domain crossing
 - **MMCM clock generation** for board-clock-derived `clk` and `clk_pwm` domains
-- **Runtime PWM resolution/frequency stepping** from 4 to 8 bits with blanked output handoff
+- **Runtime buffered-PWM frequency stepping** with `/2`, `/4`, `/8`, and `/16` post-dividers
 - **Sine-wave soft-start ramp** after reset to avoid an immediate full-amplitude step
-- **16-bit source samples truncated into the selected PWM/FIFO resolution**
+- **16-bit source samples truncated into a build-time fixed PWM/FIFO resolution**
 - **Configurable parameters** including pulse timing, dead-time cycles, and reference signal type
 
 ## Technical Specifications
 
 ### Current Configuration (v4)
-- **PWM Frequency:** button-selectable from ~3.125 MHz to ~195.3125 kHz in the current board builds
+- **PWM Frequency:** button-selectable from ~195.3125 kHz to ~24.414 kHz at the default 8-bit resolution
 - **Modulation:** Sine LUT source; current board constraints yield ~24.4 kHz for `clk` / 2048
-- **Resolution:** runtime-selected 4, 5, 6, 7, or 8-bit PWM; reset default is 6-bit
-- **Clock Frequency:** 50 MHz `clk` and 100 MHz `clk_pwm`, derived from the 100 MHz board input constraints
-- **Dead Time:** 4 `clk_pwm` cycles (~40 ns with the current constraints)
-- **Buffer Depth:** 16384 samples per selected buffered branch
+- **Resolution:** fixed at build time with `pwm_resolution_bits`; default is 8-bit
+- **Clock Frequency:** 50 MHz `clk` and raw 200 MHz `clk_pwm`, derived from the 100 MHz board input constraints
+- **Dead Time:** 4 effective PWM ticks; default `/2` gives ~40 ns
+- **Buffer Depth:** 16384 samples in the buffered branch
 - **Wave Table Length:** 2048 points
 - **Sine Soft Start:** 2048 `clk` cycles by default
 
@@ -35,9 +35,9 @@ System Clock (100 MHz, constrained by board XDC)
 [IBUF] → [BUFG] → [MMCM]
                      ↓
               clk (50 MHz) ──→ [16-bit Sine Generator]
-                            └──→ [Truncate to 4/5/6/7/8 bits]
-                            └──→ [Selected Buffered PWM / FIFO] ──→ [OBUF] → PWM Outputs
-              clk_pwm (100 MHz) ──→ [Buffered PWM Reference Counters]
+                            └──→ [Truncate to pwm_resolution_bits]
+                            └──→ [Buffered PWM / FIFO] ──→ [OBUF] → PWM Outputs
+              clk_pwm (200 MHz raw) ──→ [/2 /4 /8 /16 tick] ──→ [Buffered PWM Reference Counters]
 ```
 
 ## Project Structure
@@ -61,7 +61,7 @@ pwm_demo/
 │   │   └── async_fifo.vhd     # Asynchronous FIFO for clock domain crossing
 │   └── utils/                 # Utility modules
 │       ├── edge_delay.vhd
-│       └── range_divider_pkg.vhd
+│       └── pwm_clk_post_scaler.vhd
 ├── tb/                         # Testbenches
 │   ├── tb_main.vhd
 │   ├── tb_pwm_1ch.vhd
@@ -97,7 +97,7 @@ This project has been developed and tested on the following Xilinx Zynq-7000 dev
 
 ### Board Controls
 
-| Board | Reset input | Resolution/frequency step input | Resolution LED |
+| Board | Reset input | Frequency step input | Mode LED |
 |-------|-------------|---------------------------------|----------------|
 | Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` | `LED0` / `sys_led` |
 | Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` | `sys_led`, pin `P15` |
@@ -194,11 +194,12 @@ The top-level module (`main.vhd`) accepts the following generics:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `num_channels` | 4 | Number of PWM output channels |
-| `debug` | "NO_DEBUG" | Use `"DEBUG"` to instantiate VIO/ILA for reset and resolution-step debug |
-| `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime resolution change |
-| `button_debounce_cycles` | 1,000,000 | Debounce interval for the resolution-step board input in the `clk` domain |
-| `resolution_led_on_cycles` | 5,000,000 | LED on interval for each resolution-count blink |
-| `resolution_led_off_cycles` | 5,000,000 | LED off interval between resolution-count blinks |
+| `debug` | "NO_DEBUG" | Use `"DEBUG"` to instantiate VIO/ILA for reset and divider-step debug |
+| `pwm_resolution_bits` | 8 | Fixed buffered PWM resolution for this firmware build |
+| `pwm_mode_switch_delay_cycles` | 25,000,000 | Output blanking delay before committing a runtime divider change |
+| `button_debounce_cycles` | 1,000,000 | Debounce interval for the divider-step board input in the `clk` domain |
+| `resolution_led_on_cycles` | 5,000,000 | LED on interval for each divider-mode blink |
+| `resolution_led_off_cycles` | 5,000,000 | LED off interval between divider-mode blinks |
 | `resolution_led_pause_cycles` | 25,000,000 | LED pause interval after one complete blink-count group |
 | `sine_wave_length` | 2048 | Sine lookup table length in samples |
 | `sine_pulse_period_cycles` | 4096 | Pulse frame length in input samples |
@@ -213,15 +214,20 @@ The top-level module (`main.vhd`) accepts the following generics:
 | `sine_buffer_margin_samples` | 8 | FIFO full-margin used by the writer |
 | `reset_release_cycles` | 5 | Minimum synchronized reset assertion length for sine/PWM reset release |
 
-The top-level instantiates fixed buffered PWM branches for 4 through 8 bits. The selected branch chooses the source request divider so one truncated source sample is written for each PWM frame:
+The top-level instantiates one fixed-resolution buffered PWM branch. The button selects the post-divider:
 
-| Resolution | PWM frame cycles | PWM frequency | Source request divider |
-|------------|------------------|---------------|------------------------|
-| 4-bit | 32 | 3.125 MHz | 16 |
-| 5-bit | 64 | 1.5625 MHz | 32 |
-| 6-bit | 128 | 781.25 kHz | 64 |
-| 7-bit | 256 | 390.625 kHz | 128 |
-| 8-bit | 512 | 195.3125 kHz | 256 |
+| Divider | Selector | LED blinks | Default 8-bit PWM frequency |
+|---------|----------|------------|-----------------------------|
+| `/2` | `00` | 1 | 195.3125 kHz |
+| `/4` | `01` | 2 | 97.65625 kHz |
+| `/8` | `10` | 3 | 48.828125 kHz |
+| `/16` | `11` | 4 | 24.4140625 kHz |
+
+Frequency formula:
+
+```text
+pwm_frequency = raw_clk_pwm_hz / (post_divider * 2 * 2**pwm_resolution_bits)
+```
 
 ## Algorithm Description
 
@@ -235,7 +241,7 @@ The system implements **symmetrical (center-aligned) PWM** where:
 ### Clock Architecture
 - **Input Clock:** 100 MHz in the checked-in board constraints
 - **System Clock (clk):** 50 MHz via MMCM ratio in current board builds
-- **PWM Clock (clk_pwm):** 100 MHz via MMCM ratio in current board builds
+- **PWM Clock (clk_pwm):** raw 200 MHz via MMCM ratio in current board builds
 - **Asynchronous FIFO:** Bridges clock domain between sine generator and PWM module
 
 ### Dead-Time Insertion
@@ -245,13 +251,13 @@ The system implements **symmetrical (center-aligned) PWM** where:
 
 ## Algorithm Versions
 
-### Version 4 (Current) - Runtime Resolution/Frequency Step
+### Version 4 (Current) - Fixed Resolution With Runtime Buffered Frequency Step
 - Module signal adapts to reference signal characteristics
 - Integer-only counter increments for simplicity
-- Uses buffered PWM branches for 4, 5, 6, 7, and 8-bit resolution
-- Uses the legacy `sys_pwm_mode` input as a resolution/frequency-step button
-- Blinks `sys_led` 4, 5, 6, 7, or 8 times to show the active PWM resolution
-- Blanks outputs and resets the sine/FIFO/PWM path during runtime resolution changes
+- Uses one buffered PWM branch at build-time `pwm_resolution_bits`
+- Uses the legacy `sys_pwm_mode` input as a `/2`, `/4`, `/8`, `/16` frequency-step button
+- Blinks `sys_led` 1, 2, 3, or 4 times to show the active divider
+- Blanks outputs and resets the sine/FIFO/PWM path during runtime divider changes
 - Enables sine soft-start ramp after reset
 - Uses symmetrical PWM with triangle reference
 

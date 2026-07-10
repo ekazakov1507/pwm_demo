@@ -103,10 +103,11 @@ proc infer_pwm_demo_build_tag {repo_root generic_overrides} {
     set num_channels [string map {_ ""} $override_channels]
   }
 
-  set data_width [get_pwm_demo_vhdl_value $main_source {constant\s+data_width\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
   set source_data_width [get_pwm_demo_vhdl_value $main_source {constant\s+source_data_width\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
-  set min_pwm_resolution_bits [get_pwm_demo_vhdl_value $main_source {constant\s+min_pwm_resolution_bits\s*:\s*integer\s*:=\s*([0-9_]+)} ""]
-  set max_pwm_resolution_bits [get_pwm_demo_vhdl_value $main_source {constant\s+max_pwm_resolution_bits\s*:\s*integer\s*:=\s*([0-9_]+)} ""]
+  set pwm_resolution_bits [get_pwm_demo_vhdl_value $main_source {pwm_resolution_bits\s*:\s*positive\s*:=\s*([0-9_]+)} 8]
+  if {[regexp -nocase {pwm_resolution_bits\s*=\s*([0-9_]+)} $generic_overrides -> override_resolution]} {
+    set pwm_resolution_bits [string map {_ ""} $override_resolution]
+  }
   set dead_time [get_pwm_demo_vhdl_value $main_source {constant\s+num_dead_time_cycles\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
   set buffer_depth [get_pwm_demo_vhdl_value $main_source {constant\s+buffer_depth\s*:\s*integer\s*:=\s*([0-9_]+)} 0]
   set default_wave_length [get_pwm_demo_vhdl_value $main_source {sine_wave_length\s*:\s*positive\s*:=\s*([0-9_]+)} 0]
@@ -117,11 +118,7 @@ proc infer_pwm_demo_build_tag {repo_root generic_overrides} {
   set ref_updwn [get_pwm_demo_vhdl_value $main_source {constant\s+ref_updwn\s*:\s*std_logic\s*:=\s*'([01])'} 0]
   set debug_value [sanitize_pwm_demo_token [get_pwm_demo_generic_override $generic_overrides debug "NO_DEBUG"]]
 
-  if {$min_pwm_resolution_bits ne "" && $max_pwm_resolution_bits ne ""} {
-    set width_tags [list "srcdw${source_data_width}" "rw${min_pwm_resolution_bits}-${max_pwm_resolution_bits}"]
-  } else {
-    set width_tags [list "dw${data_width}"]
-  }
+  set width_tags [list "srcdw${source_data_width}" "rw${pwm_resolution_bits}" "pd2-16"]
 
   set tag_parts [concat \
     [list "nc${num_channels}"] \

@@ -397,9 +397,10 @@ graph TB
         FIFO[(async_fifo<br/>Gray Code Pointers)]
     end
 
-    subgraph "clk_pwm Domain (100 MHz)"
+    subgraph "raw clk_pwm Domain (200 MHz)"
         FIFO_RD[async_fifo<br/>Read Side]
         RD_CTRL[Read Control]
+        DIV[pwm_clk_post_scaler]
         PWM[pwm_mch_buf]
     end
 
@@ -409,6 +410,7 @@ graph TB
     FIFO_WR --> FIFO
     FIFO --> FIFO_RD
     FIFO_RD -->|empty, data_out| RD_CTRL
+    DIV -->|pwm_tick_ce| RD_CTRL
     RD_CTRL --> PWM
 
     style SINE fill:#ffe1e1
@@ -457,7 +459,7 @@ begin
       cnt := 0;
       buf_rd_en <= '0';
       buf_rd_valid <= '0';
-    elsif cnt = cycle_length - 1 then
+    elsif (pwm_tick_ce = '1') and (cnt = cycle_length - 1) then
       cnt := 0;
       buf_rd_valid <= buf_rd_en;
 
@@ -469,7 +471,9 @@ begin
     else
       buf_rd_en <= '0';
       buf_rd_valid <= buf_rd_en;
-      cnt := cnt + 1;
+      if pwm_tick_ce = '1' then
+        cnt := cnt + 1;
+      end if;
     end if;
   end if;
 end process;

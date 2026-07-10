@@ -24,7 +24,7 @@ set_property -dict {PACKAGE_PIN N18 IOSTANDARD LVCMOS33} [get_ports sys_clk]
 
 ############## key define ##################
 set_property -dict {PACKAGE_PIN P16 IOSTANDARD LVCMOS33} [get_ports sys_rst]
-# Legacy port name: this button now steps PWM resolution/frequency.
+# Legacy port name: this button now steps the buffered PWM frequency divider.
 set_property -dict {PACKAGE_PIN T12 IOSTANDARD LVCMOS33} [get_ports sys_pwm_mode]
 set_false_path -from [get_ports {sys_rst sys_pwm_mode}]
 ############## LED define ##################

@@ -7,9 +7,10 @@ end entity tb_main;
 
 architecture tb of tb_main is
 
-  constant clk_period : time := 8 ns;
+  constant clk_period : time := 10 ns;
 
   constant num_channels                 : integer := 4;
+  constant pwm_resolution_bits          : positive := 8;
   constant pwm_mode_switch_delay_cycles : natural := 16;
   constant button_debounce_cycles       : positive := 2;
   constant resolution_led_on_cycles     : positive := 2;
@@ -17,9 +18,9 @@ architecture tb of tb_main is
   constant resolution_led_pause_cycles  : positive := 12;
   constant led_gap_timeout              : time := clk_period * 12;
   constant sine_wave_length             : positive := 32;
-  constant sine_pulse_period_cycles      : positive := 8;
+  constant sine_pulse_period_cycles      : positive := 4;
   constant sine_pulse_start_delay_cycles : natural  := 0;
-  constant sine_pulse_duration_cycles    : positive := 8;
+  constant sine_pulse_duration_cycles    : positive := 4;
   constant sine_pulse_front_cycles       : natural  := 0;
   constant sine_pulse_fall_cycles        : natural  := 0;
   constant sine_buffer_prefill_pulses    : positive := 2;
@@ -38,27 +39,31 @@ architecture tb of tb_main is
   signal sys_pwm   : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
   signal sys_pwm_n : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
-  signal test_phase           : integer range 0 to 6 := 0;
-  signal saw_default_activity : boolean := false;
-  signal saw_res7_activity    : boolean := false;
-  signal saw_res8_activity    : boolean := false;
-  signal saw_res4_activity    : boolean := false;
-  signal saw_res5_activity    : boolean := false;
-  signal saw_res6_activity    : boolean := false;
+  signal test_phase        : integer range 0 to 5 := 0;
+  signal saw_div2_activity : boolean := false;
+  signal saw_div4_activity : boolean := false;
+  signal saw_div8_activity : boolean := false;
+  signal saw_div16_activity : boolean := false;
+  signal saw_div2_wrap_activity : boolean := false;
 
   signal ctrl_clk              : std_logic := '0';
   signal ctrl_mmcm_lock        : std_logic := '0';
   signal ctrl_rst_request      : std_logic := '0';
-  signal ctrl_resolution_step  : std_logic := '0';
+  signal ctrl_divider_step     : std_logic := '0';
   signal ctrl_sine_rst         : std_logic := '1';
   signal ctrl_pwm_rst          : std_logic := '1';
-  signal ctrl_resolution_sel   : std_logic_vector(2 downto 0) := "010";
+  signal ctrl_pwm_div_sel      : std_logic_vector(1 downto 0) := "00";
+
+  signal scaler_rst     : std_logic := '1';
+  signal scaler_div_sel : std_logic_vector(1 downto 0) := "00";
+  signal scaler_tick_ce : std_logic := '0';
 
 begin
 
   main_pwm_demo : entity work.main
     generic map (
       num_channels                 => num_channels,
+      pwm_resolution_bits          => pwm_resolution_bits,
       pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
       button_debounce_cycles       => button_debounce_cycles,
       resolution_led_on_cycles     => resolution_led_on_cycles,
@@ -91,18 +96,25 @@ begin
       pwm_mode_switch_delay_cycles => pwm_mode_switch_delay_cycles,
       reset_release_cycles         => reset_release_cycles,
       button_debounce_cycles       => button_debounce_cycles,
-      min_pwm_resolution_bits      => 4,
-      max_pwm_resolution_bits      => 8,
-      default_pwm_resolution_bits  => 6
+      pwm_divider_mode_count       => 4,
+      default_pwm_divider_index    => 0
     )
     port map (
       clk              => ctrl_clk,
       mmcm_clk_lock    => ctrl_mmcm_lock,
       rst_request      => ctrl_rst_request,
-      resolution_step  => ctrl_resolution_step,
+      pwm_divider_step => ctrl_divider_step,
       sine_rst         => ctrl_sine_rst,
       pwm_rst          => ctrl_pwm_rst,
-      resolution_sel   => ctrl_resolution_sel
+      pwm_div_sel      => ctrl_pwm_div_sel
+    );
+
+  post_scaler_check : entity work.pwm_clk_post_scaler
+    port map (
+      clk     => ctrl_clk,
+      rst     => scaler_rst,
+      div_sel => scaler_div_sel,
+      tick_ce => scaler_tick_ce
     );
 
   sys_clk <= not sys_clk after clk_period / 2;
@@ -150,12 +162,12 @@ begin
         severity failure;
     end procedure expect_led_pattern;
 
-    procedure press_resolution_button is
+    procedure press_frequency_button is
     begin
       sys_pwm_mode <= '1';
       wait for 2 us;
       sys_pwm_mode <= '0';
-    end procedure press_resolution_button;
+    end procedure press_frequency_button;
 
   begin
 
@@ -174,76 +186,63 @@ begin
     sys_pwm_mode <= '0';
     sys_rst      <= '0';
     test_phase   <= 1;
-    wait for 80 us;
-    assert saw_default_activity
-      report "main: expected buffered PWM activity in default 6-bit resolution"
+    wait for 140 us;
+    assert saw_div2_activity
+      report "main: expected buffered PWM activity in default /2 divider mode"
       severity failure;
-    expect_led_pattern(6);
+    expect_led_pattern(1);
 
     test_phase <= 0;
-    press_resolution_button;
+    press_frequency_button;
     wait for 1 us;
     assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
-      report "main: expected blanking while switching from 6-bit to 7-bit resolution"
+      report "main: expected blanking while switching from /2 to /4"
       severity failure;
     test_phase <= 2;
-    wait for 80 us;
-    assert saw_res7_activity
-      report "main: expected buffered PWM activity after switching to 7-bit resolution"
+    wait for 140 us;
+    assert saw_div4_activity
+      report "main: expected buffered PWM activity after switching to /4"
       severity failure;
-    expect_led_pattern(7);
+    expect_led_pattern(2);
 
     test_phase <= 0;
-    press_resolution_button;
+    press_frequency_button;
     wait for 1 us;
     assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
-      report "main: expected blanking while switching from 7-bit to 8-bit resolution"
+      report "main: expected blanking while switching from /4 to /8"
       severity failure;
     test_phase <= 3;
-    wait for 100 us;
-    assert saw_res8_activity
-      report "main: expected buffered PWM activity after switching to 8-bit resolution"
+    wait for 160 us;
+    assert saw_div8_activity
+      report "main: expected buffered PWM activity after switching to /8"
       severity failure;
-    expect_led_pattern(8);
+    expect_led_pattern(3);
 
     test_phase <= 0;
-    press_resolution_button;
+    press_frequency_button;
     wait for 1 us;
     assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
-      report "main: expected blanking while wrapping from 8-bit to 4-bit resolution"
+      report "main: expected blanking while switching from /8 to /16"
       severity failure;
     test_phase <= 4;
-    wait for 80 us;
-    assert saw_res4_activity
-      report "main: expected buffered PWM activity after switching to 4-bit resolution"
+    wait for 180 us;
+    assert saw_div16_activity
+      report "main: expected buffered PWM activity after switching to /16"
       severity failure;
     expect_led_pattern(4);
 
     test_phase <= 0;
-    press_resolution_button;
+    press_frequency_button;
     wait for 1 us;
     assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
-      report "main: expected blanking while switching from 4-bit to 5-bit resolution"
+      report "main: expected blanking while wrapping from /16 to /2"
       severity failure;
     test_phase <= 5;
-    wait for 80 us;
-    assert saw_res5_activity
-      report "main: expected buffered PWM activity after switching to 5-bit resolution"
+    wait for 140 us;
+    assert saw_div2_wrap_activity
+      report "main: expected buffered PWM activity after wrapping to /2"
       severity failure;
-    expect_led_pattern(5);
-
-    test_phase <= 0;
-    press_resolution_button;
-    wait for 1 us;
-    assert ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero))
-      report "main: expected blanking while switching from 5-bit to 6-bit resolution"
-      severity failure;
-    test_phase <= 6;
-    wait for 80 us;
-    assert saw_res6_activity
-      report "main: expected buffered PWM activity after switching back to 6-bit resolution"
-      severity failure;
-    expect_led_pattern(6);
+    expect_led_pattern(1);
 
     sys_rst    <= '1';
     test_phase <= 0;
@@ -256,7 +255,7 @@ begin
       severity failure;
 
     sys_rst <= '0';
-    expect_led_pattern(6);
+    expect_led_pattern(1);
 
     wait;
 
@@ -266,12 +265,12 @@ begin
 
     procedure press_ctrl_step is
     begin
-      ctrl_resolution_step <= '1';
+      ctrl_divider_step <= '1';
       wait for clk_period * 8;
       assert ((ctrl_sine_rst = '1') and (ctrl_pwm_rst = '1'))
-        report "main_reset_ctrl: resolution switch must reset sine generator and PWM"
+        report "main_reset_ctrl: divider switch must reset sine generator and PWM"
         severity failure;
-      ctrl_resolution_step <= '0';
+      ctrl_divider_step <= '0';
       wait for clk_period * (pwm_mode_switch_delay_cycles + reset_release_cycles + 8);
     end procedure press_ctrl_step;
 
@@ -299,41 +298,35 @@ begin
     assert held_cycles >= reset_release_cycles
       report "main_reset_ctrl: initial reset release was shorter than minimum"
       severity failure;
-    assert ctrl_resolution_sel = "010"
-      report "main_reset_ctrl: reset must select default 6-bit resolution"
+    assert ctrl_pwm_div_sel = "00"
+      report "main_reset_ctrl: reset must select default /2 divider"
       severity failure;
 
     press_ctrl_step;
     wait for 1 ns;
     assert ((ctrl_sine_rst = '0') and (ctrl_pwm_rst = '0'))
-      report "main_reset_ctrl: resolution switch reset did not release"
+      report "main_reset_ctrl: divider switch reset did not release"
       severity failure;
-    assert ctrl_resolution_sel = "011"
-      report "main_reset_ctrl: first step must select 7-bit resolution"
-      severity failure;
-
-    press_ctrl_step;
-    wait for 1 ns;
-    assert ctrl_resolution_sel = "100"
-      report "main_reset_ctrl: second step must select 8-bit resolution"
+    assert ctrl_pwm_div_sel = "01"
+      report "main_reset_ctrl: first step must select /4"
       severity failure;
 
     press_ctrl_step;
     wait for 1 ns;
-    assert ctrl_resolution_sel = "000"
-      report "main_reset_ctrl: third step must wrap to 4-bit resolution"
+    assert ctrl_pwm_div_sel = "10"
+      report "main_reset_ctrl: second step must select /8"
       severity failure;
 
     press_ctrl_step;
     wait for 1 ns;
-    assert ctrl_resolution_sel = "001"
-      report "main_reset_ctrl: fourth step must select 5-bit resolution"
+    assert ctrl_pwm_div_sel = "11"
+      report "main_reset_ctrl: third step must select /16"
       severity failure;
 
     press_ctrl_step;
     wait for 1 ns;
-    assert ctrl_resolution_sel = "010"
-      report "main_reset_ctrl: fifth step must return to 6-bit resolution"
+    assert ctrl_pwm_div_sel = "00"
+      report "main_reset_ctrl: fourth step must wrap to /2"
       severity failure;
 
     ctrl_rst_request <= '1';
@@ -358,30 +351,75 @@ begin
     assert held_cycles >= reset_release_cycles
       report "main_reset_ctrl: reset button release was shorter than minimum"
       severity failure;
-    assert ctrl_resolution_sel = "010"
-      report "main_reset_ctrl: reset button must restore default 6-bit resolution"
+    assert ctrl_pwm_div_sel = "00"
+      report "main_reset_ctrl: reset button must restore default /2 divider"
       severity failure;
 
     wait;
 
   end process reset_ctrl_stim_proc;
 
+  post_scaler_stim_proc : process is
+
+    procedure expect_tick_spacing (
+      selected_divider : std_logic_vector(1 downto 0);
+      expected_cycles  : natural
+    ) is
+      variable cycle_count : natural := 0;
+    begin
+      scaler_div_sel <= selected_divider;
+      scaler_rst <= '1';
+      wait for clk_period * 3;
+      wait until rising_edge(ctrl_clk);
+      scaler_rst <= '0';
+
+      loop
+        wait until rising_edge(ctrl_clk);
+        exit when scaler_tick_ce = '1';
+      end loop;
+
+      for i in 1 to 3 loop
+        cycle_count := 0;
+
+        loop
+          wait until rising_edge(ctrl_clk);
+          cycle_count := cycle_count + 1;
+          exit when scaler_tick_ce = '1';
+        end loop;
+
+        assert cycle_count = expected_cycles
+          report "pwm_clk_post_scaler: tick spacing was " &
+                 integer'image(cycle_count) & " cycles, expected " &
+                 integer'image(expected_cycles)
+          severity failure;
+      end loop;
+    end procedure expect_tick_spacing;
+
+  begin
+
+    expect_tick_spacing("00", 2);
+    expect_tick_spacing("01", 4);
+    expect_tick_spacing("10", 8);
+    expect_tick_spacing("11", 16);
+
+    wait;
+
+  end process post_scaler_stim_proc;
+
   activity_monitor : process (sys_pwm, sys_pwm_n, test_phase) is
   begin
 
     if not ((sys_pwm = pwm_zero) and (sys_pwm_n = pwm_zero)) then
       if (test_phase = 1) then
-        saw_default_activity <= true;
+        saw_div2_activity <= true;
       elsif (test_phase = 2) then
-        saw_res7_activity <= true;
+        saw_div4_activity <= true;
       elsif (test_phase = 3) then
-        saw_res8_activity <= true;
+        saw_div8_activity <= true;
       elsif (test_phase = 4) then
-        saw_res4_activity <= true;
+        saw_div16_activity <= true;
       elsif (test_phase = 5) then
-        saw_res5_activity <= true;
-      elsif (test_phase = 6) then
-        saw_res6_activity <= true;
+        saw_div2_wrap_activity <= true;
       end if;
     end if;
 

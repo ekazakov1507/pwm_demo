@@ -24,11 +24,13 @@ entity pwm_mch_buf is
     ref_step        : integer   := 1;
     ref_updwn       : std_logic := '1';
     clk_freq_hz     : integer   := 100_000_000;
-    clk_pwm_freq_hz : integer   := 200_000_000
+    clk_pwm_freq_hz : integer   := 200_000_000;
+    use_post_scaler : boolean   := false
   );
   port (
     clk        : in    std_logic;
     clk_pwm    : in    std_logic;
+    pwm_div_sel : in   std_logic_vector(1 downto 0) := (others => '0');
     rst        : in    std_logic;
     enable     : in    std_logic;
     input_wave : in    std_logic_vector(r - 1 downto 0);
@@ -303,6 +305,7 @@ architecture src of pwm_mch_buf is
       clk        : in    std_logic;
       rst        : in    std_logic;
       enable     : in    std_logic;
+      tick_ce    : in    std_logic := '1';
       input_wave : in    std_logic_vector(input_width - 1 downto 0);
       pwm        : out   std_logic;
       pwm_n      : out   std_logic
@@ -348,6 +351,9 @@ architecture src of pwm_mch_buf is
 
   signal enable_sync : std_logic_vector(2 downto 0) := "000";
   signal enable_pwm  : std_logic                    := '0';
+  signal pwm_div_sel_sync : std_logic_vector(1 downto 0) := (others => '0');
+  signal pwm_div_sel_pwm  : std_logic_vector(1 downto 0) := (others => '0');
+  signal pwm_tick_ce      : std_logic := '1';
   signal buf_rd_valid : std_logic                   := '0';
   signal stream_active : std_logic                  := '0';
   signal pwm_stream_rst : std_logic                 := '1';
@@ -377,6 +383,10 @@ begin
 
   assert (input_mode = "DECIMATED") or (prefill_pulses > resume_pulses)
     report "pwm_mch_buf: prefill_pulses must be greater than resume_pulses"
+    severity failure;
+
+  assert (not use_post_scaler) or (input_mode = "VALID")
+    report "pwm_mch_buf: post-scaler mode is supported only with VALID input pacing"
     severity failure;
 
   input_sample_ce <= source_sample_ce;
@@ -553,6 +563,39 @@ begin
     end if;
   end process enable_sync_proc;
 
+  post_scaler_gen : if use_post_scaler generate
+  begin
+
+    div_sel_sync_proc : process (clk_pwm) is
+    begin
+      if rising_edge(clk_pwm) then
+        if (rst_pwm = '1') then
+          pwm_div_sel_sync <= (others => '0');
+          pwm_div_sel_pwm  <= (others => '0');
+        else
+          pwm_div_sel_sync <= pwm_div_sel;
+          pwm_div_sel_pwm  <= pwm_div_sel_sync;
+        end if;
+      end if;
+    end process div_sel_sync_proc;
+
+    post_scaler : entity work.pwm_clk_post_scaler
+      port map (
+        clk     => clk_pwm,
+        rst     => rst_pwm,
+        div_sel => pwm_div_sel_pwm,
+        tick_ce => pwm_tick_ce
+      );
+
+  end generate post_scaler_gen;
+
+  no_post_scaler_gen : if not use_post_scaler generate
+  begin
+
+    pwm_tick_ce <= '1';
+
+  end generate no_post_scaler_gen;
+
   input_buffer_rd_ctrl : process (clk_pwm) is
 
     -- Count one full PWM frame before requesting next buffered sample.
@@ -587,20 +630,22 @@ begin
           cnt := 0;
         end if;
 
-        if (stream_next = '1') then
-          if (cnt = pwm_cycle_length - 1) then
-            cnt := 0;
+        if (pwm_tick_ce = '1') then
+          if (stream_next = '1') then
+            if (cnt = pwm_cycle_length - 1) then
+              cnt := 0;
 
-            if (buf_empty = '0') then
-              buf_rd_en <= '1';
+              if (buf_empty = '0') then
+                buf_rd_en <= '1';
+              else
+                stream_next := '0';
+              end if;
             else
-              stream_next := '0';
+              cnt := cnt + 1;
             end if;
           else
-            cnt := cnt + 1;
+            buf_rd_valid <= '0';
           end if;
-        else
-          buf_rd_valid <= '0';
         end if;
 
         stream_active <= stream_next;
@@ -652,6 +697,7 @@ begin
         clk        => clk_pwm,
         rst        => pwm_stream_rst,
         enable     => enable_pwm,
+        tick_ce    => pwm_tick_ce,
         input_wave => duty_cycle,
         pwm        => pwm(i),
         pwm_n      => pwm_n(i)
