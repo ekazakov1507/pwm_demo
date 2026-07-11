@@ -4,7 +4,9 @@
 
 The signal chain modules handle waveform generation, scaling, and sample rate conversion:
 
-- **sine_gen_simple.vhd**: Sine wave lookup table generator with optional soft-start ramp
+- **sine_gen_simple.vhd**: Wrapper that selects the signed or unsigned sine generator
+- **sine_gen_signed.vhd**: Signed sine lookup table generator with optional ramp and pulse envelope
+- **sine_gen_unsigned.vhd**: Unsigned sine lookup table generator with optional ramp and pulse envelope
 - **data_decimator.vhd**: Sample rate decimator (downsampler)
 - **scaler_signed.vhd**: Signed amplitude scaler
 - **scaler_unsigned.vhd**: Unsigned amplitude scaler with offset
@@ -14,7 +16,9 @@ The signal chain modules handle waveform generation, scaling, and sample rate co
 ```mermaid
 graph TB
     subgraph "Signal Generation"
-        SINE[sine_gen_simple<br/>Waveform Generator<br/>optional ramp]
+        SINE[sine_gen_simple<br/>type-selecting wrapper]
+        SINE_S[sine_gen_signed]
+        SINE_U[sine_gen_unsigned]
     end
 
     subgraph "Sample Rate Conversion"
@@ -26,7 +30,10 @@ graph TB
         SCALER_U[scaler_unsigned<br/>Unsigned Mode]
     end
 
-    SINE --> DEC
+    SINE -->|SIGNED| SINE_S
+    SINE -->|UNSIGNED| SINE_U
+    SINE_S --> DEC
+    SINE_U --> DEC
     DEC --> SCALER_S
     DEC --> SCALER_U
 
@@ -42,7 +49,9 @@ graph TB
 
 ### Description
 
-Generates a continuous sine wave using a lookup table (LUT) approach with elaboration-time computed constants. When enabled, the ramp logic fades the waveform amplitude in after reset.
+`sine_gen_simple` keeps the public generator interface stable and selects a typed implementation from `data_type`. `data_type = "SIGNED"` instantiates `sine_gen_signed`; `data_type = "UNSIGNED"` instantiates `sine_gen_unsigned`.
+
+The selected leaf generator produces a continuous sine wave using a lookup table (LUT) with elaboration-time computed constants. When enabled, the ramp logic fades the waveform amplitude in after reset. Pulse mode gates the sine with a rectangular or tapered envelope, so the same interface can produce sine bursts/radio pulses.
 
 ### Block Diagram
 
@@ -51,35 +60,51 @@ graph TB
     CLK[clk]
     RST[reset]
 
-    subgraph "Sine Generator"
+    subgraph "sine_gen_simple Wrapper"
+        TYPE{data_type}
+        SIGNED_LEAF[sine_gen_signed]
+        UNSIGNED_LEAF[sine_gen_unsigned]
+    end
+
+    subgraph "Selected Leaf Generator"
         INDEX[Phase Accumulator<br/>0 to wave_length-1]
         RAMP_COUNT[Ramp Counter<br/>0 to ramp_length]
+        PULSE_COUNT[Pulse Counter<br/>0 to pulse_period_cycles-1]
         
         subgraph "LUT Generation"
             FUNC[generate_sine_wave<br/>function]
             LUT[(SINE_WAVE<br/>Lookup Table)]
         end
 
+        ENVELOPE[Typed ramp or pulse<br/>envelope scaling]
         OUTPUT[Output Register]
     end
 
     OUTPUT_DATA[output_data<br/>bit_width]
 
+    TYPE -->|SIGNED| SIGNED_LEAF
+    TYPE -->|UNSIGNED| UNSIGNED_LEAF
+    SIGNED_LEAF --> INDEX
+    UNSIGNED_LEAF --> INDEX
     CLK --> INDEX
     CLK --> RAMP_COUNT
+    CLK --> PULSE_COUNT
     RST --> INDEX
     RST --> RAMP_COUNT
+    RST --> PULSE_COUNT
     INDEX -->|Address| LUT
     FUNC -->|Elaboration| LUT
-    LUT --> RAMP[Signed or unsigned<br/>ramp scaling]
-    RAMP_COUNT --> RAMP
-    RAMP --> OUTPUT
+    LUT --> ENVELOPE
+    RAMP_COUNT --> ENVELOPE
+    PULSE_COUNT --> ENVELOPE
+    ENVELOPE --> OUTPUT
     OUTPUT --> OUTPUT_DATA
 
     style CLK fill:#e1f5ff
     style RST fill:#ffe1e1
     style OUTPUT_DATA fill:#e1ffe1
     style LUT fill:#fff4e1
+    style TYPE fill:#fff4e1
 ```
 
 ### Entity Declaration
@@ -118,7 +143,7 @@ end entity sine_gen_simple;
 | `bit_width` | positive | 16 | Output resolution in bits |
 | `data_type` | string | "UNSIGNED" | Output format: "SIGNED" or "UNSIGNED" |
 | `ramp_enable` | boolean | false | Enables post-reset amplitude ramp |
-| `ramp_length` | natural | 0 | Ramp length in `clk` cycles; `0` uses `wave_length` |
+| `ramp_length` | natural | 0 | Ramp length in accepted samples; `0` uses `wave_length` |
 | `pulse_enable` | boolean | false | Enables pulse-envelope output mode |
 | `pulse_period_cycles` | positive | 1024 | Pulse frame length in input samples |
 | `pulse_start_delay_cycles` | natural | 0 | Neutral/zero delay before the pulse |
@@ -143,31 +168,31 @@ end entity sine_gen_simple;
 graph TB
     START[generate_sine_wave]
     
-    subgraph "For each index i"
+    subgraph "For each index i in selected leaf"
         ANGLE[Calculate angle<br/>θ = i × 2π / wave_length]
         SIN[Compute sine<br/>sin_val = sin(θ)]
         
-        subgraph "Data Type Selection"
-            TYPE{data_type?}
-            SIGNED_MAP[Signed Mapping<br/>scaled = sin_val × 2^(N-1)-1]
-            UNSIGNED_MAP[Unsigned Mapping<br/>scaled = sin_val+1 / 2 × 2^N-1]
+        subgraph "Typed LUT Mapping"
+            LEAF{selected leaf}
+            SIGNED_MAP[sine_gen_signed<br/>scaled = sin_val × 2^(N-1)-1]
+            UNSIGNED_MAP[sine_gen_unsigned<br/>scaled = sin_val+1 / 2 × 2^N-1]
         end
         
-        CONVERT[Convert to signed<br/>to_signed(int_val, N)]
+        CONVERT[Convert to selected type<br/>signed or unsigned]
     end
 
     WAVE[Return wave_array]
 
-    START --> ANGLE --> SIN --> TYPE
-    TYPE -->|SIGNED| SIGNED_MAP
-    TYPE -->|UNSIGNED| UNSIGNED_MAP
+    START --> ANGLE --> SIN --> LEAF
+    LEAF -->|SIGNED| SIGNED_MAP
+    LEAF -->|UNSIGNED| UNSIGNED_MAP
     SIGNED_MAP --> CONVERT
     UNSIGNED_MAP --> CONVERT
     CONVERT --> WAVE
 
     style START fill:#f0e1ff
     style WAVE fill:#e1ffe1
-    style TYPE fill:#fff4e1
+    style LEAF fill:#fff4e1
 ```
 
 ### Data Type Mapping
@@ -249,9 +274,61 @@ stateDiagram-v2
 
 ### Soft-Start Ramp
 
-With `ramp_enable = true`, `ramp_count` increments once per `clk` until the effective ramp length is reached. Signed output multiplies each sample by `ramp_count / ramp_length`, so the waveform starts at zero amplitude. Unsigned output preserves the midpoint and scales only the AC component, so the first active unsigned sample starts near midscale rather than rail zero.
+With `ramp_enable = true`, `ramp_count` increments once per accepted sample until the effective ramp length is reached. Signed output multiplies each sample by `ramp_count / ramp_length`, so the waveform starts at zero amplitude. Unsigned output preserves the midpoint and scales only the AC component, so the first active unsigned sample starts near midscale rather than rail zero.
 
 The current top-level build uses the pulse-envelope generics instead of the soft-start ramp, but the ramp remains available for standalone generator tests and alternate integrations.
+
+### Pulse and Radio-Burst Sizing
+
+In pulse mode, `wave_length` is the number of samples in one carrier sine cycle. It is not the pulse length. The pulse envelope is controlled by the `pulse_*` generics, and all of these counts advance only when `sample_ce = '1'`.
+
+Use these formulas:
+
+```text
+sample_rate_hz = clk_hz / sample_ce_divider
+wave_length = round(sample_rate_hz / carrier_hz)
+actual_carrier_hz = sample_rate_hz / wave_length
+
+pulse_duration_cycles = round(pulse_duration_seconds * sample_rate_hz)
+pulse_period_cycles = round(pulse_repeat_period_seconds * sample_rate_hz)
+carrier_cycles_per_pulse = pulse_duration_cycles / wave_length
+```
+
+For the buffered PWM top level, the source `sample_ce` rate should match the PWM sample playback rate. With the current 100 MHz signal-chain clock and the default `/2` PWM post-scaler, this is usually done with:
+
+```text
+input_data_decimation_factor = 2 ** (pwm_resolution_bits + 1)
+sample_rate_hz = 100_000_000 / input_data_decimation_factor
+```
+
+Example: about a 100 kHz carrier, about a 1 ms radio pulse, and an equal 1 ms off-time:
+
+```text
+pwm_resolution_bits = 5
+input_data_decimation_factor = 2 ** (5 + 1) = 64
+sample_rate_hz = 100_000_000 / 64 = 1_562_500 samples/s
+
+wave_length = round(1_562_500 / 100_000) = 16
+actual_carrier_hz = 1_562_500 / 16 = 97_656.25 Hz
+
+pulse_duration_cycles = 100 carrier cycles * 16 samples = 1600
+actual_pulse_duration = 1600 / 1_562_500 = 1.024 ms
+pulse_period_cycles = 3200
+```
+
+The matching top-level values are:
+
+```vhdl
+pwm_resolution_bits           => 5,
+sine_wave_length              => 16,
+sine_pulse_period_cycles      => 3200,
+sine_pulse_start_delay_cycles => 0,
+sine_pulse_duration_cycles    => 1600,
+sine_pulse_front_cycles       => 0,
+sine_pulse_fall_cycles        => 0
+```
+
+If the duration must be closer to exactly 1 ms, use `pulse_duration_cycles = 1563` at this sample rate. That gives about 1.000 ms, but the burst ends after about 97.7 carrier cycles rather than at an integer carrier-cycle boundary.
 
 ### Usage Example
 

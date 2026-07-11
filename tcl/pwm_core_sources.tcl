@@ -43,6 +43,8 @@ set pwm_demo_local_vhdl_files [list \
   [file join $repo_root src utils edge_delay.vhd] \
   [file join $repo_root src buffers async_fifo.vhd] \
   [file join $repo_root src signal_chain data_decimator.vhd] \
+  [file join $repo_root src signal_chain sine_gen_signed.vhd] \
+  [file join $repo_root src signal_chain sine_gen_unsigned.vhd] \
   [file join $repo_root src signal_chain sine_gen_simple.vhd] \
   [file join $repo_root src utils pwm_clk_post_scaler.vhd] \
   [file join $repo_root src pwm pwm_mch_buf.vhd] \

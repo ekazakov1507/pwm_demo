@@ -153,12 +153,12 @@ entity main is
     resolution_led_on_cycles     : positive := 5_000_000;
     resolution_led_off_cycles    : positive := 5_000_000;
     resolution_led_pause_cycles  : positive := 25_000_000;
-    sine_wave_length             : positive := 2048;
-    sine_pulse_period_cycles      : positive := 4096;
-    sine_pulse_start_delay_cycles : natural  := 1024;
-    sine_pulse_duration_cycles    : positive := 2048;
-    sine_pulse_front_cycles       : natural  := 256;
-    sine_pulse_fall_cycles        : natural  := 256;
+    sine_wave_length             : positive := 195;
+    sine_pulse_period_cycles      : positive := 390;
+    sine_pulse_start_delay_cycles : natural  := 0;
+    sine_pulse_duration_cycles    : positive := 195;
+    sine_pulse_front_cycles       : natural  := 0;
+    sine_pulse_fall_cycles        : natural  := 0;
     sine_buffer_prefill_pulses    : positive := 2;
     sine_buffer_resume_pulses     : positive := 1;
     sine_buffer_refill_batch_pulses : positive := 1;
@@ -188,9 +188,9 @@ architecture src of main is
   constant offset_factor                  : real      := 0.0;
   constant ref_step                       : integer   := 1;
   constant ref_updwn                      : std_logic := '1';
-  constant clk_freq_hz                    : integer   := 50_000_000;
+  constant clk_freq_hz                    : integer   := 100_000_000;
   constant clk_pwm_freq_hz                : integer   := 200_000_000;
-  constant input_data_decimation_factor   : positive  := 2 ** pwm_resolution_bits;
+  constant input_data_decimation_factor   : positive  := 2 ** (pwm_resolution_bits + 1);
   constant pwm_idle                       : std_logic_vector(num_channels - 1 downto 0) := (others => '0');
 
   constant pwm_div_sel_2  : std_logic_vector(1 downto 0) := "00";
@@ -494,7 +494,7 @@ begin
       clkin1_period   => 10.0,
       clkin2_period   => 10.0,
       clkout1_phase   => 0.0,
-      clkout1_divide  => 16,
+      clkout1_divide  => 8,
       clkout2_phase   => 0.0,
       clkout2_divide  => 4
     )

@@ -27,6 +27,8 @@ DESIGN_FILES = (
     "src/utils/edge_delay.vhd",
     "src/buffers/async_fifo.vhd",
     "src/signal_chain/data_decimator.vhd",
+    "src/signal_chain/sine_gen_signed.vhd",
+    "src/signal_chain/sine_gen_unsigned.vhd",
     "src/signal_chain/sine_gen_simple.vhd",
     "src/utils/pwm_clk_post_scaler.vhd",
     "src/pwm/pwm_mch_buf.vhd",
