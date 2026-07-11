@@ -42,6 +42,17 @@ proc sanitize_pwm_demo_token {value} {
   return [string trim $token "-"]
 }
 
+proc pwm_demo_board_output_folder {board_name} {
+  set folder [string toupper $board_name]
+  regsub -all {[^A-Z0-9]+} $folder "_" folder
+  regsub -all {_+} $folder "_" folder
+  return [string trim $folder "_"]
+}
+
+proc pwm_demo_board_output_dir {repo_root board_name} {
+  return [file join $repo_root bit [pwm_demo_board_output_folder $board_name]]
+}
+
 proc get_pwm_demo_vhdl_value {source pattern default} {
   if {[regexp -nocase $pattern $source -> raw_value]} {
     set value [string trim $raw_value]
@@ -92,6 +103,11 @@ proc normalize_pwm_demo_generic_overrides {generic_overrides} {
   return [join $normalized_items " "]
 }
 
+# Artifact naming reference:
+# Historical bitstreams in this repo used:
+#   <board>-nc<channels>-dw<data_width>-dt<dead_time>-buf<buffer_depth>-wl<wave_length>-<signed|unsigned>-<pwm_type>-rs<ref_step>-ru<ref_updwn>.bit
+# The current inferred config uses explicit source/PWM width tags:
+#   <board>-nc<channels>-srcdw<source_width>-rw<pwm_resolution>-pd2-16-dt<dead_time>-buf<buffer_depth>-wl<wave_length>-<signed|unsigned>-<pwm_type>-rs<ref_step>-ru<ref_updwn>.bit
 proc infer_pwm_demo_build_tag {repo_root generic_overrides} {
   set main_file [file join $repo_root src main.vhd]
   set main_handle [open $main_file r]
@@ -212,7 +228,7 @@ proc run_pwm_demo_build {part xdc_file board_name {config_name ""} {generic_over
   set generic_overrides [normalize_pwm_demo_generic_overrides $generic_overrides]
 
   if {$output_dir eq ""} {
-    set output_dir [file join $pwm_demo_repo_root bit]
+    set output_dir [pwm_demo_board_output_dir $pwm_demo_repo_root $board_name]
   }
 
   file mkdir $output_dir

@@ -87,16 +87,25 @@ graph TB
 ```vhdl
 entity sine_gen_simple is
   generic (
-    wave_length : positive := 1024;      -- Samples per full cycle
-    bit_width   : positive := 16;        -- Output bit width
-    data_type   : string   := "UNSIGNED"; -- "UNSIGNED" or "SIGNED"
-    ramp_enable : boolean  := false;
-    ramp_length : natural  := 0
+    wave_length              : positive := 1024;   -- Samples per full cycle
+    bit_width                : positive := 16;     -- Output bit width
+    data_type                : string   := "UNSIGNED";
+    ramp_enable              : boolean  := false;
+    ramp_length              : natural  := 0;
+    pulse_enable             : boolean  := false;
+    pulse_period_cycles      : positive := 1024;
+    pulse_start_delay_cycles : natural  := 0;
+    pulse_duration_cycles    : positive := 1024;
+    pulse_front_cycles       : natural  := 0;
+    pulse_fall_cycles        : natural  := 0
   );
   port (
-    clk         : in    std_logic;
-    reset       : in    std_logic;
-    output_data : out   std_logic_vector(bit_width - 1 downto 0)
+    clk          : in    std_logic;
+    reset        : in    std_logic;
+    enable       : in    std_logic := '1';
+    sample_ce    : in    std_logic := '1';
+    output_valid : out   std_logic;
+    output_data  : out   std_logic_vector(bit_width - 1 downto 0)
   );
 end entity sine_gen_simple;
 ```
@@ -110,6 +119,12 @@ end entity sine_gen_simple;
 | `data_type` | string | "UNSIGNED" | Output format: "SIGNED" or "UNSIGNED" |
 | `ramp_enable` | boolean | false | Enables post-reset amplitude ramp |
 | `ramp_length` | natural | 0 | Ramp length in `clk` cycles; `0` uses `wave_length` |
+| `pulse_enable` | boolean | false | Enables pulse-envelope output mode |
+| `pulse_period_cycles` | positive | 1024 | Pulse frame length in input samples |
+| `pulse_start_delay_cycles` | natural | 0 | Neutral/zero delay before the pulse |
+| `pulse_duration_cycles` | positive | 1024 | Active pulse duration |
+| `pulse_front_cycles` | natural | 0 | Rising envelope length |
+| `pulse_fall_cycles` | natural | 0 | Falling envelope length |
 
 ### Ports
 
@@ -117,6 +132,9 @@ end entity sine_gen_simple;
 |------|-----------|-------|-------------|
 | `clk` | in | 1 | Clock input |
 | `reset` | in | 1 | Active-high reset |
+| `enable` | in | 1 | Generator enable |
+| `sample_ce` | in | 1 | Sample advance clock-enable |
+| `output_valid` | out | 1 | Pulses when `output_data` is updated |
 | `output_data` | out | bit_width | Sine wave sample output |
 
 ### LUT Generation Algorithm
@@ -250,6 +268,9 @@ dut_sine : entity work.sine_gen_simple
   port map (
     clk         => clk,            -- 50 MHz in current board builds
     reset       => sine_rst,
+    enable      => '1',
+    sample_ce   => '1',
+    output_valid => open,
     output_data => sine_out        -- 6-bit sine wave
   );
 ```
@@ -463,6 +484,7 @@ graph TB
     subgraph "Scaler"
         MUL[Signed Multiply<br/>input_sig × scale]
         TRUNC[Truncate<br/>Take upper bits]
+        ADD[Add Offset<br/>scaled + offset]
         OUTPUT_REG[Output Register]
     end
 
@@ -473,7 +495,8 @@ graph TB
     INPUT --> MUL
 
     MUL --> TRUNC
-    TRUNC --> OUTPUT_REG
+    TRUNC --> ADD
+    ADD --> OUTPUT_REG
     OUTPUT_REG --> OUTPUT
 
     style INPUT fill:#e1f5ff
@@ -486,8 +509,9 @@ graph TB
 ```vhdl
 entity scaler_signed is
   generic (
-    r            : integer := 16;   -- Data width
-    scale_factor : real    := 0.9   -- Scaling factor
+    r             : integer := 16;  -- Data width
+    scale_factor  : real    := 0.8; -- Scaling factor
+    offset_factor : real    := 0.1  -- Offset factor
   );
   port (
     clk         : in    std_logic;
@@ -503,7 +527,8 @@ end entity scaler_signed;
 | Generic | Type | Default | Description |
 |---------|------|---------|-------------|
 | `r` | integer | 16 | Data width in bits |
-| `scale_factor` | real | 0.9 | Multiplication factor (0.0 to 1.0) |
+| `scale_factor` | real | 0.8 | Multiplication factor |
+| `offset_factor` | real | 0.1 | Signed offset factor |
 
 ### Ports
 
@@ -523,9 +548,11 @@ graph LR
 
     SIGN --> MUL[Signed Multiply<br/>r × r → 2r-1 bits]
     MUL --> PRODUCT[product<br/>2r-1 downto 0]
-    PRODUCT --> TRUNC[Truncate<br/>Take bits 2r-2:r-1]
+    PRODUCT --> TRUNC[Truncate<br/>Take bits 2r-1:r]
     TRUNC --> SCALED[scaled<br/>r-bit]
-    SCALED --> OUTPUT[output_data]
+    OFFSET[offset constant] --> ADD[Add Offset]
+    SCALED --> ADD
+    ADD --> OUTPUT[output_data]
 
     style INPUT fill:#e1f5ff
     style OUTPUT fill:#e1ffe1
@@ -539,29 +566,28 @@ graph LR
 Input:  Q1.15 format (1 sign bit, 15 fraction bits)
         Range: -1.0 to +0.99997
 
-Scale:  Q1.15 format
-        Example: 0.9 → 29491 (0.9 × 32768)
+Scale:  Q1.15-style constant from scale_factor
+        Example: 0.8 → 26213 (0.8 × 32767)
 
-Output: Q1.15 format
-        Range: -0.9 to +0.89997
+Offset: Q1.15-style constant from offset_factor
+        Example: 0.1 → 3276 (0.1 × 32767)
 ```
 
 ### Example Calculation
 
 ```
-For r=16, scale_factor=0.9:
+For r=16, scale_factor=0.8, offset_factor=0.1:
 
 Input:    0.5 (in Q1.15: 0.5 × 32768 = 16384)
-Scale:    0.9 (in Q1.15: 0.9 × 32768 = 29491)
+Scale:    0.8 (constant: 0.8 × 32767 = 26213)
+Offset:   0.1 (constant: 0.1 × 32767 = 3276)
 
-Multiply: 16384 × 29491 = 483,180,544
-          = 0x1CD0_0000 (32-bit result)
+Multiply: 16384 × 26213 = 429,473,792
 
-Truncate: Take bits [30:15]
-          = 0x3999 (16-bit result)
-          = 14745 decimal
+Truncate: Take bits [31:16]
+          = 6553 decimal
 
-Output:   14745 / 32768 = 0.45 (≈ 0.5 × 0.9) ✓
+Add Offset: 6553 + 3276 = 9829
 ```
 
 ### Operation
@@ -575,11 +601,11 @@ begin
     -- Signed multiplication: 16 × 16 → 32 bits
     product <= input_sig * scale;
 
-    -- Divide by 32768: take upper 16 bits (bits 30 downto 15)
-    -- Correctly handles sign extension
-    scaled <= product(2*r - 2 downto r - 1);
+    -- Take upper 16 bits, then add the configured signed offset.
+    scaled <= product(2*r - 1 downto r);
+    result <= scaled + offset;
 
-    output_data <= std_logic_vector(scaled);
+    output_data <= std_logic_vector(result);
   end if;
 end process;
 ```
@@ -713,8 +739,9 @@ Output:   16384 (mid-scale, represents 0.5 × 0.8 + 0.1 = 0.5) ✓
 set_scaler_type_signed : if INPUT_DATA_TYPE = "SIGNED" generate
   rsc : entity work.scaler_signed
     generic map (
-      r            => r,
-      scale_factor => scale_factor + offset_factor
+      r             => r,
+      scale_factor  => scale_factor,
+      offset_factor => offset_factor
     )
     port map (
       clk         => clk,
@@ -749,10 +776,10 @@ end generate;
 | **Input Format** | Q1.N-1 signed | Unsigned binary |
 | **Output Range** | -scale to +scale | offset to scale+offset |
 | **Multiplication** | Signed × Signed | Unsigned × Unsigned |
-| **Truncation** | Bits [2r-2:r-1] | Bits [2r-1:r] |
-| **DC Offset** | None (implicit) | Explicit offset |
-| **Generics** | 2 (r, scale_factor) | 3 (r, scale, offset) |
-| **Use Case** | AC signals | PWM with DC bias |
+| **Truncation** | Bits [2r-1:r] | Bits [2r-1:r] |
+| **DC Offset** | Explicit signed offset | Explicit unsigned offset |
+| **Generics** | 3 (r, scale, offset) | 3 (r, scale, offset) |
+| **Use Case** | Signed AC signals with optional bias | PWM with DC bias |
 
 ---
 

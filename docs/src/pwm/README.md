@@ -101,6 +101,7 @@ entity pwm_1ch is
     clk        : in    std_logic;
     rst        : in    std_logic;
     enable     : in    std_logic;
+    tick_ce    : in    std_logic := '1';
     input_wave : in    std_logic_vector(input_width - 1 downto 0);
     pwm        : out   std_logic;
     pwm_n      : out   std_logic
@@ -131,6 +132,7 @@ end entity pwm_1ch;
 | `clk` | in | 1 | Clock input |
 | `rst` | in | 1 | Active-high reset |
 | `enable` | in | 1 | Enable signal |
+| `tick_ce` | in | 1 | One-cycle tick enable; defaults to every clock |
 | `input_wave` | in | `input_width` | Input waveform value |
 | `pwm` | out | 1 | PWM high-side command after dead time |
 | `pwm_n` | out | 1 | Complementary low-side command after dead time |
@@ -392,12 +394,15 @@ entity pwm_mch_buf is
     input_data_type : string    := "SIGNED";      -- SIGNED, UNSIGNED, FP23, FP23_SIGNED
     buffer_depth    : integer   := 1024;          -- FIFO depth
     ref_type        : string    := "SYMMETRICAL"; -- Symmetrical or Asymmetrical
+    scale_factor    : real      := 0.8;
+    offset_factor   : real      := 0.1;
     input_mode      : string    := "DECIMATED";   -- DECIMATED or VALID
     input_data_decimation_factor : positive := 64; -- VALID-mode source strobe divider
     pulse_period_samples : positive := 1024;      -- VALID-mode pulse-frame length
     prefill_pulses       : positive := 2;         -- Pulse frames buffered before output starts
     resume_pulses        : positive := 1;         -- FIFO level that requests refill
     refill_batch_pulses  : positive := 1;         -- Pulse frames written per refill
+    min_safe_pulses      : natural  := 0;         -- FIFO floor before output stops
     fifo_margin_samples  : natural  := 4;         -- Writer full-margin
     ref_step        : integer   := 1;             -- Counter increment
     ref_updwn       : std_logic := '1';           -- Up/down control

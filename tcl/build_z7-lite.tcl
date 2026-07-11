@@ -7,7 +7,7 @@ source [file join $script_dir common.tcl]
 set part "xc7z020clg400-1"
 set board_name "z7-lite"
 set xdc_file [file join $pwm_demo_repo_root constraints Z7_LITE.xdc]
-set output_dir [file join $pwm_demo_repo_root bit]
+set output_dir [pwm_demo_board_output_dir $pwm_demo_repo_root $board_name]
 
 set config_name ""
 set generic_overrides ""

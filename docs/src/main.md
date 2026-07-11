@@ -38,6 +38,17 @@ entity main is
     resolution_led_on_cycles     : positive := 5_000_000;
     resolution_led_off_cycles    : positive := 5_000_000;
     resolution_led_pause_cycles  : positive := 25_000_000;
+    sine_wave_length             : positive := 2048;
+    sine_pulse_period_cycles      : positive := 4096;
+    sine_pulse_start_delay_cycles : natural  := 1024;
+    sine_pulse_duration_cycles    : positive := 2048;
+    sine_pulse_front_cycles       : natural  := 256;
+    sine_pulse_fall_cycles        : natural  := 256;
+    sine_buffer_prefill_pulses    : positive := 2;
+    sine_buffer_resume_pulses     : positive := 1;
+    sine_buffer_refill_batch_pulses : positive := 1;
+    sine_buffer_min_safe_pulses   : natural  := 0;
+    sine_buffer_margin_samples    : natural  := 8;
     reset_release_cycles         : positive := 5
   );
   port (

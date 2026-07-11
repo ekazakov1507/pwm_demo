@@ -19,8 +19,8 @@ Expected debug artifacts:
 
 | Board | Bitstream | Probe file |
 |-------|-----------|------------|
-| Z7-Lite | `bit\z7-lite-z7-debug.bit` | `bit\z7-lite-z7-debug.ltx` |
-| Zybo | `bit\zybo-zynq-zybo-debug.bit` | `bit\zybo-zynq-zybo-debug.ltx` |
+| Z7-Lite | `bit\Z7_LITE\z7-lite-z7-debug.bit` | `bit\Z7_LITE\z7-lite-z7-debug.ltx` |
+| Zybo | `bit\ZYBO_ZYNQ\zybo-zynq-zybo-debug.bit` | `bit\ZYBO_ZYNQ\zybo-zynq-zybo-debug.ltx` |
 
 Generated IP products are local build artifacts under `ip\debug\` and are ignored by Git. The source of truth is `tcl\common.tcl`.
 
@@ -166,8 +166,8 @@ In Vivado Hardware Manager, program the device with the matching `.bit` and `.lt
 Example Tcl for Z7-Lite:
 
 ```tcl
-set bit_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/z7-lite-z7-debug.bit"
-set ltx_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/z7-lite-z7-debug.ltx"
+set bit_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/Z7_LITE/z7-lite-z7-debug.bit"
+set ltx_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/Z7_LITE/z7-lite-z7-debug.ltx"
 
 open_hw_manager
 connect_hw_server
@@ -183,8 +183,8 @@ refresh_hw_device $dev
 For Zybo, use:
 
 ```tcl
-set bit_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/zybo-zynq-zybo-debug.bit"
-set ltx_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/zybo-zynq-zybo-debug.ltx"
+set bit_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/ZYBO_ZYNQ/zybo-zynq-zybo-debug.bit"
+set ltx_file "C:/Users/user/VivadoProjects/2018-3/pwm_demo/bit/ZYBO_ZYNQ/zybo-zynq-zybo-debug.ltx"
 ```
 
 ## Troubleshooting

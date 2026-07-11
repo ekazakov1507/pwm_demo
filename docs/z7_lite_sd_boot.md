@@ -5,7 +5,7 @@ The bitstream programmed from Vivado Hardware Manager over JTAG is volatile. Aft
 For persistent startup on the Microphase Z7-Lite, boot the Zynq device from microSD. The SD card contains a `BOOT.bin` image with two partitions:
 
 - `z7_lite_fsbl.elf`: Zynq FSBL for PS startup and PL configuration.
-- `z7-lite-sd-boot.bit`: the existing PWM PL bitstream.
+- `z7-lite-sd-boot.bit`: the generated PWM PL bitstream.
 
 This flow does not add Linux and does not add a PS-side application. The ARM core only runs the FSBL far enough to configure the PL from the boot image.
 
@@ -14,7 +14,7 @@ This flow does not add Linux and does not add a PS-side application. The ARM cor
 Run from the repository root:
 
 ```powershell
-.\tools\build_z7_lite_sd_boot.ps1
+python .\tools\build_z7_lite_sd_boot.py
 ```
 
 The generated files are written under:
@@ -29,7 +29,7 @@ The SD-card image is:
 build\z7_lite_sd_boot\BOOT.bin
 ```
 
-The wrapper uses Vivado and SDK 2018.3 from the default Xilinx install paths:
+The Python script uses Vivado and SDK 2018.3 from the default Xilinx install paths:
 
 - `C:\Xilinx\Vivado\2018.3\bin\vivado.bat`
 - `C:\Xilinx\SDK\2018.3\bin\xsct.bat`

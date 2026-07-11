@@ -52,13 +52,14 @@ The board scripts call `tcl\common.tcl`, read all VHDL sources as VHDL-2008, rea
 synth_design -> opt_design -> place_design -> phys_opt_design -> route_design -> write_bitstream
 ```
 
-Outputs are written under `bit\`:
+Outputs are written under a board-specific folder in `bit\`, for example
+`bit\Z7_LITE\` or `bit\ZYBO_ZYNQ\`:
 
-- `<board>_<config>_synth.dcp`
-- `<board>_<config>_impl.dcp`
-- `<board>_<config>_timing_summary.rpt`
-- `<board>_<config>_utilization.rpt`
-- `<board>_<config>.bit`
+- `<board-folder>\<board>-<config>_synth.dcp`
+- `<board-folder>\<board>-<config>_impl.dcp`
+- `<board-folder>\<board>-<config>_timing_summary.rpt`
+- `<board-folder>\<board>-<config>_utilization.rpt`
+- `<board-folder>\<board>-<config>.bit`
 
 The normal `z7-lite` config name is inferred from constants in `src\main.vhd`. You can also pass a custom config name and top generic override:
 
@@ -133,10 +134,10 @@ JTAG programming is volatile. For persistent Microphase Z7-Lite boot from microS
 
 ```powershell
 cd C:\Users\user\VivadoProjects\2018-3\pwm_demo
-.\tools\build_z7_lite_sd_boot.ps1
+python .\tools\build_z7_lite_sd_boot.py
 ```
 
-The wrapper runs:
+The Python script runs:
 
 ```text
 Vivado bitstream build -> Vivado PS HDF export -> XSCT FSBL build -> bootgen BOOT.bin
@@ -151,8 +152,8 @@ build\z7_lite_sd_boot\BOOT.bin
 Useful options:
 
 ```powershell
-.\tools\build_z7_lite_sd_boot.ps1 -SkipBitstream -BitstreamPath .\build\z7_lite_sd_boot\z7-lite-sd-boot.bit
-.\tools\build_z7_lite_sd_boot.ps1 -BuildDir C:\tmp\z7_lite_sd_boot
+python .\tools\build_z7_lite_sd_boot.py --skip-bitstream --bitstream-path .\build\z7_lite_sd_boot\z7-lite-sd-boot.bit
+python .\tools\build_z7_lite_sd_boot.py --build-dir C:\tmp\z7_lite_sd_boot
 ```
 
 Copy `BOOT.bin` to the root of a FAT32 microSD card, set the Z7-Lite `J1` boot jumper to SD boot, and power-cycle the board.
@@ -200,7 +201,7 @@ Use `tools\sim_pwm_demo.py` or pass a finite XSim runtime. Several testbenches i
 
 Z7-Lite `BOOT.bin` build fails during FSBL:
 
-Confirm Xilinx SDK 2018.3 is installed and use `tools\build_z7_lite_sd_boot.ps1`; it sets a local SDK home and calls XSCT with repo-relative paths for the Windows 2018.3 flow.
+Confirm Xilinx SDK 2018.3 is installed and use `tools\build_z7_lite_sd_boot.py`; it sets a local SDK home and calls XSCT with repo-relative paths for the Windows 2018.3 flow.
 
 Bitstream works over JTAG but disappears after power cycle:
 

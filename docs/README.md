@@ -156,7 +156,7 @@ docs/
 ### Configurability
 - ✅ Generic-based parameters
 - ✅ Signed/unsigned data types
-- ✅ Symmetrical/asymmetrical PWM modes
+- ✅ Symmetrical/asymmetrical PWM support in the PWM core; board top-level defaults to symmetrical
 - ✅ Configurable build-time resolution and dead-time
 - ✅ Configurable reset release and divider switch delay
 
@@ -169,13 +169,13 @@ docs/
 | Board | FPGA | Status |
 |-------|------|--------|
 | Digilent Zybo Z7 | Z7010/Z7020 | ✅ Supported |
-| Microphase Z7-Lite | Z7010 | ✅ Supported |
-| MYiR Z-turn Board V2 | Z7020 | ✅ Supported |
+| Microphase Z7-Lite | Z7010/Z7020 | ✅ Supported; checked-in SD boot flow targets Z7020 |
+| MYiR Z-turn Board V2 | Z7020 | Historical target; no checked-in constraint/build script |
 | Antminer S9 | Z7010 | ✅ Supported |
 
 ### Runtime Control Pins
 
-| Board | Reset input | Resolution/frequency step input | Resolution LED |
+| Board | Reset input | Frequency step input | Mode LED |
 |-------|-------------|---------------------------------|----------------|
 | Digilent Zybo Z7 | `BTN0` / `sys_rst` | `BTN1` / `sys_pwm_mode` | `LED0` / `sys_led` |
 | Microphase Z7-Lite | `sys_rst` button, pin `P16` | `sys_pwm_mode` button, pin `T12` | `sys_led`, pin `P15` |
@@ -296,7 +296,7 @@ Verify understanding by running testbenches in `tb/`.
 ### Planned Enhancements
 
 - [ ] Asymmetrical PWM mode validation
-- [ ] Dynamic frequency control
+- [ ] Extend runtime frequency control beyond the fixed `/2`, `/4`, `/8`, `/16` divider set
 - [ ] Enhanced dead-time options
 - [ ] Additional waveform generators
 - [ ] Testbench documentation
@@ -312,6 +312,7 @@ Verify understanding by running testbenches in `tb/`.
 
 | Date | Version | Changes |
 |------|---------|---------|
+| 2026-07-11 | 1.2 | Corrected current build commands, target-board status, and runtime frequency wording |
 | 2026-06-16 | 1.1 | Updated clocking, reset/mode control, sine ramp, source layout, and simulation command docs |
 | 2026-04-09 | 1.0 | Initial documentation release |
 

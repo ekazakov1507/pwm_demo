@@ -80,7 +80,10 @@ pwm_demo/
 │   ├── pwm_platform.m         # Main simulation script
 │   ├── pwm_c.m                # Symmetrical PWM model
 │   ├── table_cos.m            # Cosine table generation
-│   └── cos_table.txt          # Pre-computed cosine values
+│   ├── cos_table_gen.m        # Cosine table helper
+│   ├── cos-table.txt          # Pre-computed cosine values
+│   ├── cos-table_signed.txt   # Signed cosine table
+│   └── cos-table_unsigned.txt # Unsigned cosine table
 ├── tools/                      # Python build/simulation/archive utilities
 ├── sim/                        # Simulation files
 └── ip/                         # Generated IP cores
@@ -88,11 +91,11 @@ pwm_demo/
 
 ## Supported Hardware
 
-This project has been developed and tested on the following Xilinx Zynq-7000 development boards:
+The checked-in constraints and board build scripts currently cover these
+Xilinx Zynq-7000 targets:
 
 - **[Digilent Zybo Z7](https://digilent.com/reference/programmable-logic/zybo-z7/start)** - Zynq-7010/7020
 - **[Microphase Z7-Lite](https://github.com/hw/Microphase-Z7-Lite)** - Zynq-7010/Zynq-7020 variants; SD boot wrapper targets XC7Z020
-- **[MYiR Z-turn Board V2](https://www.myirtech.com/list.asp?id=708)** - Zynq-7020
 - **Antminer S9** - Custom ASIC miner board (repurposed)
 
 ### Board Controls
@@ -154,7 +157,7 @@ program_hw_devices
 JTAG programming is volatile on Zynq boards: after a power cycle the PL bitstream is gone. For persistent Microphase Z7-Lite startup from microSD, generate a Zynq boot image instead:
 
 ```powershell
-.\tools\build_z7_lite_sd_boot.ps1
+python .\tools\build_z7_lite_sd_boot.py
 ```
 
 Copy `build\z7_lite_sd_boot\BOOT.bin` to the root of a FAT32 microSD card, set the Z7-Lite `J1` boot-mode jumper to SD boot, and power-cycle the board. See [docs/z7_lite_sd_boot.md](docs/z7_lite_sd_boot.md) for the full flow.
@@ -168,7 +171,7 @@ Use `tools\manage_firmware_builds.py` to keep experiment firmware outputs groupe
 python tools/manage_firmware_builds.py check
 
 # Archive a bitstream with experiment metadata.
-python tools/manage_firmware_builds.py archive --bitstream-path bit/Z7_LITE/main.bit --experiment exp01 --board Z7_LITE --build-param pwm_frequency_hz=1000000 --build-param modulation_frequency_hz=100000
+python tools/manage_firmware_builds.py archive --bitstream-path bit/Z7_LITE/z7-lite-nc4-srcdw16-rw8-pd2-16-dt4-buf16384-wl2048-signed-symmetrical-rs1-ru1.bit --experiment exp01 --board Z7_LITE --build-param pwm_frequency_hz=1000000 --build-param modulation_frequency_hz=100000
 
 # List archived builds.
 python tools/manage_firmware_builds.py list
@@ -300,8 +303,8 @@ launch_simulation -scripts_only
 
 - [ ] Address timing closure warnings for Z7020
 - [ ] Complete timing constraint validation
-- [ ] Add support for asymmetrical PWM mode
-- [ ] Implement dynamic frequency control
+- [ ] Validate asymmetrical PWM mode in the board top-level flow
+- [ ] Extend runtime frequency control beyond the fixed `/2`, `/4`, `/8`, `/16` divider set
 - [ ] Add documentation for Python utilities
 
 ## License
@@ -317,4 +320,4 @@ For issues, questions, or contributions, please open an issue in the repository.
 **Development Environment:** Xilinx Vivado 2018.3  
 **Target Devices:** Xilinx Zynq-7000 (XC7Z010/XC7Z020)  
 **Language:** VHDL-2008  
-**Last Updated:** 2026-06-16
+**Last Updated:** 2026-07-11
