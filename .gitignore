@@ -13,11 +13,14 @@ build/
 *.pb
 *.wdb
 
-# Root-level Vivado artifacts from ad hoc batch runs. Board bitstreams that
-# are intentionally versioned live under bit/.
+# Vivado artifacts from ad hoc batch runs and board builds.
 /*.bit
 /*.dcp
 /*.rpt
+/bit/**/*.bit
+/bit/**/*.dcp
+/bit/**/*.rpt
+/bit/**/*.ltx
 /usage_statistics_webtalk.html
 /usage_statistics_webtalk.xml
 
@@ -33,6 +36,10 @@ pwm_demo.xpr
 
 # python
 __pycache__/
+
+# Local transfer/review artifacts
+*.bundle
+/docs/code_review_summary.md
 
 # qwen
 .qwen/
