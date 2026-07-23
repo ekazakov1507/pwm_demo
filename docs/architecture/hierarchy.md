@@ -100,7 +100,7 @@ graph TB
 | `async_fifo.vhd` read | raw `clk_pwm` | 200 MHz | Buffered read side |
 | `pwm_clk_post_scaler.vhd` | raw `clk_pwm` | 200 MHz | Emits `/2`, `/4`, `/8`, `/16` tick enables |
 | `pwm_mch_buf.vhd` | raw `clk_pwm` | 200 MHz | Frame counter advances on `pwm_tick_ce` |
-| `pwm_1ch.vhd` in `pwm_mch_buf` | raw `clk_pwm` | 200 MHz | Counter, drive, and dead-time advance on `tick_ce` |
+| `pwm_1ch.vhd` in `pwm_mch_buf` | raw `clk_pwm` | 200 MHz | Counter and drive advance on `tick_ce`; dead-time counts raw `clk_pwm` cycles |
 | `pwm_mch.vhd` | Caller clock | - | Reusable direct PWM core; not used by current board top |
 
 ## Interface Notes

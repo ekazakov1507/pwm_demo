@@ -92,6 +92,6 @@ Reset selects `/2`. Each valid press of `sys_pwm_mode` cycles `/2 -> /4 -> /8 ->
 
 - `sine_gen_simple` produces a 16-bit signed sample.
 - The selected PWM sample stores the signed MSBs: with the default `pwm_resolution_bits = 8`, bits `15 downto 8` are used.
-- The buffered branch remains in the raw `clk_pwm` domain. The post-scaler emits `pwm_tick_ce`; FIFO frame counting, reference counter stepping, PWM state changes, and dead-time counting advance on that tick.
+- The buffered branch remains in the raw `clk_pwm` domain. The post-scaler emits `pwm_tick_ce`; FIFO frame counting, reference counter stepping, and PWM state changes advance on that tick, while dead-time counts raw `clk_pwm` cycles.
 - The direct `pwm_mch` core is unchanged at top level; runtime frequency stepping applies only to `pwm_mch_buf`.
 - The `debug` generic defaults to `NO_DEBUG`; `DEBUG` instantiates VIO/ILA for reset and divider-step debug.
