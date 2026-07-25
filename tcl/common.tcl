@@ -33,6 +33,37 @@ proc read_pwm_demo_core_sources {repo_root} {
   read_vhdl -vhdl2008 $::pwm_core_vhdl_files
 }
 
+proc ensure_pwm_demo_vivado_realtime_tmp {repo_root} {
+  catch {
+    file mkdir [file join $repo_root .Xil "Vivado-[pid]-[info hostname]" realtime tmp]
+  }
+}
+
+proc is_pwm_demo_vivado_cleanup_error {message} {
+  return [expr {([string first "realtime/tmp" $message] >= 0) &&
+                ([string first "no such file or directory" $message] >= 0)}]
+}
+
+proc get_pwm_demo_current_design {} {
+  set current ""
+  catch {set current [current_design -quiet]}
+  return $current
+}
+
+proc run_pwm_demo_synth_design {args} {
+  set command [linsert $args 0 synth_design]
+  set status [catch {eval $command} result]
+
+  if {$status != 0} {
+    set current [get_pwm_demo_current_design]
+    if {[is_pwm_demo_vivado_cleanup_error $result] && ($current ne "")} {
+      puts "Warning: synth_design reported a Vivado cleanup error after opening design '$current': $result"
+    } else {
+      error $result
+    }
+  }
+}
+
 proc sanitize_pwm_demo_token {value} {
   set token [string tolower $value]
   regsub -all {_} $token "-" token
@@ -251,16 +282,17 @@ proc run_pwm_demo_build {part xdc_file board_name {config_name ""} {generic_over
   read_pwm_demo_core_sources $pwm_demo_repo_root
   read_vhdl -vhdl2008 [list [file join $pwm_demo_repo_root src main.vhd]]
   read_xdc [list $xdc_file]
+  ensure_pwm_demo_vivado_realtime_tmp $pwm_demo_repo_root
 
   if {$debug_enabled} {
     ensure_pwm_demo_debug_ip $pwm_demo_repo_root $part
   }
 
   if {$generic_overrides eq ""} {
-    synth_design -top main -part $part -flatten_hierarchy rebuilt
+    run_pwm_demo_synth_design -top main -part $part -flatten_hierarchy rebuilt
   } else {
     puts "Generic overrides: $generic_overrides"
-    synth_design -top main -part $part -flatten_hierarchy rebuilt -generic $generic_overrides
+    run_pwm_demo_synth_design -top main -part $part -flatten_hierarchy rebuilt -generic $generic_overrides
   }
 
   write_checkpoint -force [file join $output_dir ${artifact_stem}_synth.dcp]
