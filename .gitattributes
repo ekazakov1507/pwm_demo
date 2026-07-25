@@ -1,0 +1,24 @@
+* text=auto eol=lf
+
+*.vhd text eol=lf
+*.tcl text eol=lf
+*.xdc text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.m text eol=lf
+*.txt text eol=lf
+*.wcfg text eol=lf
+*.ltx text eol=lf
+*.rpt text eol=lf
+
+*.bit binary -eol
+*.dcp binary -eol
+*.hdf binary -eol
+*.xsa binary -eol
+*.zip binary -eol
+*.tar binary -eol
+*.gz binary -eol
+*.png binary -eol
+*.jpg binary -eol
+*.jpeg binary -eol
+*.pdf binary -eol

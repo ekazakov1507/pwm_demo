@@ -346,7 +346,7 @@ architecture src of pwm_mch_buf is
 
   signal duty_cycle : std_logic_vector(r - 1 downto 0) := neutral_sample;
 
-  signal rst_sync : std_logic_vector(2 downto 0) := "000";
+  signal rst_sync : std_logic_vector(2 downto 0) := "111";
   signal rst_pwm  : std_logic                    := '1';
 
   signal enable_sync : std_logic_vector(2 downto 0) := "000";

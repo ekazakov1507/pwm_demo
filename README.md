@@ -250,7 +250,7 @@ The system implements **symmetrical (center-aligned) PWM** where:
 ### Dead-Time Insertion
 - Complementary PWM outputs (PWM and PWM_N) include programmable dead-time
 - Prevents shoot-through current in bridge configurations
-- Configurable via `num_dead_time_cycles` generic
+- Configurable in RTL via the `num_dead_time_cycles` constant
 
 ## Algorithm Versions
 

@@ -8,6 +8,9 @@ figures/
 .XIL/
 xsim.dir/
 build/
+build_tmp/
+build_archive/
+tmp/
 *.log
 *.jou
 *.pb
